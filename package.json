@@ -15,12 +15,17 @@
     "randomize-blog-images": "node scripts/randomize-blog-drive-images.mjs"
   },
   "dependencies": {
+    "@upstash/redis": "^1.38.0",
+    "bcryptjs": "^3.0.3",
+    "iron-session": "^8.0.4",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "server-only": "^0.0.1"
+    "resend": "^6.12.4",
+    "server-only": "^0.0.1",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",

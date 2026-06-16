@@ -19,6 +19,7 @@ export const ROUTES = {
   blog: "/blog",
   contact: "/contact",
   privacy: "/privacy-policy",
+  groomerLogin: "/groomer/login",
 } as const;
 
 export const NAV_ABOUT = [
@@ -44,6 +45,7 @@ export const NAV_COMPANY = [
   { label: "Blog", href: ROUTES.blog },
   { label: "Contact", href: ROUTES.contact },
   { label: "Book Online", href: ROUTES.book },
+  { label: "Staff Login", href: ROUTES.groomerLogin },
 ];
 
 export const ALL_SERVICES = [

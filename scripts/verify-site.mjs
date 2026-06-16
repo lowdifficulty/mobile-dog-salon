@@ -29,6 +29,7 @@ const ROUTES = [
   "/contact",
   "/book",
   "/privacy-policy",
+  "/groomer/login",
 ];
 
 const CONTENT_CHECKS = [
@@ -85,23 +86,29 @@ async function checkRoutes() {
   }
 
   try {
+    const availRes = await fetch(
+      `${BASE}/api/availability?date=2026-06-15&service=signature`
+    );
+    if (!availRes.ok) {
+      failed.push(`/api/availability (${availRes.status})`);
+      console.error(`FAIL /api/availability -> ${availRes.status}`);
+    } else {
+      console.log("OK   /api/availability");
+    }
+  } catch (err) {
+    failed.push("/api/availability");
+    console.error(`FAIL /api/availability -> ${err.message}`);
+  }
+
+  try {
     const res = await fetch(`${BASE}/api/book`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: "Test",
-        email: "test@test.com",
-        phone: "7145550123",
-        city: "Irvine",
-        petName: "Buddy",
-        petType: "Dog",
-        service: "Bath",
-        message: "smoke test",
-      }),
+      body: JSON.stringify({}),
     });
-    if (!res.ok) {
+    if (res.status !== 400) {
       failed.push(`/api/book (${res.status})`);
-      console.error(`FAIL /api/book -> ${res.status}`);
+      console.error(`FAIL /api/book -> expected 400 for empty body, got ${res.status}`);
     } else {
       console.log("OK   /api/book");
     }

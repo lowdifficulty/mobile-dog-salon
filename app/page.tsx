@@ -10,8 +10,9 @@ import Services from "@/components/Services";
 import Benefits from "@/components/Benefits";
 import Experience from "@/components/Experience";
 import FAQ from "@/components/FAQ";
-import Locations from "@/components/Locations";
 import About from "@/components/About";
+import Careers from "@/components/Careers";
+import Locations from "@/components/Locations";
 import CTA from "@/components/CTA";
 import BookingModal from "@/components/BookingModal";
 
@@ -32,8 +33,9 @@ export default function Home() {
         <Benefits />
         <Experience />
         <FAQ />
+        <About />
+        <Careers />
         <Locations />
-        <About onBookClick={openBooking} />
         <CTA onBookClick={openBooking} />
       </main>
       <Footer onBookClick={openBooking} />

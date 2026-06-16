@@ -1,78 +1,100 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { PHONE_HREF, PHONE_NUMBER, SMS_HREF } from "@/lib/constants";
 
 interface HeaderProps {
   onBookClick?: () => void;
 }
 
 export default function Header({ onBookClick }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-20">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-blue rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M4.5 9.5C4.5 6.462 7.462 3.5 10.5 3.5S16.5 6.462 16.5 9.5c0 2.2-1.4 4.1-3.4 4.8-.3.1-.6.2-.9.2s-.6-.1-.9-.2C5.9 13.6 4.5 11.7 4.5 9.5z" />
-                <path d="M10.5 14.5c-3.5 0-6.5 2.5-7.5 6h15c-1-3.5-4-6-7.5-6z" />
-              </svg>
-            </div>
-            <div>
-              <span className="font-display font-bold text-lg text-gray-900 leading-tight">
-                Mobile Dog Salon
-              </span>
-              <span className="block text-xs text-blue font-medium">
-                Orange County
-              </span>
-            </div>
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      <div className="barkbus-container">
+        <div className="flex items-center justify-between h-16 md:h-[72px]">
+          <Link href="/" className="flex items-center shrink-0">
+            <span className="font-display font-bold text-lg md:text-xl text-gray-900">
+              Mobile Dog Salon
+            </span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-8">
-            <Link
-              href="#services"
-              className="text-sm font-medium text-gray-600 hover:text-blue transition-colors"
-            >
-              Services
-            </Link>
-            <Link
-              href="#locations"
-              className="text-sm font-medium text-gray-600 hover:text-blue transition-colors"
-            >
+            <Link href="#locations" className="text-sm font-medium text-gray-700 hover:text-blue">
               Locations
             </Link>
-            <Link
-              href="#faq"
-              className="text-sm font-medium text-gray-600 hover:text-blue transition-colors"
-            >
-              FAQ
+            <Link href="#careers" className="text-sm font-medium text-gray-700 hover:text-blue">
+              Careers
             </Link>
-            <Link
-              href="#about"
-              className="text-sm font-medium text-gray-600 hover:text-blue transition-colors"
-            >
-              About
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 text-sm text-gray-700">
+              <a href={PHONE_HREF} className="font-medium hover:text-blue">Call</a>
+              <span className="text-gray-400">or</span>
+              <a href={SMS_HREF} className="font-medium hover:text-blue">text</a>
+              <a href={PHONE_HREF} className="font-semibold text-gray-900 hover:text-blue ml-1">
+                {PHONE_NUMBER}
+              </a>
+            </div>
             <button
               onClick={onBookClick}
-              className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 bg-blue text-white text-sm font-semibold rounded-full hover:bg-blue-600 transition-colors shadow-md hover:shadow-lg"
+              className="text-sm font-medium text-gray-700 hover:text-blue"
             >
+              Login
+            </button>
+            <button onClick={onBookClick} className="barkbus-btn text-sm !py-2.5 !px-5">
               Book Now
             </button>
-            <button
-              onClick={onBookClick}
-              className="sm:hidden px-4 py-2 bg-blue text-white text-sm font-semibold rounded-full"
-            >
+          </nav>
+
+          <div className="flex items-center gap-3 lg:hidden">
+            <button onClick={onBookClick} className="barkbus-btn text-sm !py-2 !px-4">
               Book
+            </button>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-2 text-gray-700"
+              aria-label="Menu"
+            >
+              {menuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {menuOpen && (
+        <div className="lg:hidden border-t border-gray-100 bg-white">
+          <nav className="barkbus-container py-4 flex flex-col gap-3">
+            <Link href="/" className="text-sm font-medium text-gray-800" onClick={() => setMenuOpen(false)}>
+              Home
+            </Link>
+            <button onClick={() => { onBookClick?.(); setMenuOpen(false); }} className="text-sm font-medium text-gray-800 text-left">
+              Book Now
+            </button>
+            <Link href="#locations" className="text-sm font-medium text-gray-800" onClick={() => setMenuOpen(false)}>
+              Locations
+            </Link>
+            <Link href="#careers" className="text-sm font-medium text-gray-800" onClick={() => setMenuOpen(false)}>
+              Careers
+            </Link>
+            <Link href="#about" className="text-sm font-medium text-gray-800" onClick={() => setMenuOpen(false)}>
+              About
+            </Link>
+            <Link href="#faq" className="text-sm font-medium text-gray-800" onClick={() => setMenuOpen(false)}>
+              FAQ
+            </Link>
+            <a href={PHONE_HREF} className="text-sm font-medium text-gray-800">{PHONE_NUMBER}</a>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

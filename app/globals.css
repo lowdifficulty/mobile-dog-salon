@@ -7,7 +7,8 @@
 :root {
   --brand: #0A2E44;
   --brand-dark: #082234;
-  --brand-light: #6A9BB5;
+  --brand-light: #E8F4FB;
+  --barkbus-sky: #6BBDE8;
   --white: #FFFFFF;
 }
 
@@ -19,9 +20,40 @@ body {
   @apply bg-white text-gray-900 antialiased;
 }
 
+@layer components {
+  .barkbus-container {
+    @apply max-w-6xl mx-auto px-5 md:px-8;
+  }
+
+  .barkbus-section {
+    @apply py-14 md:py-20;
+  }
+
+  .barkbus-heading {
+    @apply font-display text-[2rem] md:text-[2.75rem] lg:text-[3.25rem] font-bold text-gray-900 leading-tight;
+  }
+
+  .barkbus-btn {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-blue text-white text-base font-semibold rounded-full hover:bg-blue-600 transition-colors;
+  }
+
+  .barkbus-btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 bg-white text-gray-800 text-sm font-medium rounded-full hover:border-blue hover:text-blue transition-colors;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

@@ -2,6 +2,7 @@ export const BOOKING_URL = "https://tpmr.com/i/99105";
 
 export const PHONE_NUMBER = "(714) 555-0123";
 export const PHONE_HREF = "tel:+17145550123";
+export const SMS_HREF = "sms:+17145550123";
 
 export const ORANGE_COUNTY_CITIES = [
   "Anaheim",
@@ -29,55 +30,36 @@ export const ORANGE_COUNTY_CITIES = [
 ];
 
 export const SERVICES = [
-  {
-    icon: "bath",
-    title: "Warm Water Bath",
-    description: "Filtered hydro-jet warm water bath for a thorough, soothing cleanse.",
-  },
-  {
-    icon: "products",
-    title: "All-Natural Products",
-    description: "Premium all-natural shampoos, conditioners, and face wash.",
-  },
-  {
-    icon: "brush",
-    title: "Gentle Brushing & Blowdry",
-    description: "Hand blow dry and gentle brush out for a silky, smooth coat.",
-  },
-  {
-    icon: "teeth",
-    title: "Teeth & Ear Cleaning",
-    description: "Teeth brushing and ear cleaning included with every visit.",
-  },
-  {
-    icon: "haircut",
-    title: "Breed-Specific Haircut",
-    description: "Expert breed-specific styling by our compassionate pet stylists.",
-  },
-  {
-    icon: "nails",
-    title: "Nail Trimming & Filing",
-    description: "Gentle nail trimming and filing for healthy, comfortable paws.",
-  },
+  { icon: "bath", title: "Warm Water Bath" },
+  { icon: "products", title: "All-Natural Products" },
+  { icon: "brush", title: "Gentle Brushing & Blowdry" },
+  { icon: "teeth", title: "Teeth Cleaning & Ear Cleaning" },
+  { icon: "haircut", title: "Breed-Specific Haircut" },
+  { icon: "nails", title: "Nail Trimming & Filing" },
 ];
 
 export const REVIEWS = [
   {
-    name: "Sarah M.",
-    text: "Rosie's coat feels silky smooth and soft — thanks again! The groomer was so gentle and professional.",
+    name: "Emily C.",
+    headline: "Rosie's coat feels silky smooth and soft - thanks again!",
+    text: "Rosie's coat feels silky smooth and soft - thanks again!",
     rating: 5,
   },
   {
-    name: "James T.",
-    text: "Toby looks absolutely perfect — thank you! No more stressful salon trips for us.",
+    name: "Mark D.",
+    headline: "Toby looks absolutely perfect - thank you!",
+    text: "Toby looks absolutely perfect - thank you!",
     rating: 5,
   },
   {
-    name: "Michelle K.",
-    text: "Handled with care and looks cuter than ever! Mobile grooming is a game changer.",
+    name: "Anthony G.",
+    headline: "Handled with care and looks cuter than ever!",
+    text: "Handled with care and looks cuter than ever!",
     rating: 5,
   },
 ];
+
+export const PRESS_LOGOS = ["Google", "Yelp", "Forbes", "People", "Sunset", "CBS"];
 
 export const FAQS = [
   {
@@ -104,6 +86,16 @@ export const FAQS = [
     question: "Does Mobile Dog Salon service my area?",
     answer:
       "We proudly serve all of Orange County — from Huntington Beach to Yorba Linda, Irvine, Laguna Beach, Dana Point, San Clemente, Newport Beach, and everywhere in between. Don't see your neighborhood listed? Drop us a line — we're always expanding our service routes!",
+  },
+];
+
+export const LOCATION_REGIONS = [
+  {
+    name: "California",
+    image:
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop",
+    areas: ["Orange County"],
+    cities: ORANGE_COUNTY_CITIES.slice(0, 10),
   },
 ];
 

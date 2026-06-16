@@ -1,4 +1,5 @@
-import BookingForm from "@/components/BookingForm";
+import BookPageForm from "@/components/book/BookPageForm";
+import GHLWidget from "@/components/GHLWidget";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 
@@ -28,9 +29,10 @@ export default function BookPage() {
           Schedule mobile grooming at your curb in Orange County.
         </p>
         <div className="bg-white rounded-[30px] shadow-xl overflow-hidden border border-accent/10">
-          <BookingForm />
+          <BookPageForm />
         </div>
       </div>
+      <GHLWidget />
     </div>
   );
 }

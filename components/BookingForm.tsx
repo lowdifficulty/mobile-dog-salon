@@ -17,6 +17,7 @@ interface BookingFormData {
   lastName: string;
   email: string;
   phone: string;
+  smsOptIn: boolean;
   address: string;
   city: string;
   preferredDate: string;
@@ -35,6 +36,7 @@ const initialData: BookingFormData = {
   lastName: "",
   email: "",
   phone: "",
+  smsOptIn: false,
   address: "",
   city: "",
   preferredDate: "",
@@ -53,9 +55,12 @@ const STEPS = [
 
 interface BookingFormProps {
   onClose?: () => void;
+  /** `book-page` = /book with phone + SMS opt-in on step 1. Default `modal` for popups. */
+  variant?: "modal" | "book-page";
 }
 
-export default function BookingForm({ onClose }: BookingFormProps) {
+export default function BookingForm({ onClose, variant = "modal" }: BookingFormProps) {
+  const isBookPage = variant === "book-page";
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialData);
   const [submitted, setSubmitted] = useState(false);
@@ -65,7 +70,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
 
-  const update = (field: keyof BookingFormData, value: string) => {
+  const update = (field: keyof BookingFormData, value: string | boolean) => {
     setData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -109,13 +114,24 @@ export default function BookingForm({ onClose }: BookingFormProps) {
   const canProceed = () => {
     switch (step) {
       case 1:
+        if (isBookPage) {
+          return (
+            data.petName &&
+            data.petBreed &&
+            data.petSize &&
+            data.phone.trim() &&
+            (!data.smsOptIn || data.phone.trim())
+          );
+        }
         return data.petName && data.petBreed && data.petSize;
       case 2:
         return data.service;
       case 3:
         return data.address && data.city && data.slotKey;
       case 4:
-        return data.firstName && data.lastName && data.email && data.phone;
+        return isBookPage
+          ? data.firstName && data.lastName && data.email
+          : data.firstName && data.lastName && data.email && data.phone;
       default:
         return false;
     }
@@ -127,10 +143,12 @@ export default function BookingForm({ onClose }: BookingFormProps) {
     setSubmitError("");
 
     try {
+      const payload = isBookPage ? data : { ...data, smsOptIn: false };
+
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -175,7 +193,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col ${isBookPage ? "" : "h-full"}`}>
       <div className="px-6 pt-6 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-4">
           {STEPS.map((s, i) => (
@@ -207,7 +225,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
         <p className="text-sm text-gray-500">{STEPS[step - 1].subtitle}</p>
       </div>
 
-      <div className="flex-1 px-6 py-6 overflow-y-auto">
+      <div className={`px-6 py-6 ${isBookPage ? "" : "flex-1 overflow-y-auto"}`}>
         {step === 1 && (
           <div className="space-y-4">
             <div>
@@ -249,6 +267,40 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 ))}
               </div>
             </div>
+            {isBookPage && (
+              <>
+                <div>
+                  <label htmlFor="book-phone" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Phone Number *
+                  </label>
+                  <input
+                    id="book-phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={data.phone}
+                    onChange={(e) => update("phone", e.target.value)}
+                    placeholder="(714) 555-0123"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
+                  />
+                </div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    id="book-sms-opt-in"
+                    name="sms_opt_in"
+                    type="checkbox"
+                    checked={data.smsOptIn}
+                    onChange={(e) => update("smsOptIn", e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand-bright/30"
+                  />
+                  <span className="text-sm text-gray-600 leading-relaxed">
+                    I agree to receive SMS messages from Mobile Dog Salon at the phone number
+                    provided above. Message frequency varies. Message and data rates may apply.
+                    Reply STOP to opt out or HELP for help.
+                  </span>
+                </label>
+              </>
+            )}
           </div>
         )}
 
@@ -403,16 +455,18 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone *</label>
-              <input
-                type="tel"
-                value={data.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                placeholder="(714) 555-0123"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
-              />
-            </div>
+            {!isBookPage && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone *</label>
+                <input
+                  type="tel"
+                  value={data.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="(714) 555-0123"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
+                />
+              </div>
+            )}
 
             <div className="bg-brand-light rounded-xl p-4 mt-4 border border-accent/20">
               <h4 className="font-semibold text-gray-900 mb-2 text-sm">Booking Summary</h4>
@@ -422,6 +476,9 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 <p><span className="text-gray-400">When:</span> {data.preferredDate} at {data.preferredTime}</p>
                 <p><span className="text-gray-400">Groomer:</span> {data.groomerName}</p>
                 <p><span className="text-gray-400">Where:</span> {data.address}, {data.city}</p>
+                {data.phone && (
+                  <p><span className="text-gray-400">Phone:</span> {data.phone}</p>
+                )}
               </div>
             </div>
             {submitError && <p className="text-sm text-red-600">{submitError}</p>}

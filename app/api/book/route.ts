@@ -27,13 +27,22 @@ export async function POST(request: Request) {
     lastName,
     email,
     phone,
+    smsOptIn,
     address,
     city,
     notes,
   } = body;
 
-  if (!slotKey || !petName || !service || !firstName || !lastName || !email || !phone || !address || !city) {
+  if (!slotKey || !petName || !service || !firstName || !lastName || !email || !address || !city) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const phoneTrimmed = phone?.trim() ?? "";
+  if (smsOptIn && !phoneTrimmed) {
+    return NextResponse.json({ error: "Phone number required for SMS opt-in" }, { status: 400 });
+  }
+  if (!phoneTrimmed) {
+    return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
   }
 
   let groomerId, date, time;
@@ -69,7 +78,8 @@ export async function POST(request: Request) {
     firstName,
     lastName,
     email,
-    phone,
+    phone: phone?.trim() ?? "",
+    smsOptIn: Boolean(smsOptIn),
     address,
     city,
     notes: notes ?? "",

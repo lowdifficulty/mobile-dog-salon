@@ -22,6 +22,7 @@ export interface Appointment {
   lastName: string;
   email: string;
   phone: string;
+  smsOptIn: boolean;
   address: string;
   city: string;
   notes: string;

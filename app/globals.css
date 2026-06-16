@@ -276,3 +276,13 @@ body {
   background: #f2179e;
   border-radius: 4px;
 }
+
+/* /book — GHL A2P script runs; hide chat launcher UI */
+body:has(.book-page-a2p-root) #lc-widget-launcher,
+body:has(.book-page-a2p-root) #chat-widget-container,
+body:has(.book-page-a2p-root) #lc-widget-launcher-frame,
+body:has(.book-page-a2p-root) iframe[src*="leadconnectorhq.com/chat"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}

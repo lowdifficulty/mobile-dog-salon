@@ -1,5 +1,5 @@
 import BookPageForm from "@/components/book/BookPageForm";
-import GHLWidget from "@/components/GHLWidget";
+import BookPageA2PScript from "@/components/book/BookPageA2PScript";
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 
@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function BookPage() {
   return (
-    <div className="min-h-screen bg-section-pink">
+    <div className="min-h-screen bg-section-pink book-page-a2p-root">
       <header className="bg-white shadow-[0_2px_2px_#F4F4F4]">
         <div className="site-container py-4 flex items-center justify-between">
           <Link href={ROUTES.home} className="flex items-center gap-3">
@@ -32,7 +32,7 @@ export default function BookPage() {
           <BookPageForm />
         </div>
       </div>
-      <GHLWidget />
+      <BookPageA2PScript />
     </div>
   );
 }

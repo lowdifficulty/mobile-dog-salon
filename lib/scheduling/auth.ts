@@ -113,3 +113,14 @@ export async function requireAdmin(): Promise<SessionUser> {
   }
   return session.user;
 }
+
+export async function requireStaff(): Promise<SessionUser> {
+  const session = await getSession();
+  if (
+    !session.user ||
+    (session.user.role !== "groomer" && session.user.role !== "admin")
+  ) {
+    throw new Error("Unauthorized");
+  }
+  return session.user;
+}

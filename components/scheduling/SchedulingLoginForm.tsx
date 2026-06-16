@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import SchedulingShell from "./SchedulingShell";
 
 export default function SchedulingLoginForm({
@@ -102,6 +103,25 @@ export default function SchedulingLoginForm({
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <div className="mt-6 pt-6 border-t border-gray-100 text-sm text-gray-600 space-y-2">
+          <p>
+            <Link href="/client/login" className="font-semibold text-brand hover:underline">
+              Client payment portal
+            </Link>
+            {" — customers can register, save cards, and pay online."}
+          </p>
+          {role === "groomer" && (
+            <p>
+              <Link href="/admin/login" className="font-semibold text-brand hover:underline">
+                Admin login
+              </Link>
+            </p>
+          )}
+          <p className="text-xs text-gray-500">
+            After sign-in, open the <strong>Payments</strong> tab to charge client cards via Square.
+          </p>
+        </div>
       </div>
     </SchedulingShell>
   );

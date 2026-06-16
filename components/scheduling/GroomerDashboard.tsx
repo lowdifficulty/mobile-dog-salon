@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
 import AppointmentList from "./AppointmentList";
+import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import type { SessionUser } from "@/lib/scheduling/types";
 
-type Tab = "availability" | "upcoming" | "past";
+type Tab = "availability" | "upcoming" | "past" | "payments";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     { id: "availability", label: "My availability" },
     { id: "upcoming", label: "Upcoming" },
     { id: "past", label: "Past" },
+    { id: "payments", label: "Payments" },
   ];
 
   return (
@@ -60,6 +62,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       {tab === "past" && (
         <AppointmentList apiUrl="/api/groomer/appointments" filter="past" />
       )}
+      {tab === "payments" && <StaffPaymentsPanel />}
     </SchedulingShell>
   );
 }

@@ -8,7 +8,10 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
+const useProd = process.argv.includes("--prod");
+const BASE = useProd
+  ? process.env.SMOKE_BASE_URL || "https://mobiledog-salon.com"
+  : process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const ROUTES = [
   "/",
   "/about",
@@ -30,6 +33,8 @@ const ROUTES = [
   "/book",
   "/privacy-policy",
   "/groomer/login",
+  "/client/login",
+  "/client/register",
 ];
 
 const CONTENT_CHECKS = [

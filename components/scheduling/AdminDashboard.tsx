@@ -6,9 +6,10 @@ import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
 import AppointmentList from "./AppointmentList";
 import { GROOMERS } from "@/lib/scheduling/groomers";
+import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-type Tab = "availability" | "upcoming" | "past";
+type Tab = "availability" | "upcoming" | "past" | "payments";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
     { id: "availability", label: "Availability" },
     { id: "upcoming", label: "Upcoming" },
     { id: "past", label: "Past" },
+    { id: "payments", label: "Payments" },
   ];
 
   const appointmentApi = `/api/admin/appointments?groomerId=${groomerId}`;
@@ -75,6 +77,7 @@ export default function AdminDashboard() {
       {tab === "past" && (
         <AppointmentList apiUrl={appointmentApi} filter="past" />
       )}
+      {tab === "payments" && <StaffPaymentsPanel />}
     </SchedulingShell>
   );
 }

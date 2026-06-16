@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "smoke": "node scripts/verify-site.mjs",
+    "local": "node scripts/start-local.mjs",
+    "qa": "npm run build && node scripts/verify-site.mjs --start",
     "verify": "npm run build && node scripts/verify-site.mjs --start",
     "import-blogs": "node scripts/import-blog-pack.mjs",
     "fetch-blog-images": "node scripts/fetch-blog-images.mjs",
@@ -25,6 +27,7 @@
     "remark-gfm": "^4.0.1",
     "resend": "^6.12.4",
     "server-only": "^0.0.1",
+    "square": "^44.1.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

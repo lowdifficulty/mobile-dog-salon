@@ -20,6 +20,8 @@ export const ROUTES = {
   contact: "/contact",
   privacy: "/privacy-policy",
   groomerLogin: "/groomer/login",
+  clientPortal: "/client/login",
+  clientRegister: "/client/register",
 } as const;
 
 export const NAV_ABOUT = [
@@ -45,6 +47,7 @@ export const NAV_COMPANY = [
   { label: "Blog", href: ROUTES.blog },
   { label: "Contact", href: ROUTES.contact },
   { label: "Book Online", href: ROUTES.book },
+  { label: "Client Payments", href: ROUTES.clientPortal },
   { label: "Staff Login", href: ROUTES.groomerLogin },
 ];
 

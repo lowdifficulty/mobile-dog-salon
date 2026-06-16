@@ -3,7 +3,7 @@ import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import type { SessionUser, GroomerId } from "./types";
-import { ADMIN_EMAIL, GROOMERS } from "./groomers";
+import { ADMIN_EMAIL, GROOMERS, groomerIdFromEmail } from "./groomers";
 
 export interface SessionData {
   user?: SessionUser;
@@ -53,6 +53,15 @@ export async function loginGroomer(
     email: GROOMERS[groomerId].email,
     name: GROOMERS[groomerId].name,
   };
+}
+
+export async function loginGroomerByEmail(
+  email: string,
+  password: string
+): Promise<SessionUser | null> {
+  const groomerId = groomerIdFromEmail(email);
+  if (!groomerId) return null;
+  return loginGroomer(groomerId, password);
 }
 
 export async function loginAdmin(

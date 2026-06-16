@@ -8,7 +8,6 @@ export default function SchedulingLoginForm({
   role,
   title,
   subtitle,
-  loginPath,
   dashboardPath,
 }: {
   role: "groomer" | "admin";
@@ -18,8 +17,7 @@ export default function SchedulingLoginForm({
   dashboardPath: string;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useState(role === "groomer" ? "melanie" : "");
-  const [email, setEmail] = useState(role === "admin" ? "mattlewis06@gmail.com" : "");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,12 +30,7 @@ export default function SchedulingLoginForm({
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role,
-        username: role === "groomer" ? username : undefined,
-        email: role === "admin" ? email : undefined,
-        password,
-      }),
+      body: JSON.stringify({ role, email, password }),
     });
 
     setLoading(false);
@@ -59,30 +52,22 @@ export default function SchedulingLoginForm({
         <p className="text-gray-600 text-sm mb-6">{subtitle}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {role === "groomer" ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Groomer</label>
-              <select
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white"
-              >
-                <option value="melanie">Melanie</option>
-                <option value="diamond">Diamond</option>
-              </select>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder={
+                role === "groomer"
+                  ? "melanie@mobiledog-salon.com"
+                  : "your@email.com"
+              }
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
@@ -91,6 +76,7 @@ export default function SchedulingLoginForm({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl"
             />
           </div>

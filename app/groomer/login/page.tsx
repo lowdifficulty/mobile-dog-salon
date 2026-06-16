@@ -9,7 +9,7 @@ export default function GroomerLoginPage() {
     <SchedulingLoginForm
       role="groomer"
       title="Groomer login"
-      subtitle="Melanie and Diamond — set your availability and view appointments."
+      subtitle="Melanie and Diamond — sign in with your work email to manage availability and appointments."
       loginPath="/groomer/login"
       dashboardPath="/groomer/dashboard"
     />

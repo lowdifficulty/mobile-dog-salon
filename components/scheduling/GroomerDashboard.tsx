@@ -28,7 +28,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   return (
     <SchedulingShell
       title={`${user.name}'s schedule`}
-      subtitle="Set your availability for the next few weeks. Customers only see open slots you've marked."
+      subtitle="Click days on the calendar to set your hours. Customers only see open slots you've marked."
       onLogout={logout}
     >
       <div className="flex flex-wrap gap-2 mb-8">

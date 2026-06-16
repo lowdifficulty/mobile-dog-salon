@@ -50,3 +50,13 @@ export function formatDisplayTime(time24: string): string {
 export function groomerName(id: GroomerId): string {
   return GROOMERS[id].name;
 }
+
+export function groomerIdFromEmail(email: string): GroomerId | null {
+  const normalized = email.trim().toLowerCase();
+  for (const groomer of Object.values(GROOMERS)) {
+    if (groomer.email.toLowerCase() === normalized) {
+      return groomer.id;
+    }
+  }
+  return null;
+}

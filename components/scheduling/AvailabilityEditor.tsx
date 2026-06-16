@@ -1,28 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { TIME_SLOT_OPTIONS, formatDisplayTime } from "@/lib/scheduling/groomers";
 import type { AvailabilityDay } from "@/lib/scheduling/types";
 
-function buildWeekdayDates(count = 45): string[] {
-  const dates: string[] = [];
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function todayString(): string {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  while (dates.length < count) {
-    const day = d.getDay();
-    if (day >= 1 && day <= 5) {
-      dates.push(d.toISOString().slice(0, 10));
-    }
-    d.setDate(d.getDate() + 1);
-  }
-  return dates;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function formatDateLabel(date: string): string {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
+    weekday: "long",
+    month: "long",
     day: "numeric",
+    year: "numeric",
+  });
+}
+
+function monthLabel(year: number, month: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getMonthGrid(year: number, month: number): (string | null)[] {
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const cells: (string | null)[] = [];
+
+  for (let i = 0; i < firstWeekday; i++) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push(
+      `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    );
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return cells;
+}
+
+function datesInMonth(year: number, month: number): string[] {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   });
 }
 
@@ -35,11 +60,19 @@ export default function AvailabilityEditor({
   groomerId?: string;
   readOnly?: boolean;
 }) {
-  const dates = buildWeekdayDates();
+  const today = todayString();
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
+  const [selectedDate, setSelectedDate] = useState<string | null>(today);
   const [rows, setRows] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  const monthCells = useMemo(
+    () => getMonthGrid(viewYear, viewMonth),
+    [viewYear, viewMonth]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,17 +94,15 @@ export default function AvailabilityEditor({
     load();
   }, [load]);
 
-  function toggleDay(date: string) {
-    if (readOnly) return;
-    setRows((prev) => {
-      const next = { ...prev };
-      if (next[date]?.length) {
-        delete next[date];
-      } else {
-        next[date] = [...TIME_SLOT_OPTIONS];
-      }
-      return next;
-    });
+  function goMonth(delta: number) {
+    const d = new Date(viewYear, viewMonth - 1 + delta, 1);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth() + 1);
+  }
+
+  function selectDate(date: string) {
+    setSelectedDate(date);
+    setMessage("");
   }
 
   function toggleTime(date: string, time: string) {
@@ -89,14 +120,26 @@ export default function AvailabilityEditor({
     });
   }
 
-  function applyWeekdayTemplate() {
+  function markDayOff(date: string) {
+    if (readOnly) return;
+    setRows((prev) => {
+      const next = { ...prev };
+      delete next[date];
+      return next;
+    });
+  }
+
+  function applyWeekdayTemplateForMonth() {
     if (readOnly) return;
     const next: Record<string, string[]> = { ...rows };
-    for (const date of dates) {
-      next[date] = [...TIME_SLOT_OPTIONS];
+    for (const date of datesInMonth(viewYear, viewMonth)) {
+      const weekday = new Date(`${date}T12:00:00`).getDay();
+      if (weekday >= 1 && weekday <= 5) {
+        next[date] = [...TIME_SLOT_OPTIONS];
+      }
     }
     setRows(next);
-    setMessage("Applied Mon–Fri 8 AM – 4 PM to all dates below. Click Save.");
+    setMessage("Weekdays in this month set to 8 AM – 4 PM. Click Save to confirm.");
   }
 
   async function save() {
@@ -123,65 +166,188 @@ export default function AvailabilityEditor({
     }
   }
 
+  const selectedTimes = selectedDate ? rows[selectedDate] : undefined;
+  const selectedActive = Boolean(selectedTimes?.length);
+  const selectedIsPast = selectedDate ? selectedDate < today : false;
+  const canEditSelected = selectedDate && !readOnly && !selectedIsPast;
+
   if (loading) {
     return <p className="text-gray-500 text-sm">Loading availability…</p>;
   }
 
   return (
-    <div>
-      {!readOnly && (
-        <div className="flex flex-wrap gap-3 mb-6">
-          <button type="button" onClick={applyWeekdayTemplate} className="site-btn-outline text-sm">
-            Quick fill: weekdays 8 AM – 4 PM
-          </button>
-          <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
-            {saving ? "Saving…" : "Save availability"}
-          </button>
-        </div>
-      )}
-      {message && <p className="text-sm text-brand font-semibold mb-4">{message}</p>}
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-8 items-start">
+      <div>
+        {!readOnly && (
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button
+              type="button"
+              onClick={applyWeekdayTemplateForMonth}
+              className="site-btn-outline text-sm"
+            >
+              Fill weekdays this month
+            </button>
+            <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
+              {saving ? "Saving…" : "Save availability"}
+            </button>
+          </div>
+        )}
+        {message && <p className="text-sm text-brand font-semibold mb-4">{message}</p>}
 
-      <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-        {dates.map((date) => {
-          const active = Boolean(rows[date]?.length);
-          return (
-            <div key={date} className="site-card p-4">
-              <div className="flex items-center justify-between gap-4 mb-3">
-                <button
-                  type="button"
-                  disabled={readOnly}
-                  onClick={() => toggleDay(date)}
-                  className={`text-sm font-semibold ${active ? "text-brand" : "text-gray-400"}`}
-                >
-                  {formatDateLabel(date)}
-                  {active ? " · Working" : " · Off"}
-                </button>
+        <div className="site-card p-6">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <button
+              type="button"
+              onClick={() => goMonth(-1)}
+              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-accent"
+              aria-label="Previous month"
+            >
+              ←
+            </button>
+            <h2 className="text-lg font-bold text-brand">{monthLabel(viewYear, viewMonth)}</h2>
+            <button
+              type="button"
+              onClick={() => goMonth(1)}
+              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-accent"
+              aria-label="Next month"
+            >
+              →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {WEEKDAY_LABELS.map((label) => (
+              <div
+                key={label}
+                className="text-center text-xs font-bold text-gray-500 py-2 uppercase tracking-wide"
+              >
+                {label}
               </div>
-              {active && (
-                <div className="flex flex-wrap gap-2">
-                  {TIME_SLOT_OPTIONS.map((time) => {
-                    const selected = rows[date]?.includes(time);
-                    return (
-                      <button
-                        key={time}
-                        type="button"
-                        disabled={readOnly}
-                        onClick={() => toggleTime(date, time)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                          selected
-                            ? "bg-brand text-white border-brand"
-                            : "bg-white text-gray-600 border-gray-200 hover:border-accent"
-                        }`}
-                      >
-                        {formatDisplayTime(time)}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {monthCells.map((date, index) => {
+              if (!date) {
+                return <div key={`empty-${index}`} className="aspect-square" />;
+              }
+
+              const isPast = date < today;
+              const isToday = date === today;
+              const isSelected = date === selectedDate;
+              const hasHours = Boolean(rows[date]?.length);
+              const weekday = new Date(`${date}T12:00:00`).getDay();
+              const isWeekend = weekday === 0 || weekday === 6;
+
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => selectDate(date)}
+                  className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-sm font-semibold border transition-all ${
+                    isSelected
+                      ? "bg-brand text-white border-brand shadow-md scale-[1.02]"
+                      : hasHours
+                        ? "bg-accent/15 text-brand border-accent/40"
+                        : isWeekend
+                          ? "bg-gray-50 text-gray-400 border-gray-100"
+                          : "bg-white text-gray-700 border-gray-100 hover:border-accent/40"
+                  } ${isPast ? "opacity-50" : ""} ${isToday && !isSelected ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                >
+                  <span>{Number(date.slice(8, 10))}</span>
+                  {hasHours && !isSelected && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-gray-500 mt-4">
+            {readOnly
+              ? "Days with a dot have availability set. Click a day to view hours."
+              : "Click a day to set your working hours. Days with a dot are already scheduled."}
+          </p>
+        </div>
+      </div>
+
+      <div className="site-card p-6 lg:sticky lg:top-8">
+        {selectedDate ? (
+          <>
+            <h3 className="text-lg font-bold text-brand mb-1">{formatDateLabel(selectedDate)}</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {selectedActive
+                ? `${selectedTimes!.length} hour block${selectedTimes!.length === 1 ? "" : "s"} available`
+                : "No hours set for this day"}
+            </p>
+
+            {selectedIsPast && (
+              <p className="text-sm text-gray-500 mb-4">Past dates cannot be edited.</p>
+            )}
+
+            {canEditSelected && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {TIME_SLOT_OPTIONS.map((time) => {
+                  const selected = selectedTimes?.includes(time);
+                  return (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => toggleTime(selectedDate, time)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                        selected
+                          ? "bg-brand text-white border-brand"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-accent"
+                      }`}
+                    >
+                      {formatDisplayTime(time)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {readOnly && selectedActive && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {selectedTimes!.map((time) => (
+                  <span
+                    key={time}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold bg-accent/15 text-brand border border-accent/30"
+                  >
+                    {formatDisplayTime(time)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {canEditSelected && selectedActive && (
+              <button
+                type="button"
+                onClick={() => markDayOff(selectedDate)}
+                className="text-sm font-semibold text-gray-500 hover:text-red-600"
+              >
+                Mark this day off
+              </button>
+            )}
+
+            {canEditSelected && !selectedActive && (
+              <button
+                type="button"
+                onClick={() =>
+                  setRows((prev) => ({
+                    ...prev,
+                    [selectedDate]: [...TIME_SLOT_OPTIONS],
+                  }))
+                }
+                className="site-btn-outline text-sm w-full"
+              >
+                Start with 8 AM – 4 PM
+              </button>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">Select a day on the calendar to set hours.</p>
+        )}
       </div>
     </div>
   );

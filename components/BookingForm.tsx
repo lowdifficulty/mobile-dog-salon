@@ -102,7 +102,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h3 className="font-display text-2xl font-bold text-gray-900 mb-3">
+        <h3 className="font-heading text-2xl font-bold text-gray-900 mb-3">
           Request Received!
         </h3>
         <p className="text-gray-600 mb-6 max-w-md mx-auto">
@@ -167,7 +167,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
             </div>
           ))}
         </div>
-        <h2 className="font-display text-xl font-bold text-gray-900">
+        <h2 className="font-heading text-xl font-bold text-gray-900">
           {STEPS[step - 1].title}
         </h2>
         <p className="text-sm text-gray-500">{STEPS[step - 1].subtitle}</p>

@@ -9,7 +9,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Barkbus uses a bright sky blue (~#6BBDE8). This palette is slightly darker.
         blue: {
           DEFAULT: "#0A2E44",
           50: "#6A9BB5",
@@ -26,8 +25,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-outfit)", "system-ui", "sans-serif"],
+        sans: ["var(--font-figtree)", "Figtree", "system-ui", "sans-serif"],
+        heading: ["Tiempos Headline", "Georgia", "serif"],
       },
     },
   },

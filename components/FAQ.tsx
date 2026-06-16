@@ -9,7 +9,7 @@ export default function FAQ() {
   return (
     <section id="faq" className="barkbus-section bg-white">
       <div className="barkbus-container max-w-3xl">
-        <h2 className="barkbus-heading text-center mb-10">
+        <h2 className="barkbus-heading-section mb-10">
           Frequently Asked Questions
         </h2>
 

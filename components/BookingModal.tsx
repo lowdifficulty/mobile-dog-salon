@@ -36,7 +36,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
                 <path d="M4.5 9.5C4.5 6.462 7.462 3.5 10.5 3.5S16.5 6.462 16.5 9.5c0 2.2-1.4 4.1-3.4 4.8-.3.1-.6.2-.9.2s-.6-.1-.9-.2C5.9 13.6 4.5 11.7 4.5 9.5z" />
               </svg>
             </div>
-            <span className="font-display font-bold text-gray-900">Book an Appointment</span>
+            <span className="font-heading font-bold text-gray-900">Book an Appointment</span>
           </div>
           <button
             onClick={onClose}

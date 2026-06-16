@@ -2,7 +2,7 @@ export default function Experience() {
   return (
     <section id="experience" className="barkbus-section bg-[#E8F4FB]">
       <div className="barkbus-container">
-        <h2 className="barkbus-heading text-center mb-10">
+        <h2 className="barkbus-heading-section mb-10">
           See the Mobile Dog Salon Experience
         </h2>
 

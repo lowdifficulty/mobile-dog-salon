@@ -17,7 +17,7 @@ export default function Footer({ onBookClick }: FooterProps) {
     <footer className="bg-white border-t border-gray-200 py-12 md:py-16">
       <div className="barkbus-container">
         <div className="flex flex-col items-center text-center">
-          <Link href="/" className="font-display font-bold text-xl text-gray-900 mb-8">
+          <Link href="/" className="font-heading font-bold text-2xl text-gray-900 mb-8">
             Mobile Dog Salon
           </Link>
 

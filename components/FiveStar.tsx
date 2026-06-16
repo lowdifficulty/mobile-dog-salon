@@ -11,7 +11,7 @@ export default function FiveStar() {
             </svg>
           ))}
         </div>
-        <h2 className="font-display text-2xl md:text-3xl font-bold text-gray-900 mb-8">
+        <h2 className="barkbus-heading-section mb-8">
           Five Star Experience
         </h2>
         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 opacity-70">

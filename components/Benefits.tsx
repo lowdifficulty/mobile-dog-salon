@@ -2,7 +2,7 @@ export default function Benefits() {
   return (
     <section className="barkbus-section bg-white">
       <div className="barkbus-container">
-        <h2 className="barkbus-heading text-center mb-10 md:mb-14">
+        <h2 className="barkbus-heading-section text-center mb-10 md:mb-14">
           We are giving you your day back
         </h2>
 
@@ -15,7 +15,7 @@ export default function Benefits() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-              <h3 className="font-display text-xl md:text-2xl font-bold text-white">
+              <h3 className="font-heading text-xl md:text-2xl font-medium text-white">
                 Saving your dog from cages and salon stress
               </h3>
             </div>
@@ -29,7 +29,7 @@ export default function Benefits() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-              <h3 className="font-display text-xl md:text-2xl font-bold text-white">
+              <h3 className="font-heading text-xl md:text-2xl font-medium text-white">
                 and delivering you peace of mind and convenience
               </h3>
             </div>

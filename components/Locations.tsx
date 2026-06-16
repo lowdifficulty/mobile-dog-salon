@@ -15,7 +15,7 @@ export default function Locations() {
               className="w-full h-40 object-cover"
             />
             <div className="p-5">
-              <h3 className="font-display text-xl font-bold text-gray-900 mb-3">
+              <h3 className="font-heading text-xl font-bold text-gray-900 mb-3">
                 {region.name}
               </h3>
               <ul className="space-y-1 text-sm text-gray-700 mb-4">

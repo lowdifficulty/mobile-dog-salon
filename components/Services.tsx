@@ -51,7 +51,7 @@ export default function Services({ onBookClick }: ServicesProps) {
     <section id="services" className="barkbus-section bg-[#E8F4FB]">
       <div className="barkbus-container">
         <div className="text-center mb-12">
-          <h2 className="barkbus-heading mb-4">The Mobile Dog Salon Signature Service</h2>
+          <h2 className="barkbus-heading-section mb-4">The Mobile Dog Salon Signature Service</h2>
           <p className="text-gray-600 max-w-2xl mx-auto text-lg">
             Every Mobile Dog Salon Signature Service is one-on-one with a gentle &amp;
             compassionate expert pet stylist

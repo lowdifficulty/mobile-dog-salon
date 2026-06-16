@@ -19,7 +19,7 @@ export default function Reviews() {
       <div className="barkbus-container">
         <div className="text-center mb-8">
           <Stars />
-          <h2 className="barkbus-heading mt-4">What Our Clients Are Saying</h2>
+          <h2 className="barkbus-heading-section mt-4">What Our Clients Are Saying</h2>
           <div className="flex items-center justify-center gap-3 mt-3 text-sm text-gray-500">
             <span>Google</span>
             <span>Yelp</span>

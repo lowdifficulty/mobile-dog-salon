@@ -16,7 +16,7 @@ export default function Header({ onBookClick }: HeaderProps) {
       <div className="barkbus-container">
         <div className="flex items-center justify-between h-16 md:h-[72px]">
           <Link href="/" className="flex items-center shrink-0">
-            <span className="font-display font-bold text-lg md:text-xl text-gray-900">
+            <span className="font-heading font-bold text-2xl md:text-3xl text-gray-900 leading-tight">
               Mobile Dog Salon
             </span>
           </Link>

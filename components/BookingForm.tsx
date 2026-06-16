@@ -349,7 +349,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                           : "border-gray-200 hover:border-accent text-gray-800"
                       }`}
                     >
-                      <span className="block">{slot.displayTime}</span>
+                      <span className="block">{slot.displayTime} · 2 hrs</span>
                       <span className={`block text-xs mt-0.5 ${data.slotKey === slot.slotKey ? "text-white/90" : "text-gray-500"}`}>
                         with {slot.groomerName}
                       </span>

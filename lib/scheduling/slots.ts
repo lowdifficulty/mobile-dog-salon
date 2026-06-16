@@ -5,7 +5,8 @@ import type {
   GroomerId,
 } from "./types";
 import { GROOMERS, formatDisplayTime } from "./groomers";
-import { serviceDurationMinutes } from "./services";
+import { BOOKING_DURATION_MINUTES } from "./services";
+import { hasConsecutiveAvailability } from "./availability";
 
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
@@ -46,13 +47,14 @@ export function getAvailableSlotsForDate(
   appointments: Appointment[],
   service: string
 ): AvailableSlot[] {
-  const duration = serviceDurationMinutes(service);
+  const duration = BOOKING_DURATION_MINUTES;
   const slots: AvailableSlot[] = [];
 
   for (const day of availability) {
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     for (const time of day.times) {
+      if (!hasConsecutiveAvailability(day.times, time, duration)) continue;
       if (isSlotTaken(day.groomerId, date, time, duration, appointments)) continue;
       slots.push({
         groomerId: day.groomerId,
@@ -80,7 +82,9 @@ export function getDatesWithAvailability(
     if (day.date < fromDate || day.date > toDate) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     const hasSlot = day.times.some(
-      (time) => !isSlotTaken(day.groomerId, day.date, time, serviceDurationMinutes(service), appointments)
+      (time) =>
+        hasConsecutiveAvailability(day.times, time, BOOKING_DURATION_MINUTES) &&
+        !isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments)
     );
     if (hasSlot) dates.add(day.date);
   }

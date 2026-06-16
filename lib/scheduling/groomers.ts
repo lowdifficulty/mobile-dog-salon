@@ -14,7 +14,7 @@ export const GROOMERS: Record<
     id: "diamond",
     name: "Diamond",
     email: "diamond@mobiledog-salon.com",
-    calendarEmail: "melanie@mobiledog-salon.com",
+    calendarEmail: "diamond@mobiledog-salon.com",
   },
 };
 

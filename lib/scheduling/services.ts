@@ -1,4 +1,7 @@
-/** Appointment length in minutes by service value */
+/** Every booked appointment blocks a 2-hour window on the groomer calendar. */
+export const BOOKING_DURATION_MINUTES = 120;
+
+/** Legacy per-service durations (display only; booking always uses BOOKING_DURATION_MINUTES). */
 export const SERVICE_DURATION_MINUTES: Record<string, number> = {
   signature: 120,
   "bath-brush": 90,
@@ -8,5 +11,5 @@ export const SERVICE_DURATION_MINUTES: Record<string, number> = {
 };
 
 export function serviceDurationMinutes(service: string): number {
-  return SERVICE_DURATION_MINUTES[service] ?? 90;
+  return BOOKING_DURATION_MINUTES;
 }

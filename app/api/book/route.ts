@@ -6,7 +6,11 @@ import {
   parseSlotKey,
   slotToISO,
 } from "@/lib/scheduling/slots";
-import { serviceDurationMinutes } from "@/lib/scheduling/services";
+import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
+import {
+  consumeGroomerAvailability,
+  hasConsecutiveAvailability,
+} from "@/lib/scheduling/availability";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import type { Appointment } from "@/lib/scheduling/types";
 
@@ -39,25 +43,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid slot" }, { status: 400 });
   }
 
-  const durationMinutes = serviceDurationMinutes(service);
   const data = await readSchedulingData();
-
-  if (isSlotTaken(groomerId, date, time, durationMinutes, data.appointments)) {
-    return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
-  }
 
   const dayAvail = data.availability.find(
     (a) => a.groomerId === groomerId && a.date === date
   );
-  if (!dayAvail?.times.includes(time)) {
-    return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
+  if (!dayAvail || !hasConsecutiveAvailability(dayAvail.times, time, BOOKING_DURATION_MINUTES)) {
+    return NextResponse.json({ error: "Groomer is not available for a 2-hour appointment at that time" }, { status: 409 });
+  }
+
+  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+    return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
   }
 
   const appointment: Appointment = {
     id: randomUUID(),
     groomerId,
     startAt: slotToISO(date, time),
-    durationMinutes,
+    durationMinutes: BOOKING_DURATION_MINUTES,
     status: "confirmed",
     petName,
     petBreed: petBreed ?? "",
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
   };
 
   data.appointments.push(appointment);
+  consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
   await writeSchedulingData(data);
 
   try {

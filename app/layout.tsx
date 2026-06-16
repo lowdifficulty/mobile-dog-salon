@@ -1,25 +1,35 @@
 import type { Metadata } from "next";
-import { Figtree } from "next/font/google";
+import { Caveat } from "next/font/google";
+import { Quicksand } from "next/font/google";
 import "./globals.css";
 
-const figtree = Figtree({
+const quicksand = Quicksand({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-figtree",
+  variable: "--font-quicksand",
+  display: "swap",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-caveat",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Mobile Dog Salon | Luxury Mobile Dog Grooming in Orange County",
+  metadataBase: new URL("https://mobiledog-salon.com"),
+  title: "Mobile Dog Salon | Good Dogs Take Baths — Orange County",
   description:
-    "Premium mobile dog grooming that comes to your doorstep in Orange County. One-on-one, stress-free grooming with no cages. Book your appointment today!",
+    "Good Dogs Take Baths! Cute, professional mobile dog grooming in your driveway across Orange County. Meet Licky, Hattie, and all our good dogs.",
   keywords:
-    "mobile dog grooming, Orange County, dog grooming, mobile pet grooming, Irvine, Huntington Beach, Newport Beach",
+    "mobile dog grooming, Orange County, Good Dogs Take Baths, dog grooming, Irvine, Huntington Beach",
   openGraph: {
-    title: "Mobile Dog Salon | Luxury Mobile Dog Grooming in Orange County",
+    title: "Mobile Dog Salon | Good Dogs Take Baths",
     description:
-      "Luxury mobile dog grooming that comes to you. Serving all of Orange County.",
+      "Good Dogs Take Baths — mobile pet grooming that comes to your curb in Orange County.",
     type: "website",
+    images: ["/images/branding-ad.png"],
   },
 };
 
@@ -29,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable}>
+    <html lang="en" className={`${quicksand.variable} ${caveat.variable}`}>
       <body className="font-sans">{children}</body>
     </html>
   );

@@ -2,65 +2,203 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: "Tiempos Headline";
-  src: url("/fonts/tiempos-headline-bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Tiempos Headline";
-  src: url("/fonts/tiempos-headline-medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
-  --brand: #0A2E44;
-  --brand-dark: #082234;
-  --brand-light: #E8F4FB;
-  --barkbus-sky: #6BBDE8;
+  --brand: #1B3A6E;
+  --brand-dark: #0F2447;
+  --brand-bright: #00B4F0;
+  --brand-sky: #00B4F0;
+  --brand-light: #EAF8FF;
+  --accent: #FF3D9A;
+  --accent-hot: #FF3D9A;
+  --accent-light: #FFE0F0;
+  --pink-brand: #FF6BAA;
+  --section-gray: #F4F4F4;
+  --cream: #F7F3ED;
+  --tan: #F7F3ED;
   --white: #FFFFFF;
 }
 
 html {
   scroll-behavior: smooth;
+  font-size: 18px;
 }
 
 body {
-  @apply bg-white text-gray-900 antialiased font-sans;
+  @apply bg-white text-gray-800 antialiased font-sans;
 }
 
 @layer components {
-  .barkbus-container {
+  .site-container {
     @apply max-w-6xl mx-auto px-5 md:px-8;
   }
 
-  .barkbus-section {
+  .site-section {
     @apply py-14 md:py-20;
   }
 
-  /* Barkbus heading-style-huge: Tiempos Headline 5rem / 700 / 1.1 */
-  .barkbus-heading {
-    @apply font-heading font-bold text-gray-900 leading-[1.1];
-    font-size: clamp(2.75rem, 8vw, 5rem);
+  .bg-section-white {
+    @apply bg-white;
   }
 
-  /* Barkbus heading-style-h2: Tiempos Headline 3rem / 500 */
-  .barkbus-heading-section {
-    @apply font-heading font-medium text-gray-900 leading-[1.2] text-center;
-    font-size: clamp(2rem, 5vw, 3rem);
+  .bg-section-blue {
+    background-color: var(--brand-light);
   }
 
-  .barkbus-btn {
-    @apply inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-blue text-white text-base font-semibold rounded-full hover:bg-blue-600 transition-colors font-sans;
+  .bg-section-gray {
+    background-color: var(--section-gray);
   }
 
-  .barkbus-btn-outline {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 bg-white text-gray-800 text-sm font-medium rounded-full hover:border-blue hover:text-blue transition-colors font-sans;
+  .bg-section-tan {
+    background-color: var(--cream);
+  }
+
+  .bg-section-pink {
+    background-color: var(--pink-brand);
+  }
+
+  .bg-section-hero {
+    background: linear-gradient(180deg, var(--pink-brand) 0%, #ff8fc4 100%);
+  }
+
+  /* Good Dogs Take Baths — ad branding */
+  .tagline-sticker {
+    display: inline-block;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.08);
+    transform: rotate(-1deg);
+  }
+
+  .tagline-good-dogs {
+    @apply font-black leading-none tracking-tight;
+    line-height: 1.05;
+  }
+
+  .tagline-good {
+    color: var(--accent-hot);
+    text-shadow: 2px 2px 0 white;
+  }
+
+  .tagline-dogs {
+    color: var(--brand-sky);
+    text-shadow: 2px 2px 0 white;
+  }
+
+  .tagline-take-baths {
+    font-family: var(--font-caveat), "Caveat", cursive;
+    color: var(--brand);
+    @apply font-bold leading-tight mt-1;
+    transform: rotate(-2deg);
+  }
+
+  .bg-section-pattern-blue {
+    background-color: var(--brand-light);
+    background-image: linear-gradient(135deg, rgba(1, 129, 226, 0.06) 25%, transparent 25%),
+      linear-gradient(225deg, rgba(1, 129, 226, 0.06) 25%, transparent 25%);
+    background-size: 40px 40px;
+  }
+
+  .bg-section-pattern-white {
+    @apply bg-white;
+    background-image: linear-gradient(135deg, rgba(242, 23, 158, 0.04) 25%, transparent 25%);
+    background-size: 32px 32px;
+  }
+
+  /* Zoomin image styles */
+  .img-zoomin {
+    @apply object-cover;
+    border-radius: 80px 0 80px 0;
+  }
+
+  .img-blog {
+    @apply object-cover;
+    border-radius: 80px 0 80px 0;
+    box-shadow: 0 0 5px #dedede;
+  }
+
+  .img-review-card {
+    border-radius: 50px;
+  }
+
+  .img-avatar {
+    border-radius: 80px;
+    border: 5px solid #fff;
+  }
+
+  .site-heading-hero {
+    @apply font-bold leading-[1.15];
+    color: var(--brand);
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+  }
+
+  .site-heading-section {
+    @apply font-bold leading-[1.2] text-center relative;
+    color: var(--brand);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+  }
+
+  .site-heading-section::after {
+    content: "";
+    display: block;
+    width: 48px;
+    height: 4px;
+    background-color: var(--accent);
+    border-radius: 9999px;
+    margin: 0.75rem auto 0;
+  }
+
+  .site-heading-section-left::after {
+    margin-left: 0;
+  }
+
+  .site-heading-pink {
+    color: var(--accent);
+  }
+
+  .site-btn {
+    @apply inline-flex items-center justify-center gap-2 px-8 py-3.5 text-white text-base font-bold transition-colors shadow-md;
+    border-radius: 50px;
+    background-color: var(--brand);
+  }
+
+  .site-btn:hover {
+    background-color: #002D75;
+  }
+
+  .site-btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 border-2 text-sm font-bold transition-colors;
+    border-radius: 50px;
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+
+  .site-btn-outline:hover {
+    background-color: var(--brand);
+    @apply text-white;
+  }
+
+  .site-link {
+    @apply font-bold hover:underline;
+    color: var(--accent);
+  }
+
+  .site-card {
+    @apply bg-white rounded-[30px] shadow-sm border border-accent/10 hover:border-accent/30 hover:shadow-md transition-all;
+  }
+
+  .site-check {
+    @apply w-5 h-5 rounded-full flex items-center justify-center shrink-0;
+    background-color: var(--accent-light);
+  }
+
+  .site-check svg {
+    color: var(--accent);
+  }
+
+  .site-step-badge {
+    @apply w-12 h-12 rounded-full text-white font-bold text-lg flex items-center justify-center mx-auto mb-4 shadow-md;
+    background-color: var(--accent);
   }
 }
 
@@ -86,6 +224,6 @@ body {
   background: #f1f1f1;
 }
 ::-webkit-scrollbar-thumb {
-  background: #0A2E44;
+  background: #f2179e;
   border-radius: 4px;
 }

@@ -6,12 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "smoke": "node scripts/verify-site.mjs",
+    "verify": "npm run build && node scripts/verify-site.mjs --start",
+    "import-blogs": "node scripts/import-blog-pack.mjs"
   },
   "dependencies": {
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -20,6 +26,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.1.0",
     "postcss": "^8",
+    "sharp": "^0.35.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }

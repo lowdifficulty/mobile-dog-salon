@@ -102,7 +102,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h3 className="font-heading text-2xl font-bold text-gray-900 mb-3">
+        <h3 className="font-bold text-2xl font-bold text-gray-900 mb-3">
           Request Received!
         </h3>
         <p className="text-gray-600 mb-6 max-w-md mx-auto">
@@ -116,7 +116,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
           href={BOOKING_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-blue text-white font-semibold rounded-full hover:bg-blue-600 transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-brand text-white font-semibold rounded-full hover:bg-brand-dark transition-colors"
         >
           Confirm on Calendar
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                   step >= s.id
-                    ? "bg-blue text-white"
+                    ? "bg-brand text-white"
                     : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -160,14 +160,14 @@ export default function BookingForm({ onClose }: BookingFormProps) {
               {i < STEPS.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-2 transition-colors ${
-                    step > s.id ? "bg-blue" : "bg-gray-200"
+                    step > s.id ? "bg-brand-bright" : "bg-gray-200"
                   }`}
                 />
               )}
             </div>
           ))}
         </div>
-        <h2 className="font-heading text-xl font-bold text-gray-900">
+        <h2 className="font-bold text-xl font-bold text-gray-900">
           {STEPS[step - 1].title}
         </h2>
         <p className="text-sm text-gray-500">{STEPS[step - 1].subtitle}</p>
@@ -186,7 +186,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 value={data.petName}
                 onChange={(e) => update("petName", e.target.value)}
                 placeholder="e.g. Bella"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
               />
             </div>
             <div>
@@ -198,7 +198,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 value={data.petBreed}
                 onChange={(e) => update("petBreed", e.target.value)}
                 placeholder="e.g. Golden Retriever"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
               />
             </div>
             <div>
@@ -212,8 +212,8 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                     onClick={() => update("petSize", size.value)}
                     className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
                       data.petSize === size.value
-                        ? "border-blue bg-blue/10 text-blue"
-                        : "border-gray-200 text-gray-700 hover:border-blue/50"
+                        ? "border-brand-bright bg-brand-bright/10 text-brand-bright"
+                        : "border-gray-200 text-gray-700 hover:border-brand-bright/50"
                     }`}
                   >
                     {size.label}
@@ -232,12 +232,12 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 onClick={() => update("service", service.value)}
                 className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-all ${
                   data.service === service.value
-                    ? "border-blue bg-blue/10"
-                    : "border-gray-200 hover:border-blue/50"
+                    ? "border-brand-bright bg-brand-bright/10"
+                    : "border-gray-200 hover:border-brand-bright/50"
                 }`}
               >
                 <span className="font-medium text-gray-900">{service.label}</span>
-                <span className="text-sm text-blue font-semibold">{service.price}</span>
+                <span className="text-sm text-brand-bright font-semibold">{service.price}</span>
               </button>
             ))}
           </div>
@@ -254,7 +254,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 value={data.address}
                 onChange={(e) => update("address", e.target.value)}
                 placeholder="123 Main St"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
               />
             </div>
             <div>
@@ -264,7 +264,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
               <select
                 value={data.city}
                 onChange={(e) => update("city", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all bg-white"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all bg-white"
               >
                 <option value="">Select your city</option>
                 {ORANGE_COUNTY_CITIES.map((city) => (
@@ -282,7 +282,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                   value={data.preferredDate}
                   onChange={(e) => update("preferredDate", e.target.value)}
                   min={new Date().toISOString().split("T")[0]}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
                 />
               </div>
               <div>
@@ -292,7 +292,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 <select
                   value={data.preferredTime}
                   onChange={(e) => update("preferredTime", e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all bg-white"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all bg-white"
                 >
                   <option value="">Select time</option>
                   <option value="8:00 AM">8:00 AM</option>
@@ -316,7 +316,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 onChange={(e) => update("notes", e.target.value)}
                 placeholder="Any special needs, behavioral notes, or requests..."
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all resize-none"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all resize-none"
               />
             </div>
           </div>
@@ -333,7 +333,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                   type="text"
                   value={data.firstName}
                   onChange={(e) => update("firstName", e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
                 />
               </div>
               <div>
@@ -344,7 +344,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                   type="text"
                   value={data.lastName}
                   onChange={(e) => update("lastName", e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
                 />
               </div>
             </div>
@@ -357,7 +357,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 value={data.email}
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="you@email.com"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
               />
             </div>
             <div>
@@ -369,12 +369,12 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                 value={data.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(714) 555-0123"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue/30 focus:border-blue outline-none transition-all"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none transition-all"
               />
             </div>
 
             {/* Summary */}
-            <div className="bg-blue-50 rounded-xl p-4 mt-4 border border-blue/20">
+            <div className="bg-brand-light rounded-xl p-4 mt-4 border border-accent/20">
               <h4 className="font-semibold text-gray-900 mb-2 text-sm">Booking Summary</h4>
               <div className="space-y-1 text-sm text-gray-600">
                 <p><span className="text-gray-400">Pet:</span> {data.petName} ({data.petBreed})</p>
@@ -404,7 +404,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
           <button
             onClick={() => canProceed() && setStep(step + 1)}
             disabled={!canProceed()}
-            className="px-6 py-2.5 bg-blue text-white text-sm font-semibold rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continue
           </button>
@@ -412,7 +412,7 @@ export default function BookingForm({ onClose }: BookingFormProps) {
           <button
             onClick={handleSubmit}
             disabled={!canProceed() || isSubmitting}
-            className="px-6 py-2.5 bg-blue text-white text-sm font-semibold rounded-full hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2.5 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isSubmitting ? (
               <>

@@ -1,101 +1,99 @@
+import { ALL_ORANGE_COUNTY_CITIES } from "./page-content";
+
 export const BOOKING_URL = "https://tpmr.com/i/99105";
 
 export const PHONE_NUMBER = "(714) 555-0123";
 export const PHONE_HREF = "tel:+17145550123";
 export const SMS_HREF = "sms:+17145550123";
 
-export const ORANGE_COUNTY_CITIES = [
-  "Anaheim",
-  "Brea",
-  "Costa Mesa",
-  "Dana Point",
-  "Fountain Valley",
-  "Fullerton",
-  "Garden Grove",
-  "Huntington Beach",
-  "Irvine",
-  "Laguna Beach",
-  "Laguna Hills",
-  "Laguna Niguel",
-  "Lake Forest",
-  "Mission Viejo",
-  "Newport Beach",
-  "Orange",
-  "Rancho Santa Margarita",
-  "San Clemente",
-  "Santa Ana",
-  "Tustin",
-  "Westminster",
-  "Yorba Linda",
+export const ORANGE_COUNTY_CITIES = ALL_ORANGE_COUNTY_CITIES;
+
+export const SIT_STAY_BENEFITS = [
+  "Convenience",
+  "Comfort",
+  "Safety",
+  "Fast & Easy",
+  "Professional Groomers",
+  "State-of-the-Art Vans",
 ];
 
-export const SERVICES = [
-  { icon: "bath", title: "Warm Water Bath" },
-  { icon: "products", title: "All-Natural Products" },
-  { icon: "brush", title: "Gentle Brushing & Blowdry" },
-  { icon: "teeth", title: "Teeth Cleaning & Ear Cleaning" },
-  { icon: "haircut", title: "Breed-Specific Haircut" },
-  { icon: "nails", title: "Nail Trimming & Filing" },
+export const PET_TYPES = [
+  "Multiple Pets",
+  "Anxious Pets",
+  "Older Pets",
+  "Large Pets",
+  "Challenging Pets",
+  "State-of-the-Art Vans",
+];
+
+export const HOW_IT_WORKS_STEPS = [
+  {
+    title: "Book Your Appointment",
+    description:
+      "A groomer will get in touch to set up the perfect time.",
+  },
+  {
+    title: "Your Groomer Comes to You",
+    description: "Right to your driveway.",
+  },
+  {
+    title: "One-on-One Spa Session",
+    description: "Calm, unrushed, cage-free.",
+  },
+  {
+    title: "Your Pet Looks (and Feels) Amazing!",
+    description: "Tail wags guaranteed.",
+  },
 ];
 
 export const REVIEWS = [
   {
-    name: "Emily C.",
-    headline: "Rosie's coat feels silky smooth and soft - thanks again!",
-    text: "Rosie's coat feels silky smooth and soft - thanks again!",
-    rating: 5,
+    name: "Treva",
+    petQuote:
+      "Wooof, bark bark grrr, woof woof sniff. Lick, grrr woof woof woof sniff sniff bark woof woof.",
+    humanQuote:
+      "So happy with the service. They take such good care of my boy Leo. Having the mobile service makes all the difference in the world. Thank you :)",
   },
   {
-    name: "Mark D.",
-    headline: "Toby looks absolutely perfect - thank you!",
-    text: "Toby looks absolutely perfect - thank you!",
-    rating: 5,
+    name: "Siegel A.",
+    petQuote:
+      "Woof woof woof grrrr woof snort. Grrr woof woof grrrrr. Snort snort grrr woof woof woof. Woof snort snortwoof woof grrrr woof snort.",
+    humanQuote:
+      "Absolutely great service. Mobile Dog Salon was gentle, communicative and best of all convenient. I would definitely recommend their services!",
   },
   {
-    name: "Anthony G.",
-    headline: "Handled with care and looks cuter than ever!",
-    text: "Handled with care and looks cuter than ever!",
-    rating: 5,
+    name: "Michael E.",
+    petQuote:
+      "Meow meoooow purrrrr meow meow meow purrrrr purr meow meooow meow. Purrrrrrrrrrrrrrr.",
+    humanQuote:
+      "We switched to Mobile Dog Salon and are absolutely thrilled we did. My only regret is we didn't use them first. Super friendly folks!",
+  },
+  {
+    name: "Lisa B.",
+    petQuote:
+      "Snort snort grrr woof woof woof. Woof snort snortwoof woof grrrr woof snort. Woof wooooof grrr.",
+    humanQuote:
+      "My dog is so shy, but this company rains love and companionship all over — she actually looks forward to her next visits, so thank you!!",
   },
 ];
 
-export const PRESS_LOGOS = ["Google", "Yelp", "Forbes", "People", "Sunset", "CBS"];
+export { BLOG_POSTS } from "./blog-public";
 
 export const FAQS = [
   {
     question: "What makes Mobile Dog Salon special?",
     answer:
-      "We believe grooming should be about health, wellness, peace of mind, and convenience for both you and your furry best friend. Our service is one-on-one the entire time — no cages, no other dogs, no salon stress. Our mobile grooming vans are fully self-sufficient and engineered for stress-free grooming right at your doorstep.",
-  },
-  {
-    question: "What is included in the Signature Service?",
-    answer:
-      "Our Signature Service includes: warm filtered hydro-jet water bath, all-natural shampoos, conditioners and face wash, hand blow dry, gentle brush out, ear cleaning, nail trimming and filing, teeth brushing, and anal gland expression if needed. Full body and partial haircuts are available as add-on services.",
+      "We believe grooming should be about health, wellness, peace of mind, and convenience for both you and your furry best friend. Our service is one-on-one the entire time — no cages, no other dogs, no salon stress.",
   },
   {
     question: "How much does Mobile Dog Salon cost?",
     answer:
-      "We are competitively priced with top-rated dog grooming services. Price varies based on your dog's size, breed, coat condition, and the service you select. Services typically range from $120–$350+. Book online or call us for your pup's exact cost and any current promotions.",
-  },
-  {
-    question: "How do I schedule an appointment?",
-    answer:
-      "You can book the date and time that works best for you directly from your phone or web browser. Prefer talking on the phone? Our team is here to help with anything you need — booking, pup health tips, or service questions.",
+      "Price varies based on your dog's size, breed, coat condition, and the service you select. Services typically range from $120–$350+. Book online or call us for your pup's exact cost.",
   },
   {
     question: "Does Mobile Dog Salon service my area?",
     answer:
-      "We proudly serve all of Orange County — from Huntington Beach to Yorba Linda, Irvine, Laguna Beach, Dana Point, San Clemente, Newport Beach, and everywhere in between. Don't see your neighborhood listed? Drop us a line — we're always expanding our service routes!",
-  },
-];
-
-export const LOCATION_REGIONS = [
-  {
-    name: "California",
-    image:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop",
-    areas: ["Orange County"],
-    cities: ORANGE_COUNTY_CITIES.slice(0, 10),
+      "We proudly serve all of Orange County — from Huntington Beach to Yorba Linda, Irvine, Laguna Beach, and everywhere in between.",
   },
 ];
 

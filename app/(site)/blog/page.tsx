@@ -41,7 +41,7 @@ export default async function BlogPage({ searchParams }: PageProps) {
                   <div className="h-[220px] overflow-hidden">
                     <img
                       src={post.image}
-                      alt={post.title}
+                      alt={post.imageAlt ?? post.title}
                       className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>

@@ -10,6 +10,8 @@ export interface BlogPostMeta {
   author: string;
   publishedAt: string;
   image: string;
+  imageAlt?: string;
+  imageSourceLink?: string;
 }
 
 export interface BlogPost extends BlogPostMeta {

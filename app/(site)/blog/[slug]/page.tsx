@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: post.title,
+          alt: post.imageAlt ?? post.title,
         },
       ],
     },
@@ -89,7 +89,7 @@ export default async function BlogPostPage({ params }: PageProps) {
           <div className="max-w-3xl mx-auto mb-10">
             <img
               src={post.image}
-              alt={post.title}
+              alt={post.imageAlt ?? post.title}
               className="img-blog w-full aspect-[16/9] shadow-md ring-4 ring-accent/10"
             />
           </div>

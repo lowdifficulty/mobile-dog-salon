@@ -17,7 +17,7 @@ export default function Blog() {
                 <div className="aspect-[3/2] overflow-hidden h-[250px]">
                   <img
                     src={post.image}
-                    alt={post.title}
+                    alt={post.imageAlt ?? post.title}
                     className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>

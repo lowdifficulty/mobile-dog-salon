@@ -45,6 +45,8 @@ function NavDropdown({
         className="flex items-center gap-1 text-sm font-semibold text-brand hover:text-accent transition-colors"
         aria-expanded={open}
         aria-haspopup="true"
+        aria-controls={`nav-menu-${menuId}`}
+        id={`nav-trigger-${menuId}`}
       >
         {label}
         <svg
@@ -62,12 +64,13 @@ function NavDropdown({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 pt-2 z-50">
+        <div className="absolute top-full left-0 pt-2 z-50" id={`nav-menu-${menuId}`} role="menu" aria-labelledby={`nav-trigger-${menuId}`}>
           <div className="w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2">
             {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
+                role="menuitem"
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-accent-light hover:text-accent"
                 onClick={() => setOpenMenu(null)}
               >
@@ -114,6 +117,11 @@ export default function Header() {
 
   const closeMobile = () => setMenuOpen(false);
 
+  const handleSetOpenMenu = (id: string | null) => {
+    setOpenMenu(id);
+    if (id) setMenuOpen(false);
+  };
+
   return (
     <header className="sticky top-0 z-50 bg-white shadow-[0_2px_2px_#F4F4F4]">
       <div className="site-container">
@@ -133,21 +141,21 @@ export default function Header() {
               items={NAV_ABOUT}
               menuId="about"
               openMenu={openMenu}
-              setOpenMenu={setOpenMenu}
+              setOpenMenu={handleSetOpenMenu}
             />
             <NavDropdown
               label="Services"
               items={NAV_SERVICES}
               menuId="services"
               openMenu={openMenu}
-              setOpenMenu={setOpenMenu}
+              setOpenMenu={handleSetOpenMenu}
             />
             <NavDropdown
               label="More"
               items={NAV_COMPANY}
               menuId="more"
               openMenu={openMenu}
-              setOpenMenu={setOpenMenu}
+              setOpenMenu={handleSetOpenMenu}
             />
             <Link
               href={ROUTES.careers}

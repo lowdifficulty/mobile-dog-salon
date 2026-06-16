@@ -26,7 +26,7 @@ export const CALENDAR_NOTIFY_EMAILS = [
 export const ADMIN_EMAIL = "mattlewis06@gmail.com";
 
 export const WORK_START_HOUR = 8;
-export const WORK_END_HOUR = 16; // last appointment start at 4 PM
+export const WORK_END_HOUR = 20; // last appointment start at 8 PM
 
 export const TIME_SLOT_OPTIONS = [
   "08:00",
@@ -38,6 +38,10 @@ export const TIME_SLOT_OPTIONS = [
   "14:00",
   "15:00",
   "16:00",
+  "17:00",
+  "18:00",
+  "19:00",
+  "20:00",
 ] as const;
 
 export function formatDisplayTime(time24: string): string {

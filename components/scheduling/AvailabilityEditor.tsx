@@ -139,7 +139,7 @@ export default function AvailabilityEditor({
       }
     }
     setRows(next);
-    setMessage("Weekdays in this month set to 8 AM – 4 PM. Click Save to confirm.");
+    setMessage("Weekdays in this month set to 8 AM – 8 PM. Click Save to confirm.");
   }
 
   async function save() {
@@ -341,7 +341,7 @@ export default function AvailabilityEditor({
                 }
                 className="site-btn-outline text-sm w-full"
               >
-                Start with 8 AM – 4 PM
+                Start with 8 AM – 8 PM
               </button>
             )}
           </>

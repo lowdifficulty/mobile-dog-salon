@@ -2,27 +2,36 @@ import { NextResponse } from "next/server";
 import {
   getSession,
   loginAdmin,
-  loginGroomerByEmail,
+  loginGroomer,
 } from "@/lib/scheduling/auth";
+import type { GroomerId } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { role, email, password } = body as {
+  const { role, username, email, password } = body as {
     role?: string;
+    username?: string;
     email?: string;
     password?: string;
   };
 
-  if (!email?.trim() || !password) {
-    return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+  if (!password) {
+    return NextResponse.json({ error: "Password required" }, { status: 400 });
   }
 
   let user = null;
 
   if (role === "admin") {
+    if (!email?.trim()) {
+      return NextResponse.json({ error: "Email required" }, { status: 400 });
+    }
     user = await loginAdmin(email, password);
   } else if (role === "groomer") {
-    user = await loginGroomerByEmail(email, password);
+    const id = (username ?? "").toLowerCase() as GroomerId;
+    if (id !== "melanie" && id !== "diamond") {
+      return NextResponse.json({ error: "Invalid groomer" }, { status: 400 });
+    }
+    user = await loginGroomer(id, password);
   } else {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }

@@ -304,6 +304,12 @@ export default function BookingForm({ onClose }: BookingFormProps) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Date *</label>
+              {data.service && availableDates.length === 0 && !slotsLoading && (
+                <p className="text-sm text-gray-600 mb-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                  No availability right now. Melanie and Diamond have not posted open times for this
+                  month.
+                </p>
+              )}
               <input
                 type="date"
                 value={data.preferredDate}
@@ -314,13 +320,9 @@ export default function BookingForm({ onClose }: BookingFormProps) {
                   update("groomerName", "");
                 }}
                 min={new Date().toISOString().split("T")[0]}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
+                disabled={Boolean(data.service && availableDates.length === 0)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none disabled:bg-gray-50 disabled:text-gray-400"
               />
-              {data.service && availableDates.length === 0 && (
-                <p className="text-xs text-amber-700 mt-2">
-                  No groomer availability this month yet — ask Melanie or Diamond to update their schedule.
-                </p>
-              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -331,7 +333,9 @@ export default function BookingForm({ onClose }: BookingFormProps) {
               ) : slotsLoading ? (
                 <p className="text-sm text-gray-500">Loading open slots…</p>
               ) : slots.length === 0 ? (
-                <p className="text-sm text-gray-500">No open slots on this day. Try another date.</p>
+                <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                  None available for this day with Melanie or Diamond.
+                </p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {slots.map((slot) => (

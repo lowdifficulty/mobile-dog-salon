@@ -23,8 +23,8 @@ export default function BookPage() {
       </header>
 
       <div className="site-container py-8 max-w-lg mx-auto">
-        <h1 className="site-heading-hero text-center mb-2">Book an Appointment</h1>
-        <p className="text-center text-gray-600 mb-8">
+        <h1 className="site-heading-on-pink text-center mb-2">Book an Appointment</h1>
+        <p className="text-center text-on-pink-muted mb-8">
           Schedule mobile grooming at your curb in Orange County.
         </p>
         <div className="bg-white rounded-[30px] shadow-xl overflow-hidden border border-accent/10">

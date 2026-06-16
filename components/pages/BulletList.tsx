@@ -1,9 +1,18 @@
-export default function BulletList({ items }: { items: string[] }) {
+export default function BulletList({
+  items,
+  onPink = false,
+}: {
+  items: string[];
+  onPink?: boolean;
+}) {
   return (
     <ul className="grid sm:grid-cols-2 gap-3">
       {items.map((item) => (
-        <li key={item} className="flex items-center gap-2 text-sm font-semibold text-brand">
-          <span className="site-check">
+        <li
+          key={item}
+          className={`flex items-center gap-2 text-sm font-semibold ${onPink ? "text-white" : "text-brand"}`}
+        >
+          <span className={onPink ? "site-check-on-pink" : "site-check"}>
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"

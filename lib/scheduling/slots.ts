@@ -7,6 +7,8 @@ import type {
 import { GROOMERS, formatDisplayTime } from "./groomers";
 import { serviceDurationMinutes } from "./services";
 
+const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
+
 function parseLocalDateTime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00`);
 }
@@ -49,6 +51,7 @@ export function getAvailableSlotsForDate(
 
   for (const day of availability) {
     if (day.date !== date) continue;
+    if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     for (const time of day.times) {
       if (isSlotTaken(day.groomerId, date, time, duration, appointments)) continue;
       slots.push({
@@ -75,6 +78,7 @@ export function getDatesWithAvailability(
   const dates = new Set<string>();
   for (const day of availability) {
     if (day.date < fromDate || day.date > toDate) continue;
+    if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     const hasSlot = day.times.some(
       (time) => !isSlotTaken(day.groomerId, day.date, time, serviceDurationMinutes(service), appointments)
     );

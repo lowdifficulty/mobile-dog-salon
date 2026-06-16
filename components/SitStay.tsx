@@ -1,6 +1,9 @@
+"use client";
+
 import { SIT_STAY_BENEFITS } from "@/lib/constants";
 import { IMAGE_SLOTS } from "@/lib/images";
 import BookButton from "./BookButton";
+import BookableImage from "./BookableImage";
 
 export default function SitStay() {
   return (
@@ -40,9 +43,10 @@ export default function SitStay() {
           </div>
 
           <div>
-            <img
+            <BookableImage
               src={IMAGE_SLOTS.sitStay}
               alt="Mobile grooming van at a customer's home"
+              bookable
               className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-white"
             />
           </div>

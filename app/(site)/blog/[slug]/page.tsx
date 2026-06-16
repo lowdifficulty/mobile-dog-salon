@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import MarkdownBody from "@/components/blog/MarkdownBody";
+import BlogPostHeroImage from "@/components/BlogPostHeroImage";
 import CareersCTA from "@/components/pages/PageCTAs";
 import { ROUTES } from "@/lib/routes";
 import { getAllBlogSlugs, getBlogPost } from "@/lib/blog-loader";
@@ -71,13 +72,13 @@ export default async function BlogPostPage({ params }: PageProps) {
     <>
       <section className="site-section bg-section-hero">
         <div className="site-container max-w-3xl">
-          <Link href={ROUTES.blog} className="text-sm font-semibold text-accent hover:text-brand mb-6 inline-block">
+          <Link href={ROUTES.blog} className="link-on-pink text-sm mb-6 inline-block">
             ← Back to Blog
           </Link>
-          <p className="text-xs font-bold text-accent uppercase tracking-wide mb-2">{post.category}</p>
-          <h1 className="site-heading-hero mb-4">{post.title}</h1>
-          <p className="text-gray-600 text-sm">
-            By <span className="font-semibold text-brand">{post.author}</span>
+          <p className="text-xs font-bold text-white/90 uppercase tracking-wide mb-2">{post.category}</p>
+          <h1 className="site-heading-on-pink mb-4">{post.title}</h1>
+          <p className="text-on-pink-muted text-sm">
+            By <span className="font-semibold text-white">{post.author}</span>
             <span className="mx-2">·</span>
             {formatDate(post.publishedAt)}
           </p>
@@ -87,11 +88,7 @@ export default async function BlogPostPage({ params }: PageProps) {
       <section className="site-section bg-section-white">
         <div className="site-container">
           <div className="max-w-3xl mx-auto mb-10">
-            <img
-              src={post.image}
-              alt={post.imageAlt ?? post.title}
-              className="img-blog w-full aspect-[16/9] shadow-md ring-4 ring-accent/10"
-            />
+            <BlogPostHeroImage src={post.image} alt={post.imageAlt ?? post.title} bookable />
           </div>
           <MarkdownBody content={post.content} />
         </div>

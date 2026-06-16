@@ -49,30 +49,22 @@ export const HOW_IT_WORKS_STEPS = [
 export const REVIEWS = [
   {
     name: "Treva",
-    petQuote:
-      "Wooof, bark bark grrr, woof woof sniff. Lick, grrr woof woof woof sniff sniff bark woof woof.",
-    humanQuote:
+    quote:
       "So happy with the service. They take such good care of my boy Leo. Having the mobile service makes all the difference in the world. Thank you :)",
   },
   {
     name: "Siegel A.",
-    petQuote:
-      "Woof woof woof grrrr woof snort. Grrr woof woof grrrrr. Snort snort grrr woof woof woof. Woof snort snortwoof woof grrrr woof snort.",
-    humanQuote:
+    quote:
       "Absolutely great service. Mobile Dog Salon was gentle, communicative and best of all convenient. I would definitely recommend their services!",
   },
   {
     name: "Michael E.",
-    petQuote:
-      "Meow meoooow purrrrr meow meow meow purrrrr purr meow meooow meow. Purrrrrrrrrrrrrrr.",
-    humanQuote:
+    quote:
       "We switched to Mobile Dog Salon and are absolutely thrilled we did. My only regret is we didn't use them first. Super friendly folks!",
   },
   {
     name: "Lisa B.",
-    petQuote:
-      "Snort snort grrr woof woof woof. Woof snort snortwoof woof grrrr woof snort. Woof wooooof grrr.",
-    humanQuote:
+    quote:
       "My dog is so shy, but this company rains love and companionship all over — she actually looks forward to her next visits, so thank you!!",
   },
 ];

@@ -132,6 +132,47 @@ body {
     font-size: clamp(2.25rem, 6vw, 3.5rem);
   }
 
+  .site-heading-on-pink {
+    @apply font-bold leading-[1.15] text-white;
+    font-size: clamp(2.25rem, 6vw, 3.5rem);
+  }
+
+  .site-heading-on-pink .site-heading-pink,
+  .site-heading-on-pink span {
+    color: white;
+  }
+
+  .site-heading-section-on-pink {
+    @apply font-bold leading-[1.2] text-center relative text-white;
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+  }
+
+  .site-heading-section-on-pink::after {
+    content: "";
+    display: block;
+    width: 48px;
+    height: 4px;
+    background-color: white;
+    border-radius: 9999px;
+    margin: 0.75rem auto 0;
+  }
+
+  .site-heading-section-on-pink.site-heading-section-left::after {
+    margin-left: 0;
+  }
+
+  .text-on-pink {
+    color: white;
+  }
+
+  .text-on-pink-muted {
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .link-on-pink {
+    @apply font-semibold text-white hover:text-white/85 hover:underline transition-colors;
+  }
+
   .site-heading-section {
     @apply font-bold leading-[1.2] text-center relative;
     color: var(--brand);
@@ -194,6 +235,14 @@ body {
 
   .site-check svg {
     color: var(--accent);
+  }
+
+  .site-check-on-pink {
+    @apply w-5 h-5 rounded-full flex items-center justify-center shrink-0 bg-white/25;
+  }
+
+  .site-check-on-pink svg {
+    color: white;
   }
 
   .site-step-badge {

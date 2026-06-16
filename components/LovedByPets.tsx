@@ -1,6 +1,9 @@
+"use client";
+
 import { PET_TYPES } from "@/lib/constants";
 import { IMAGE_SLOTS } from "@/lib/images";
 import BookButton from "./BookButton";
+import BookableImage from "./BookableImage";
 
 export default function LovedByPets() {
   return (
@@ -8,9 +11,10 @@ export default function LovedByPets() {
       <div className="site-container">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div>
-            <img
+            <BookableImage
               src={IMAGE_SLOTS.lovedByPets}
               alt="Happy dog after grooming"
+              bookable={false}
               className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-accent/15"
             />
           </div>

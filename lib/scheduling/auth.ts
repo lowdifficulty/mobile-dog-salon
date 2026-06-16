@@ -9,9 +9,18 @@ export interface SessionData {
   user?: SessionUser;
 }
 
-const PASSWORD_HASH =
+const ADMIN_PASSWORD_HASH =
   process.env.SCHEDULING_PASSWORD_HASH ??
-  "$2b$10$5Doi4/8okDEgPDEV/kNHhObuK8JpKMyetC7hcb0PLimXekrEfr39O";
+  "$2b$10$bPTNR36A.miiCUieYHGYVOU6OctrQSV1/kBi8xVhJQMH34os8xW56";
+
+const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
+  melanie:
+    process.env.SCHEDULING_PASSWORD_HASH_MELANIE ??
+    "$2b$10$bPTNR36A.miiCUieYHGYVOU6OctrQSV1/kBi8xVhJQMH34os8xW56",
+  diamond:
+    process.env.SCHEDULING_PASSWORD_HASH_DIAMOND ??
+    "$2b$10$fIgTTqJ.fh5P.dS.zHmOw.2K7z8npBMCk6OaXHAUN6YSAlp70tWP.",
+};
 
 export function getSessionOptions() {
   const password =
@@ -38,7 +47,19 @@ export async function getSession() {
 export async function verifyPassword(password: string): Promise<boolean> {
   const plain = process.env.SCHEDULING_PASSWORD;
   if (plain) return password === plain;
-  return bcrypt.compare(password, PASSWORD_HASH);
+  return bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+}
+
+export async function verifyGroomerPassword(
+  groomerId: GroomerId,
+  password: string
+): Promise<boolean> {
+  const plainEnv =
+    groomerId === "melanie"
+      ? process.env.SCHEDULING_PASSWORD_MELANIE
+      : process.env.SCHEDULING_PASSWORD_DIAMOND;
+  if (plainEnv) return password === plainEnv;
+  return bcrypt.compare(password, GROOMER_PASSWORD_HASHES[groomerId]);
 }
 
 export async function loginGroomer(
@@ -46,7 +67,7 @@ export async function loginGroomer(
   password: string
 ): Promise<SessionUser | null> {
   if (!GROOMERS[groomerId]) return null;
-  if (!(await verifyPassword(password))) return null;
+  if (!(await verifyGroomerPassword(groomerId, password))) return null;
   return {
     role: "groomer",
     groomerId,

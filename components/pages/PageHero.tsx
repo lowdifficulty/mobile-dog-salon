@@ -27,14 +27,20 @@ export default function PageHero({
   image,
   imageAlt = "",
 }: PageHeroProps) {
+  const isPinkBg = background === "hero";
+
   return (
     <section className={`site-section ${bgClasses[background]}`}>
       <div className="site-container">
         <div className={`grid gap-10 items-center ${image ? "lg:grid-cols-2" : ""}`}>
           <div className={image ? "" : "max-w-3xl mx-auto text-center"}>
-            <h1 className={`site-heading-hero mb-4 ${image ? "" : "text-center"}`}>{title}</h1>
+            <h1 className={`${isPinkBg ? "site-heading-on-pink" : "site-heading-hero"} mb-4 ${image ? "" : "text-center"}`}>
+              {title}
+            </h1>
             {subtitle && (
-              <p className={`text-gray-600 text-lg leading-relaxed ${image ? "max-w-xl" : "max-w-2xl mx-auto"}`}>
+              <p
+                className={`text-lg leading-relaxed ${isPinkBg ? "text-on-pink-muted" : "text-gray-600"} ${image ? "max-w-xl" : "max-w-2xl mx-auto"}`}
+              >
                 {subtitle}
               </p>
             )}

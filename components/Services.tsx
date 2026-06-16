@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import BookableImage from "./BookableImage";
 import { ALL_SERVICES } from "@/lib/routes";
 
 export default function Services() {
@@ -17,12 +20,13 @@ export default function Services() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {ALL_SERVICES.map((card) => (
+          {ALL_SERVICES.map((card, index) => (
             <article key={card.title} className="site-card group overflow-hidden">
               <div className="aspect-[4/3] overflow-hidden">
-                <img
+                <BookableImage
                   src={card.image}
                   alt={card.title}
+                  bookable={index % 2 === 0}
                   className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>

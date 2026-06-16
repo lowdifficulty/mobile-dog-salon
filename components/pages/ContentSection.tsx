@@ -32,11 +32,27 @@ export default function ContentSection({
   bg = "white",
   className = "",
 }: ContentSectionProps) {
+  const isPinkBg = bg === "pink";
+
   const textBlock = (
-    <div>
-      {title && <h2 className="site-heading-section site-heading-section-left !text-left mb-6">{title}</h2>}
+    <div className={isPinkBg ? "text-on-pink-muted" : ""}>
+      {title && (
+        <h2
+          className={`mb-6 ${
+            isPinkBg
+              ? "site-heading-section-on-pink site-heading-section-left !text-left"
+              : "site-heading-section site-heading-section-left !text-left"
+          }`}
+        >
+          {title}
+        </h2>
+      )}
       {children}
-      {bullets && <div className="mt-6"><BulletList items={bullets} /></div>}
+      {bullets && (
+        <div className="mt-6">
+          <BulletList items={bullets} onPink={isPinkBg} />
+        </div>
+      )}
     </div>
   );
 

@@ -22,7 +22,7 @@ export default function ReviewsPage() {
           <div className="grid sm:grid-cols-2 gap-6">
             {REVIEWS.map((review) => (
               <article key={review.name} className="site-card img-review-card p-8 bg-cream border-t-4 border-accent">
-                <p className="text-gray-700 leading-relaxed mb-4 italic">&ldquo;{review.humanQuote}&rdquo;</p>
+                <p className="text-gray-700 leading-relaxed mb-4 italic">&ldquo;{review.quote}&rdquo;</p>
                 <p className="font-bold text-brand">— {review.name}</p>
               </article>
             ))}

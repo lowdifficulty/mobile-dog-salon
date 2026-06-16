@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageHero from "@/components/pages/PageHero";
+import BlogListingCard from "@/components/BlogListingCard";
 import { getBlogListings } from "@/lib/blog-loader";
-import { blogPostPath } from "@/lib/blog-public";
 import CareersCTA from "@/components/pages/PageCTAs";
 
 export const metadata: Metadata = {
@@ -35,31 +35,8 @@ export default async function BlogPage({ searchParams }: PageProps) {
             {all.length} articles on mobile grooming, Orange County pet care, and breed-specific tips.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
-              <Link key={post.slug} href={blogPostPath(post.slug)} className="block h-full group">
-                <article className="site-card overflow-hidden h-full">
-                  <div className="h-[220px] overflow-hidden">
-                    <img
-                      src={post.image}
-                      alt={post.imageAlt ?? post.title}
-                      className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="p-5 border-t-4 border-accent">
-                    <p className="text-xs font-semibold text-accent mb-2">By {post.author}</p>
-                    <h2 className="font-bold text-brand mb-2 leading-snug text-lg">{post.title}</h2>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-3">{post.excerpt}</p>
-                    <p className="text-xs text-gray-400 mb-2">
-                      {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <span className="site-link text-sm">Read More &gt;</span>
-                  </div>
-                </article>
-              </Link>
+            {posts.map((post, index) => (
+              <BlogListingCard key={post.slug} post={post} bookableImage={index % 2 === 0} />
             ))}
           </div>
 

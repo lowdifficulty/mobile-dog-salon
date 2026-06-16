@@ -1,5 +1,6 @@
-import Tagline, { BrandingHeroImage } from "@/components/Tagline";
+import Tagline from "@/components/Tagline";
 import BookButton from "./BookButton";
+import BookableBrandingHeroImage from "./BookableBrandingHeroImage";
 
 export default function Hero() {
   return (
@@ -21,7 +22,7 @@ export default function Hero() {
           </div>
 
           <div className="relative">
-            <BrandingHeroImage className="rounded-[30px] ring-4 ring-white/80" />
+            <BookableBrandingHeroImage className="rounded-[30px] ring-4 ring-white/80" />
           </div>
         </div>
       </div>

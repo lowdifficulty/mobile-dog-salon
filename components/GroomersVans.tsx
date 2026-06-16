@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { ROUTES } from "@/lib/routes";
 import { IMAGE_SLOTS } from "@/lib/images";
+import BookableImage from "./BookableImage";
 
 export default function GroomersVans() {
   return (
@@ -19,9 +22,10 @@ export default function GroomersVans() {
               <Link href={ROUTES.ourGroomers} className="site-link">Learn More</Link>
             </div>
             <div>
-              <img
+              <BookableImage
                 src={IMAGE_SLOTS.groomers}
                 alt="Professional pet groomer with a happy dog"
+                bookable
                 className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-white"
               />
             </div>
@@ -43,9 +47,10 @@ export default function GroomersVans() {
               <Link href={ROUTES.ourVans} className="site-link">Learn More</Link>
             </div>
             <div className="lg:order-1">
-              <img
+              <BookableImage
                 src={IMAGE_SLOTS.vans}
                 alt="State-of-the-art mobile grooming van"
+                bookable={false}
                 className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-accent/15"
               />
             </div>

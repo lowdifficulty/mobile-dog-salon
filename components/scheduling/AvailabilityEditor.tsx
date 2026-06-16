@@ -43,14 +43,6 @@ function getMonthGrid(year: number, month: number): (string | null)[] {
   return cells;
 }
 
-function datesInMonth(year: number, month: number): string[] {
-  const daysInMonth = new Date(year, month, 0).getDate();
-  return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = i + 1;
-    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  });
-}
-
 export default function AvailabilityEditor({
   apiBase,
   groomerId,
@@ -129,19 +121,6 @@ export default function AvailabilityEditor({
     });
   }
 
-  function applyWeekdayTemplateForMonth() {
-    if (readOnly) return;
-    const next: Record<string, string[]> = { ...rows };
-    for (const date of datesInMonth(viewYear, viewMonth)) {
-      const weekday = new Date(`${date}T12:00:00`).getDay();
-      if (weekday >= 1 && weekday <= 5) {
-        next[date] = [...TIME_SLOT_OPTIONS];
-      }
-    }
-    setRows(next);
-    setMessage("Weekdays in this month set to 8 AM – 8 PM. Click Save to confirm.");
-  }
-
   async function save() {
     if (readOnly) return;
     setSaving(true);
@@ -180,13 +159,6 @@ export default function AvailabilityEditor({
       <div>
         {!readOnly && (
           <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              type="button"
-              onClick={applyWeekdayTemplateForMonth}
-              className="site-btn-outline text-sm"
-            >
-              Fill weekdays this month
-            </button>
             <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
               {saving ? "Saving…" : "Save availability"}
             </button>

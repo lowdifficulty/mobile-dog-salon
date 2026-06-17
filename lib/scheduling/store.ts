@@ -20,20 +20,30 @@ function getRedisClient(): Redis | null {
 }
 
 async function readFromFile(): Promise<SchedulingData> {
-  const paths = process.env.VERCEL ? [TMP_PATH, FILE_PATH] : [FILE_PATH];
-  for (const p of paths) {
+  if (process.env.VERCEL) {
+    // Ephemeral /tmp only — never read bundled data/scheduling.json (may contain stale demo data).
     try {
-      const raw = await fs.readFile(p, "utf8");
+      const raw = await fs.readFile(TMP_PATH, "utf8");
       const parsed = JSON.parse(raw) as SchedulingData;
       return {
         availability: parsed.availability ?? [],
         appointments: parsed.appointments ?? [],
       };
     } catch {
-      // try next path
+      return emptySchedulingData();
     }
   }
-  return emptySchedulingData();
+
+  try {
+    const raw = await fs.readFile(FILE_PATH, "utf8");
+    const parsed = JSON.parse(raw) as SchedulingData;
+    return {
+      availability: parsed.availability ?? [],
+      appointments: parsed.appointments ?? [],
+    };
+  } catch {
+    return emptySchedulingData();
+  }
 }
 
 async function writeToFile(data: SchedulingData): Promise<void> {
@@ -57,9 +67,9 @@ export async function readSchedulingData(): Promise<SchedulingData> {
   if (redis) {
     const data = await redis.get<SchedulingData>(REDIS_KEY);
     if (data) return data;
-    const seeded = await readFromFile();
-    await redis.set(REDIS_KEY, seeded);
-    return seeded;
+    const empty = emptySchedulingData();
+    await redis.set(REDIS_KEY, empty);
+    return empty;
   }
   return readFromFile();
 }

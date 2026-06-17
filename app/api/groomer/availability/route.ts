@@ -21,7 +21,7 @@ export async function PUT(request: Request) {
     const incoming = (body.availability ?? []) as AvailabilityDay[];
 
     const sanitized = incoming
-      .filter((a) => a.groomerId === user.groomerId)
+      .filter((a) => a.date && Array.isArray(a.times))
       .map((a) => ({
         groomerId: user.groomerId!,
         date: a.date,
@@ -36,7 +36,8 @@ export async function PUT(request: Request) {
     await writeSchedulingData(data);
 
     return NextResponse.json({ success: true, count: sanitized.length });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    console.error("Save availability failed:", err);
+    return NextResponse.json({ error: "Could not save availability" }, { status: 500 });
   }
 }

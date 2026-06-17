@@ -23,6 +23,7 @@ export default function BathingPage() {
       idealFor={content.idealFor}
       faqs={content.faqs}
       currentHref={ROUTES.bathing}
+      hideBookButtons
     />
   );
 }

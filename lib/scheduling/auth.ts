@@ -11,7 +11,7 @@ export interface SessionData {
 
 const ADMIN_PASSWORD_HASH =
   process.env.SCHEDULING_PASSWORD_HASH ??
-  "$2b$10$bPTNR36A.miiCUieYHGYVOU6OctrQSV1/kBi8xVhJQMH34os8xW56";
+  "$2b$10$u0DN49dIL.xM4OfVlNIpduTF9jTPmb8IzR2uX.6.cRk1BuOkOcuJ.";
 
 const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
   melanie:
@@ -25,7 +25,6 @@ const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
 export function getSessionOptions() {
   const password =
     process.env.SCHEDULING_SESSION_SECRET ??
-    process.env.SCHEDULING_PASSWORD ??
     "mobile-dog-salon-scheduling-dev-secret-change-in-production";
 
   return {

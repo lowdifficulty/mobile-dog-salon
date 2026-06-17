@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TIME_SLOT_OPTIONS, formatDisplayTime } from "@/lib/scheduling/groomers";
-import type { AvailabilityDay } from "@/lib/scheduling/types";
+import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -49,7 +49,7 @@ export default function AvailabilityEditor({
   readOnly = false,
 }: {
   apiBase: string;
-  groomerId?: string;
+  groomerId?: GroomerId;
   readOnly?: boolean;
 }) {
   const today = todayString();
@@ -68,8 +68,14 @@ export default function AvailabilityEditor({
 
   const load = useCallback(async () => {
     setLoading(true);
+    setMessage("");
     const res = await fetch(apiBase);
     if (!res.ok) {
+      setMessage(
+        res.status === 401
+          ? "Session expired — please sign in again."
+          : "Could not load availability."
+      );
       setLoading(false);
       return;
     }
@@ -122,11 +128,11 @@ export default function AvailabilityEditor({
   }
 
   async function save() {
-    if (readOnly) return;
+    if (readOnly || !groomerId) return;
     setSaving(true);
     setMessage("");
     const availability: AvailabilityDay[] = Object.entries(rows).map(([date, times]) => ({
-      groomerId: groomerId as AvailabilityDay["groomerId"],
+      groomerId,
       date,
       times,
     }));
@@ -140,8 +146,10 @@ export default function AvailabilityEditor({
     setSaving(false);
     if (res.ok) {
       setMessage("Availability saved!");
+      await load();
     } else {
-      setMessage("Could not save. Try again.");
+      const data = await res.json().catch(() => ({}));
+      setMessage(data.error ?? "Could not save. Try again.");
     }
   }
 

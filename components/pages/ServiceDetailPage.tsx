@@ -19,6 +19,8 @@ interface ServiceDetailPageProps {
   idealFor?: string[];
   faqs: { question: string; answer: string }[];
   currentHref: string;
+  /** Hide Book an Appointment CTAs on this service page */
+  hideBookButtons?: boolean;
 }
 
 export default function ServiceDetailPage({
@@ -32,6 +34,7 @@ export default function ServiceDetailPage({
   idealFor,
   faqs,
   currentHref,
+  hideBookButtons = false,
 }: ServiceDetailPageProps) {
   return (
     <>
@@ -47,9 +50,11 @@ export default function ServiceDetailPage({
           <p className="text-gray-600 text-lg leading-relaxed mb-8">{intro}</p>
           <h2 className="site-heading-section site-heading-section-left !text-left mb-6">Why Choose This Service</h2>
           <BulletList items={bullets} />
-          <div className="mt-8">
-            <BookButton />
-          </div>
+          {!hideBookButtons && (
+            <div className="mt-8">
+              <BookButton />
+            </div>
+          )}
         </div>
       </section>
       <section className="site-section bg-section-blue">
@@ -68,7 +73,7 @@ export default function ServiceDetailPage({
       <Reviews />
       <ExploreOtherServices currentHref={currentHref} />
       <FAQSection faqs={faqs} />
-      <LocationsCTA />
+      <LocationsCTA hideBookButton={hideBookButtons} />
       <CareersCTA />
     </>
   );

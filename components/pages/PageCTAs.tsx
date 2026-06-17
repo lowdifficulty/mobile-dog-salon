@@ -21,7 +21,7 @@ export default function CareersCTA() {
   );
 }
 
-export function LocationsCTA() {
+export function LocationsCTA({ hideBookButton = false }: { hideBookButton?: boolean }) {
   return (
     <section className="site-section bg-section-pattern-blue">
       <div className="site-container text-center max-w-3xl mx-auto">
@@ -33,7 +33,7 @@ export function LocationsCTA() {
           care to your curb.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
-          <BookButton />
+          {!hideBookButton && <BookButton />}
           <Link href={ROUTES.locations} className="site-btn-outline">
             View Locations
           </Link>

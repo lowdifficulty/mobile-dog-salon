@@ -1,19 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NAV_ABOUT, NAV_COMPANY, NAV_SERVICES, ROUTES } from "@/lib/routes";
+import { isA2PVerificationPage } from "@/lib/a2p-page";
 import { useBooking } from "./BookingProvider";
 
 export default function Footer() {
+  const pathname = usePathname();
+  const hideBookingUi = isA2PVerificationPage(pathname);
+  const companyNav = hideBookingUi
+    ? NAV_COMPANY.filter((item) => item.href !== ROUTES.book)
+    : NAV_COMPANY;
   const { openBooking } = useBooking();
 
   return (
     <footer className="bg-brand text-white border-t-4 border-accent footer-bckgrnd">
       <div className="site-container py-12 md:py-16">
         <div className="text-center mb-10">
-          <button type="button" onClick={openBooking} className="site-btn mb-6">
-            Book an Appointment
-          </button>
+          {!hideBookingUi && (
+            <button type="button" onClick={openBooking} className="site-btn mb-6">
+              Book an Appointment
+            </button>
+          )}
           <p className="text-white/60 text-sm">
             <Link href={ROUTES.careers} className="hover:text-accent transition-colors">
               START A MOBILE GROOMING CAREER &gt;
@@ -51,7 +60,7 @@ export default function Footer() {
           <div>
             <h3 className="font-bold text-sm uppercase tracking-wide mb-4 text-white/60">Company</h3>
             <ul className="space-y-2">
-              {NAV_COMPANY.map((item) => (
+              {companyNav.map((item) => (
                 <li key={item.href}>
                   <Link href={item.href} className="text-sm text-white/80 hover:text-accent transition-colors">
                     {item.label}

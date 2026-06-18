@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { NAV_ABOUT, NAV_COMPANY, NAV_SERVICES, ROUTES } from "@/lib/routes";
+import { isA2PVerificationPage } from "@/lib/a2p-page";
 import { useBooking } from "./BookingProvider";
 
 function NavDropdown({
@@ -111,6 +113,15 @@ function MobileNavSection({
 }
 
 export default function Header() {
+  const pathname = usePathname();
+  const hideBookingUi = isA2PVerificationPage(pathname);
+  const companyNav = useMemo(
+    () =>
+      hideBookingUi
+        ? NAV_COMPANY.filter((item) => item.href !== ROUTES.book)
+        : NAV_COMPANY,
+    [hideBookingUi]
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const { openBooking } = useBooking();
@@ -152,7 +163,7 @@ export default function Header() {
             />
             <NavDropdown
               label="More"
-              items={NAV_COMPANY}
+              items={companyNav}
               menuId="more"
               openMenu={openMenu}
               setOpenMenu={handleSetOpenMenu}
@@ -163,15 +174,19 @@ export default function Header() {
             >
               Careers
             </Link>
-            <button type="button" onClick={openBooking} className="site-btn text-sm !py-2.5 !px-6">
-              Book an Appointment
-            </button>
+            {!hideBookingUi && (
+              <button type="button" onClick={openBooking} className="site-btn text-sm !py-2.5 !px-6">
+                Book an Appointment
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center gap-3 lg:hidden">
-            <button type="button" onClick={openBooking} className="site-btn text-sm !py-2 !px-4">
-              Book
-            </button>
+            {!hideBookingUi && (
+              <button type="button" onClick={openBooking} className="site-btn text-sm !py-2 !px-4">
+                Book
+              </button>
+            )}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="p-2 text-brand"
@@ -197,7 +212,7 @@ export default function Header() {
           <nav className="site-container py-4 flex flex-col gap-3">
             <MobileNavSection title="About" items={NAV_ABOUT} onNavigate={closeMobile} />
             <MobileNavSection title="Services" items={NAV_SERVICES} onNavigate={closeMobile} />
-            <MobileNavSection title="More" items={NAV_COMPANY} onNavigate={closeMobile} />
+            <MobileNavSection title="More" items={companyNav} onNavigate={closeMobile} />
             <Link
               href={ROUTES.careers}
               className="text-sm font-medium text-gray-800 hover:text-accent"
@@ -205,16 +220,18 @@ export default function Header() {
             >
               Careers
             </Link>
-            <button
-              type="button"
-              onClick={() => {
-                openBooking();
-                closeMobile();
-              }}
-              className="site-btn text-sm w-full mt-2"
-            >
-              Book an Appointment
-            </button>
+            {!hideBookingUi && (
+              <button
+                type="button"
+                onClick={() => {
+                  openBooking();
+                  closeMobile();
+                }}
+                className="site-btn text-sm w-full mt-2"
+              >
+                Book an Appointment
+              </button>
+            )}
           </nav>
         </div>
       )}

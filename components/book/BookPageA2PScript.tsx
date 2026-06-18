@@ -1,8 +1,8 @@
 import Script from "next/script";
 
 /**
- * Go High Level A2P verification loader for /book only.
- * Chat bubble is hidden via CSS in globals.css (.book-page-a2p-root).
+ * Go High Level A2P verification loader — bathing service page only.
+ * Chat bubble is hidden via CSS in globals.css (.a2p-verification-page).
  */
 export default function BookPageA2PScript() {
   return (

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import ServiceDetailPage from "@/components/pages/ServiceDetailPage";
+import BathingA2PForm from "@/components/bath/BathingA2PForm";
+import BookPageA2PScript from "@/components/book/BookPageA2PScript";
 import { ROUTES } from "@/lib/routes";
 import { IMAGE_SLOTS } from "@/lib/images";
 import { SERVICE_CONTENT } from "@/lib/page-content";
@@ -13,17 +15,21 @@ export const metadata: Metadata = {
 
 export default function BathingPage() {
   return (
-    <ServiceDetailPage
-      title={<>Pet <span className="site-heading-pink">Bathing & Washing</span></>}
-      subtitle="Warm filtered baths, quality products, and a professional finish — right at your driveway."
-      image={IMAGE_SLOTS.serviceBath}
-      intro={content.intro}
-      bullets={content.why}
-      included={content.included}
-      idealFor={content.idealFor}
-      faqs={content.faqs}
-      currentHref={ROUTES.bathing}
-      hideBookButtons
-    />
+    <div className="a2p-verification-page">
+      <ServiceDetailPage
+        title={<>Pet <span className="site-heading-pink">Bathing & Washing</span></>}
+        subtitle="Warm filtered baths, quality products, and a professional finish — right at your driveway."
+        image={IMAGE_SLOTS.serviceBath}
+        intro={content.intro}
+        bullets={content.why}
+        included={content.included}
+        idealFor={content.idealFor}
+        faqs={content.faqs}
+        currentHref={ROUTES.bathing}
+        hideBookButtons
+      />
+      <BathingA2PForm />
+      <BookPageA2PScript />
+    </div>
   );
 }

@@ -34,6 +34,32 @@ export interface SchedulingData {
   appointments: Appointment[];
 }
 
+export type AvailabilityHistoryAction =
+  | "groomer_save"
+  | "groomer_erase"
+  | "booking"
+  | "admin_restore"
+  | "system_init"
+  | "system_migrate";
+
+export interface AvailabilityHistoryEntry {
+  id: string;
+  at: string;
+  action: AvailabilityHistoryAction;
+  actor: string;
+  groomerId?: GroomerId;
+  summary: string;
+  groomerDaysBefore?: number;
+  groomerDaysAfter?: number;
+  scheduling: SchedulingData;
+}
+
+export interface WriteSchedulingMeta {
+  action: AvailabilityHistoryAction;
+  actor: string;
+  groomerId?: GroomerId;
+}
+
 export interface AvailableSlot {
   groomerId: GroomerId;
   groomerName: string;

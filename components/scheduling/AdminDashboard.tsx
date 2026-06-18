@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AppointmentList from "./AppointmentList";
 import TeamAvailabilityCalendar from "./TeamAvailabilityCalendar";
+import AvailabilityHistoryPanel from "./AvailabilityHistoryPanel";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-type Tab = "team-calendar" | "upcoming" | "past" | "payments";
+type Tab = "team-calendar" | "history" | "upcoming" | "past" | "payments";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function AdminDashboard() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "team-calendar", label: "Team calendar" },
+    { id: "history", label: "Schedule history" },
     { id: "upcoming", label: "Upcoming" },
     { id: "past", label: "Past" },
     { id: "payments", label: "Payments" },
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
       </div>
 
       {tab === "team-calendar" && <TeamAvailabilityCalendar />}
+      {tab === "history" && <AvailabilityHistoryPanel />}
       {tab === "upcoming" && (
         <AppointmentList apiUrl={appointmentApi} filter="upcoming" />
       )}

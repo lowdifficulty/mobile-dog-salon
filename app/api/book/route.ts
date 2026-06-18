@@ -88,7 +88,11 @@ export async function POST(request: Request) {
 
   data.appointments.push(appointment);
   consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
-  await writeSchedulingData(data);
+  await writeSchedulingData(data, {
+    action: "booking",
+    actor: email,
+    groomerId,
+  });
 
   try {
     await sendCalendarInvites(appointment);

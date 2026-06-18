@@ -60,6 +60,7 @@ export default function AvailabilityEditor({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [persistenceNote, setPersistenceNote] = useState("");
 
   const monthCells = useMemo(
     () => getMonthGrid(viewYear, viewMonth),
@@ -85,6 +86,11 @@ export default function AvailabilityEditor({
       map[a.date] = [...a.times];
     }
     setRows(map);
+    if (data.persistence?.writable === false) {
+      setPersistenceNote(data.persistence.message);
+    } else {
+      setPersistenceNote("");
+    }
     setLoading(false);
   }, [apiBase]);
 
@@ -149,7 +155,11 @@ export default function AvailabilityEditor({
       await load();
     } else {
       const data = await res.json().catch(() => ({}));
-      setMessage(data.error ?? "Could not save. Try again.");
+      const err =
+        data.code === "PERSISTENCE_NOT_CONFIGURED"
+          ? `${data.error} Ask admin to connect Upstash Redis on Vercel.`
+          : data.error ?? "Could not save. Try again.";
+      setMessage(err);
     }
   }
 
@@ -173,6 +183,11 @@ export default function AvailabilityEditor({
           </div>
         )}
         {message && <p className="text-sm text-brand font-semibold mb-4">{message}</p>}
+        {persistenceNote && (
+          <p className="text-sm text-red-600 font-semibold mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            {persistenceNote}
+          </p>
+        )}
 
         <div className="site-card p-6">
           <div className="flex items-center justify-between gap-4 mb-6">

@@ -251,7 +251,7 @@ export default function WeekAvailabilityPicker({
                     selectedSlotKey === slot.slotKey ? "text-white/90" : "text-gray-500"
                   }`}
                 >
-                  with {slot.groomerName}
+                  2 hr · with {slot.groomerName}
                 </span>
               </button>
             ))}

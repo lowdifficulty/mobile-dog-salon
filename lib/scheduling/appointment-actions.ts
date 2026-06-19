@@ -2,7 +2,7 @@ import "server-only";
 
 import {
   consumeGroomerAvailability,
-  hasConsecutiveAvailability,
+  hasMinimumAvailabilityForBooking,
   restoreGroomerAvailability,
 } from "@/lib/scheduling/availability";
 import {
@@ -126,7 +126,7 @@ export async function rescheduleAppointment(
   );
   if (
     !dayAvail ||
-    !hasConsecutiveAvailability(dayAvail.times, time, appointment.durationMinutes)
+    !hasMinimumAvailabilityForBooking(dayAvail.times, time)
   ) {
     return {
       ok: false,

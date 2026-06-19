@@ -33,9 +33,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/images/og-home.jpg",
+        url: "/images/og-home-square.jpg",
         width: 1200,
-        height: 630,
+        height: 1200,
         alt: "Mobile Dog Salon — Good Dogs Take Baths",
         type: "image/jpeg",
       },
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
     title: "Mobile Dog Salon | Good Dogs Take Baths",
     description:
       "Good Dogs Take Baths — mobile pet grooming that comes to your curb in Orange County.",
-    images: ["/images/og-home.jpg"],
+    images: ["/images/og-home-square.jpg"],
   },
 };
 

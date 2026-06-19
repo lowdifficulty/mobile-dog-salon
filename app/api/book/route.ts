@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
 import {
+  isBookableDate,
   isSlotTaken,
   parseSlotKey,
   slotToISO,
@@ -9,7 +10,7 @@ import {
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
   consumeGroomerAvailability,
-  hasConsecutiveAvailability,
+  hasMinimumAvailabilityForBooking,
 } from "@/lib/scheduling/availability";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
@@ -69,12 +70,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid slot" }, { status: 400 });
   }
 
+  if (!isBookableDate(date)) {
+    return NextResponse.json(
+      { error: "Same-day appointments are not available. Please choose a future date." },
+      { status: 400 }
+    );
+  }
+
   const data = await readSchedulingData();
 
   const dayAvail = data.availability.find(
     (a) => a.groomerId === groomerId && a.date === date
   );
-  if (!dayAvail || !hasConsecutiveAvailability(dayAvail.times, time, BOOKING_DURATION_MINUTES)) {
+  if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
     return NextResponse.json({ error: "Groomer is not available for a 2-hour appointment at that time" }, { status: 409 });
   }
 

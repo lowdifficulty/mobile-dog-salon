@@ -1,9 +1,7 @@
-import { GROOMERS, TIME_SLOT_OPTIONS, formatDisplayTime } from "./groomers";
-import { addDays, formatDateISO, getWeekDates } from "./slots";
-import { hasConsecutiveAvailability } from "./availability";
-import { BOOKING_DURATION_MINUTES } from "./services";
+import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay } from "./groomers";
+import { addDays, getWeekDates, isBookableDate } from "./slots";
+import { listBookingBlockStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
-
 export interface FallbackWeekDay {
   date: string;
   weekday: string;
@@ -16,25 +14,20 @@ export interface FallbackWeekDay {
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
 export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
-  const today = formatDateISO(new Date());
-
   return getWeekDates(weekStart).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots: AvailableSlot[] = [];
 
-    if (date >= today) {
+    if (isBookableDate(date)) {
       for (const groomerId of ACTIVE_GROOMER_IDS) {
         const times = [...TIME_SLOT_OPTIONS];
-        for (const time of times) {
-          if (!hasConsecutiveAvailability(times, time, BOOKING_DURATION_MINUTES)) {
-            continue;
-          }
+        for (const time of listBookingBlockStarts(times)) {
           slots.push({
             groomerId,
             groomerName: GROOMERS[groomerId].name,
             date,
             time,
-            displayTime: formatDisplayTime(time),
+            displayTime: formatBookingBlockDisplay(time),
             slotKey: `${groomerId}|${date}|${time}`,
           });
         }
@@ -46,7 +39,7 @@ export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
       weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
-      isPast: date < today,
+      isPast: !isBookableDate(date),
       slots: slots.sort((a, b) => a.time.localeCompare(b.time)),
     };
   });

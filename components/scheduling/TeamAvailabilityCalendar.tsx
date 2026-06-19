@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GROOMERS, TIME_SLOT_OPTIONS, formatDisplayTime } from "@/lib/scheduling/groomers";
+import {
+  BOOKING_BLOCK_STARTS,
+  GROOMERS,
+  formatBookingBlockDisplay,
+} from "@/lib/scheduling/groomers";
+import { listBookingBlockStarts } from "@/lib/scheduling/availability";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -162,8 +167,10 @@ export default function TeamAvailabilityCalendar() {
               return <div key={`empty-${index}`} className="aspect-square" />;
             }
 
-            const melanieHours = rows.melanie[date]?.length ?? 0;
-            const diamondHours = rows.diamond[date]?.length ?? 0;
+            const melanieBlocks = listBookingBlockStarts(rows.melanie[date] ?? []);
+            const diamondBlocks = listBookingBlockStarts(rows.diamond[date] ?? []);
+            const melanieHours = melanieBlocks.length;
+            const diamondHours = diamondBlocks.length;
             const hasAny = melanieHours > 0 || diamondHours > 0;
             const isSelected = date === selectedDate;
             const isToday = date === today;
@@ -186,13 +193,13 @@ export default function TeamAvailabilityCalendar() {
                   {melanieHours > 0 && (
                     <span
                       className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-brand"}`}
-                      title={`Melanie: ${melanieHours} slots`}
+                      title={`Melanie: ${melanieHours} block${melanieHours === 1 ? "" : "s"}`}
                     />
                   )}
                   {diamondHours > 0 && (
                     <span
                       className={`w-2 h-2 rounded-full ${isSelected ? "bg-accent-hot" : "bg-accent"}`}
-                      title={`Diamond: ${diamondHours} slots`}
+                      title={`Diamond: ${diamondHours} block${diamondHours === 1 ? "" : "s"}`}
                     />
                   )}
                 </div>
@@ -223,16 +230,16 @@ export default function TeamAvailabilityCalendar() {
                   </h4>
                   {active ? (
                     <div className="flex flex-wrap gap-2">
-                      {times!.map((time) => (
+                      {listBookingBlockStarts(times!).map((blockStart) => (
                         <span
-                          key={time}
+                          key={blockStart}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
                             id === "melanie"
                               ? "bg-brand/10 text-brand border-brand/30"
                               : "bg-accent/10 text-brand border-accent/30"
                           }`}
                         >
-                          {formatDisplayTime(time)}
+                          {formatBookingBlockDisplay(blockStart)}
                         </span>
                       ))}
                     </div>
@@ -248,8 +255,8 @@ export default function TeamAvailabilityCalendar() {
         )}
 
         <div className="border-t border-gray-100 pt-4 text-xs text-gray-500">
-          <p className="font-semibold text-gray-700 mb-1">Legend — full day slots</p>
-          <p>{TIME_SLOT_OPTIONS.map((t) => formatDisplayTime(t)).join(" · ")}</p>
+          <p className="font-semibold text-gray-700 mb-1">2-hour appointment blocks</p>
+          <p>{BOOKING_BLOCK_STARTS.map((t) => formatBookingBlockDisplay(t)).join(" · ")}</p>
         </div>
       </div>
     </div>

@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TIME_SLOT_OPTIONS, formatDisplayTime } from "@/lib/scheduling/groomers";
+import {
+  BOOKING_BLOCK_STARTS,
+  formatBookingBlockDisplay,
+} from "@/lib/scheduling/groomers";
+import {
+  isBookingBlockEnabled,
+  listBookingBlockStarts,
+  setBookingBlockEnabled,
+} from "@/lib/scheduling/availability";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -109,12 +117,12 @@ export default function AvailabilityEditor({
     setMessage("");
   }
 
-  function toggleTime(date: string, time: string) {
+  function toggleBlock(date: string, blockStart: string) {
     if (readOnly) return;
     setRows((prev) => {
       const current = prev[date] ?? [];
-      const has = current.includes(time);
-      const times = has ? current.filter((t) => t !== time) : [...current, time].sort();
+      const enabled = isBookingBlockEnabled(current, blockStart);
+      const times = setBookingBlockEnabled(current, blockStart, !enabled);
       if (times.length === 0) {
         const next = { ...prev };
         delete next[date];
@@ -272,7 +280,9 @@ export default function AvailabilityEditor({
             <h3 className="text-lg font-bold text-brand mb-1">{formatDateLabel(selectedDate)}</h3>
             <p className="text-sm text-gray-500 mb-4">
               {selectedActive
-                ? `${selectedTimes!.length} hour block${selectedTimes!.length === 1 ? "" : "s"} available`
+                ? `${listBookingBlockStarts(selectedTimes!).length} two-hour block${
+                    listBookingBlockStarts(selectedTimes!).length === 1 ? "" : "s"
+                  } available`
                 : "No hours set for this day"}
             </p>
 
@@ -282,20 +292,20 @@ export default function AvailabilityEditor({
 
             {canEditSelected && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {TIME_SLOT_OPTIONS.map((time) => {
-                  const selected = selectedTimes?.includes(time);
+                {BOOKING_BLOCK_STARTS.map((blockStart) => {
+                  const selected = isBookingBlockEnabled(selectedTimes ?? [], blockStart);
                   return (
                     <button
-                      key={time}
+                      key={blockStart}
                       type="button"
-                      onClick={() => toggleTime(selectedDate, time)}
+                      onClick={() => toggleBlock(selectedDate, blockStart)}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                         selected
                           ? "bg-brand text-white border-brand"
                           : "bg-white text-gray-600 border-gray-200 hover:border-accent"
                       }`}
                     >
-                      {formatDisplayTime(time)}
+                      {formatBookingBlockDisplay(blockStart)}
                     </button>
                   );
                 })}
@@ -304,12 +314,12 @@ export default function AvailabilityEditor({
 
             {readOnly && selectedActive && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {selectedTimes!.map((time) => (
+                {listBookingBlockStarts(selectedTimes!).map((blockStart) => (
                   <span
-                    key={time}
+                    key={blockStart}
                     className="px-3 py-1.5 rounded-full text-xs font-semibold bg-accent/15 text-brand border border-accent/30"
                   >
-                    {formatDisplayTime(time)}
+                    {formatBookingBlockDisplay(blockStart)}
                   </span>
                 ))}
               </div>
@@ -331,12 +341,15 @@ export default function AvailabilityEditor({
                 onClick={() =>
                   setRows((prev) => ({
                     ...prev,
-                    [selectedDate]: [...TIME_SLOT_OPTIONS],
+                    [selectedDate]: BOOKING_BLOCK_STARTS.reduce(
+                      (times, start) => setBookingBlockEnabled(times, start, true),
+                      [] as string[]
+                    ),
                   }))
                 }
                 className="site-btn-outline text-sm w-full"
               >
-                Start with 8 AM – 8 PM
+                Open all 2-hour blocks (8 AM – 10 PM)
               </button>
             )}
           </>

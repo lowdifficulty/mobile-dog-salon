@@ -1,7 +1,7 @@
 import type { GroomerId, SchedulingData } from "./types";
 import { BOOKING_DURATION_MINUTES } from "./services";
 
-function timeToMinutes(time: string): number {
+export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + (m ?? 0);
 }
@@ -29,6 +29,66 @@ export function hasConsecutiveAvailability(
 ): boolean {
   const set = new Set(times);
   return slotsCoveredByBooking(startTime, durationMinutes).every((slot) => set.has(slot));
+}
+
+/** Groomer marked the slot start hour open (extra hour can flex if needed). */
+export function hasMinimumAvailabilityForBooking(
+  times: string[],
+  startTime: string
+): boolean {
+  return times.includes(startTime);
+}
+
+/** Hours blocked when a 2-hour appointment starts at `startTime`. */
+export function bookingBlockHours(
+  startTime: string,
+  durationMinutes: number = BOOKING_DURATION_MINUTES
+): string[] {
+  return slotsCoveredByBooking(startTime, durationMinutes);
+}
+
+/** List non-overlapping 2-hour booking starts from groomer hour marks. */
+export function listBookingBlockStarts(
+  times: string[],
+  durationMinutes: number = BOOKING_DURATION_MINUTES,
+  isTaken?: (startTime: string) => boolean
+): string[] {
+  const sorted = [...new Set(times)].sort();
+  const offered: string[] = [];
+
+  for (const time of sorted) {
+    if (!hasMinimumAvailabilityForBooking(times, time)) continue;
+    if (isTaken?.(time)) continue;
+
+    const startMin = timeToMinutes(time);
+    const endMin = startMin + durationMinutes;
+    const overlaps = offered.some((existing) => {
+      const existingStart = timeToMinutes(existing);
+      return startMin < existingStart + durationMinutes && endMin > existingStart;
+    });
+    if (overlaps) continue;
+
+    offered.push(time);
+  }
+
+  return offered;
+}
+
+export function setBookingBlockEnabled(
+  times: string[],
+  startTime: string,
+  enabled: boolean,
+  durationMinutes: number = BOOKING_DURATION_MINUTES
+): string[] {
+  const block = bookingBlockHours(startTime, durationMinutes);
+  if (enabled) {
+    return [...new Set([...times, ...block])].sort();
+  }
+  return times.filter((t) => !block.includes(t)).sort();
+}
+
+export function isBookingBlockEnabled(times: string[], startTime: string): boolean {
+  return hasMinimumAvailabilityForBooking(times, startTime);
 }
 
 export function removeSlotsFromAvailability(

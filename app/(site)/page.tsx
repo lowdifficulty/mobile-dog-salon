@@ -9,7 +9,7 @@ import HowItWorks from "@/components/HowItWorks";
 import Locations from "@/components/Locations";
 import Careers from "@/components/Careers";
 import Blog from "@/components/Blog";
-import { OG_HOME_IMAGE } from "@/lib/images";
+import { OG_SHARE_IMAGE } from "@/lib/images";
 
 const SITE_URL = "https://mobiledog-salon.com";
 const HOME_TITLE = "Mobile Dog Salon | Good Dogs Take Baths — Orange County";
@@ -38,9 +38,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: OG_HOME_IMAGE,
+        url: OG_SHARE_IMAGE,
         width: 1200,
-        height: 630,
+        height: 1200,
         alt: "Mobile Dog Salon — Good Dogs Take Baths mobile grooming in Orange County",
         type: "image/jpeg",
       },
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
-    images: [OG_HOME_IMAGE],
+    images: [OG_SHARE_IMAGE],
   },
   robots: { index: true, follow: true },
 };

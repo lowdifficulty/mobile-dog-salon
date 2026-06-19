@@ -44,6 +44,26 @@ export const TIME_SLOT_OPTIONS = [
   "20:00",
 ] as const;
 
+/** 2-hour appointment block start times (groomer + customer calendar). */
+export const BOOKING_BLOCK_STARTS = [
+  "08:00",
+  "10:00",
+  "12:00",
+  "14:00",
+  "16:00",
+  "18:00",
+  "20:00",
+] as const;
+
+export function formatBookingBlockDisplay(startTime24: string): string {
+  const [h, m] = startTime24.split(":").map(Number);
+  const endMinutes = h * 60 + (m ?? 0) + 120;
+  const endH = Math.floor(endMinutes / 60);
+  const endM = endMinutes % 60;
+  const endTime24 = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+  return `${formatDisplayTime(startTime24)} – ${formatDisplayTime(endTime24)}`;
+}
+
 export function formatDisplayTime(time24: string): string {
   const [h, m] = time24.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";

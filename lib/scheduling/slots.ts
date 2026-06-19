@@ -4,9 +4,9 @@ import type {
   AvailableSlot,
 } from "./types";
 import type { GroomerId } from "./types";
-import { GROOMERS, formatDisplayTime } from "./groomers";
+import { GROOMERS, formatBookingBlockDisplay } from "./groomers";
 import { BOOKING_DURATION_MINUTES } from "./services";
-import { hasConsecutiveAvailability } from "./availability";
+import { listBookingBlockStarts } from "./availability";
 
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
@@ -49,21 +49,26 @@ export function getAvailableSlotsForDate(
   appointments: Appointment[],
   service: string
 ): AvailableSlot[] {
+  if (!isBookableDate(date)) return [];
+
   const duration = BOOKING_DURATION_MINUTES;
   const slots: AvailableSlot[] = [];
 
   for (const day of availability) {
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
-    for (const time of day.times) {
-      if (!hasConsecutiveAvailability(day.times, time, duration)) continue;
-      if (isSlotTaken(day.groomerId, date, time, duration, appointments)) continue;
+
+    const blockStarts = listBookingBlockStarts(day.times, duration, (time) =>
+      isSlotTaken(day.groomerId, date, time, duration, appointments)
+    );
+
+    for (const time of blockStarts) {
       slots.push({
         groomerId: day.groomerId,
         groomerName: GROOMERS[day.groomerId].name,
         date,
         time,
-        displayTime: formatDisplayTime(time),
+        displayTime: formatBookingBlockDisplay(time),
         slotKey: `${day.groomerId}|${date}|${time}`,
       });
     }
@@ -82,12 +87,14 @@ export function getDatesWithAvailability(
   const dates = new Set<string>();
   for (const day of availability) {
     if (day.date < fromDate || day.date > toDate) continue;
+    if (!isBookableDate(day.date)) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
-    const hasSlot = day.times.some(
+    const hasSlot = listBookingBlockStarts(
+      day.times,
+      BOOKING_DURATION_MINUTES,
       (time) =>
-        hasConsecutiveAvailability(day.times, time, BOOKING_DURATION_MINUTES) &&
-        !isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments)
-    );
+        isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments)
+    ).length > 0;
     if (hasSlot) dates.add(day.date);
   }
   return [...dates].sort();
@@ -111,6 +118,16 @@ export function slotToISO(date: string, time: string): string {
 }
 
 const PACIFIC_TZ = "America/Los_Angeles";
+
+/** Today's date in Orange County (YYYY-MM-DD). */
+export function getTodayPacificDate(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: PACIFIC_TZ });
+}
+
+/** Customers must book at least one day ahead (no same-day appointments). */
+export function isBookableDate(date: string): boolean {
+  return date > getTodayPacificDate();
+}
 
 /** Parse appointment startAt back to Pacific date + HH:mm. */
 export function parseSlotFromIso(iso: string): { date: string; time: string } {
@@ -192,8 +209,6 @@ export function getWeekAvailability(
   appointments: Appointment[],
   service: string
 ): WeekDayAvailability[] {
-  const today = formatDateISO(new Date());
-
   return getWeekDates(weekStart).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots = getAvailableSlotsForDate(
@@ -207,7 +222,7 @@ export function getWeekAvailability(
       weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
-      isPast: date < today,
+      isPast: !isBookableDate(date),
       slots,
     };
   });

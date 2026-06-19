@@ -108,6 +108,19 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { scheduleAppointmentReminders } = await import("@/lib/notifications/schedule-reminders");
+    const scheduled = await scheduleAppointmentReminders(appointment);
+    if (scheduled.scheduled.length) {
+      console.log("Scheduled reminders:", scheduled.scheduled.join(", "), appointment.id);
+    }
+    if (scheduled.skipped.length) {
+      console.log("Reminder schedule notes:", scheduled.skipped.join("; "));
+    }
+  } catch (err) {
+    console.error("QStash reminder scheduling failed:", err);
+  }
+
+  try {
     const { sendBookingToGoHighLevel } = await import("@/lib/gohighlevel");
     const ghlResult = await sendBookingToGoHighLevel(appointment);
     if (ghlResult.errors.length) {

@@ -8,7 +8,7 @@ import { sendBookingSms } from "./twilio";
 const ORGANIZER_EMAIL =
   process.env.BOOKING_ORGANIZER_EMAIL ?? "bookings@mobiledog-salon.com";
 
-type ReminderKind = "24h" | "2h";
+export type ReminderKind = "24h" | "2h";
 
 function reminderSubject(appointment: Appointment, kind: ReminderKind): string {
   const { when } = appointmentSummaryLines(appointment);

@@ -19,6 +19,7 @@
     "randomize-blog-images": "node scripts/randomize-blog-drive-images.mjs"
   },
   "dependencies": {
+    "@upstash/qstash": "^2.11.1",
     "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.3",
     "iron-session": "^8.0.4",

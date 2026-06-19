@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import { isScheduledLead, type LeadCrmView } from "@/lib/leads/filters";
 import {
   funnelStepOrder,
   LEAD_FUNNEL_STEPS,
@@ -73,12 +74,6 @@ function displayName(lead: LeadRow) {
     return [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   }
   return "—";
-}
-
-function isScheduledLead(lead: Pick<LeadRow, "funnelStep" | "appointmentStartAt">): boolean {
-  if (!lead.appointmentStartAt) return false;
-  if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
-  return new Date(lead.appointmentStartAt) >= new Date();
 }
 
 function rowStyle(lead: LeadRow) {
@@ -186,7 +181,7 @@ function FollowUpToggle({
 }
 
 export default function LeadsPanel() {
-  const [view, setView] = useState<LeadListStatus>("active");
+  const [view, setView] = useState<LeadCrmView>("active");
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -227,7 +222,7 @@ export default function LeadsPanel() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed");
-      if (body.listStatus === "cold_storage" && view === "active") {
+      if (body.listStatus === "cold_storage" && (view === "active" || view === "scheduled")) {
         setExpandedId(null);
       }
       if (body.listStatus === "active" && view === "cold_storage") {
@@ -290,7 +285,9 @@ export default function LeadsPanel() {
   const emptyMessage =
     view === "active"
       ? "No active leads with a phone number yet. Leads without a phone still count in Analytics."
-      : "No leads in cold storage.";
+      : view === "scheduled"
+        ? "No upcoming scheduled appointments."
+        : "No leads in cold storage.";
 
   return (
     <div className="space-y-4">
@@ -308,6 +305,20 @@ export default function LeadsPanel() {
           }`}
         >
           Active
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setView("scheduled");
+            setExpandedId(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            view === "scheduled"
+              ? "bg-brand text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Scheduled
         </button>
         <button
           type="button"
@@ -510,7 +521,7 @@ export default function LeadsPanel() {
                         className="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {view === "active" ? (
+                        {view === "active" || view === "scheduled" ? (
                           <button
                             type="button"
                             disabled={busy}

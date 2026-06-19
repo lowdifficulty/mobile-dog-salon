@@ -62,3 +62,32 @@ export function consumeGroomerAvailability(
     data.availability[dayIndex] = { ...day, times: remaining };
   }
 }
+
+/** Return booked hours to groomer availability (cancel / reschedule old slot). */
+export function restoreGroomerAvailability(
+  data: SchedulingData,
+  groomerId: GroomerId,
+  date: string,
+  startTime: string,
+  durationMinutes: number = BOOKING_DURATION_MINUTES
+): void {
+  const slotsToAdd = slotsCoveredByBooking(startTime, durationMinutes);
+  const dayIndex = data.availability.findIndex(
+    (a) => a.groomerId === groomerId && a.date === date
+  );
+
+  if (dayIndex === -1) {
+    data.availability.push({
+      groomerId,
+      date,
+      times: [...slotsToAdd].sort(),
+    });
+    return;
+  }
+
+  const merged = new Set([...data.availability[dayIndex].times, ...slotsToAdd]);
+  data.availability[dayIndex] = {
+    ...data.availability[dayIndex],
+    times: [...merged].sort(),
+  };
+}

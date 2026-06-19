@@ -228,7 +228,7 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
         <p className="text-sm text-gray-500">{STEPS[step - 1].subtitle}</p>
       </div>
 
-      <div className="px-6 py-6 flex-1 min-h-0 overflow-y-auto">
+      <div className="px-6 py-6 flex-1 min-h-0 overflow-y-auto scrollbar-grey">
         {step === 1 && (
           <div className="space-y-4">
             <div>

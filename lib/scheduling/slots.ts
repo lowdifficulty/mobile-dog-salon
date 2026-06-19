@@ -28,12 +28,14 @@ export function isSlotTaken(
   date: string,
   time: string,
   durationMinutes: number,
-  appointments: Appointment[]
+  appointments: Appointment[],
+  excludeAppointmentId?: string
 ): boolean {
   const start = parseLocalDateTime(date, time);
   const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
   return appointments.some((ap) => {
+    if (ap.id === excludeAppointmentId) return false;
     if (ap.groomerId !== groomerId || ap.status === "cancelled") return false;
     const apStart = new Date(ap.startAt);
     const apEnd = new Date(apStart.getTime() + ap.durationMinutes * 60 * 1000);
@@ -106,6 +108,23 @@ export function parseSlotKey(slotKey: string): {
 /** Pacific Time ISO string for Orange County appointments */
 export function slotToISO(date: string, time: string): string {
   return new Date(`${date}T${time}:00-07:00`).toISOString();
+}
+
+const PACIFIC_TZ = "America/Los_Angeles";
+
+/** Parse appointment startAt back to Pacific date + HH:mm. */
+export function parseSlotFromIso(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-CA", { timeZone: PACIFIC_TZ });
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PACIFIC_TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+  return { date, time: `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}` };
 }
 
 export function monthDateRange(monthOffset = 0): { start: string; end: string } {

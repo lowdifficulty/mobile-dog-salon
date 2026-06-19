@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getServiceLabel } from "@/lib/pricing";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
-import type { Appointment } from "@/lib/scheduling/types";
+import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
+import type { Appointment, AvailableSlot } from "@/lib/scheduling/types";
 
 function formatWhen(startAt: string) {
   return new Date(startAt).toLocaleString("en-US", {
@@ -26,14 +27,94 @@ export default function AppointmentList({
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleSlotKey, setRescheduleSlotKey] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const manageApiBase = apiUrl.split("?")[0];
+
+  const loadAppointments = useCallback(() => {
     setLoading(true);
-    fetch(`${apiUrl}?filter=${filter}`)
+    return fetch(`${apiUrl}?filter=${filter}`)
       .then((r) => r.json())
       .then((d) => setAppointments(d.appointments ?? []))
       .finally(() => setLoading(false));
   }, [apiUrl, filter]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  function openReschedule(ap: Appointment) {
+    setActionError(null);
+    setRescheduleId(ap.id);
+    setRescheduleDate("");
+    setRescheduleSlotKey("");
+  }
+
+  function closeReschedule() {
+    setRescheduleId(null);
+    setRescheduleDate("");
+    setRescheduleSlotKey("");
+  }
+
+  function selectRescheduleSlot(slot: AvailableSlot) {
+    setRescheduleSlotKey(slot.slotKey);
+    setRescheduleDate(slot.date);
+    setActionError(null);
+  }
+
+  async function handleCancel(ap: Appointment) {
+    const ok = window.confirm(
+      `Cancel ${ap.petName}'s appointment on ${formatWhen(ap.startAt)}?`
+    );
+    if (!ok) return;
+
+    setBusyId(ap.id);
+    setActionError(null);
+    try {
+      const res = await fetch(`${manageApiBase}/${ap.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Cancel failed");
+      closeReschedule();
+      await loadAppointments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Cancel failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleReschedule(ap: Appointment) {
+    if (!rescheduleSlotKey) {
+      setActionError("Pick a new date and time first.");
+      return;
+    }
+
+    setBusyId(ap.id);
+    setActionError(null);
+    try {
+      const res = await fetch(`${manageApiBase}/${ap.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reschedule", slotKey: rescheduleSlotKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Reschedule failed");
+      closeReschedule();
+      await loadAppointments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Reschedule failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   if (loading) return <p className="text-gray-500 text-sm">Loading appointments…</p>;
 
@@ -47,14 +128,34 @@ export default function AppointmentList({
 
   return (
     <div className="space-y-3">
+      {actionError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+          {actionError}
+        </p>
+      )}
+
       {appointments.map((ap) => {
-        const serviceLabel =
-          getServiceLabel(ap.service);
+        const serviceLabel = getServiceLabel(ap.service);
+        const isRescheduling = rescheduleId === ap.id;
+        const isBusy = busyId === ap.id;
+
         return (
-          <div key={ap.id} className="site-card p-4 border-l-4 border-accent">
+          <div
+            key={ap.id}
+            className={`site-card p-4 border-l-4 ${
+              ap.status === "cancelled" ? "border-gray-300 opacity-80" : "border-accent"
+            }`}
+          >
             <div className="flex flex-wrap justify-between gap-2 mb-2">
               <p className="font-bold text-brand">{formatWhen(ap.startAt)}</p>
-              <p className="text-sm text-gray-500">{GROOMERS[ap.groomerId].name}</p>
+              <div className="flex items-center gap-2">
+                {ap.status === "cancelled" && (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                    Cancelled
+                  </span>
+                )}
+                <p className="text-sm text-gray-500">{GROOMERS[ap.groomerId].name}</p>
+              </div>
             </div>
             <p className="text-sm text-gray-800">
               <strong>{ap.petName}</strong> ({ap.petBreed}) — {serviceLabel}
@@ -64,6 +165,63 @@ export default function AppointmentList({
             </p>
             <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
+
+            {filter === "upcoming" && ap.status === "confirmed" && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                {!isRescheduling ? (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openReschedule(ap)}
+                      disabled={isBusy}
+                      className="text-sm font-semibold text-brand hover:text-accent underline disabled:opacity-50"
+                    >
+                      Reschedule
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCancel(ap)}
+                      disabled={isBusy}
+                      className="text-sm font-semibold text-red-600 hover:text-red-800 underline disabled:opacity-50"
+                    >
+                      {isBusy ? "Working…" : "Cancel"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm font-semibold text-gray-800">Pick a new time</p>
+                    <WeekAvailabilityPicker
+                      service={ap.service}
+                      selectedDate={rescheduleDate}
+                      selectedSlotKey={rescheduleSlotKey}
+                      onSelectDate={(date) => {
+                        setRescheduleDate(date);
+                        setRescheduleSlotKey("");
+                      }}
+                      onSelectSlot={selectRescheduleSlot}
+                    />
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleReschedule(ap)}
+                        disabled={isBusy || !rescheduleSlotKey}
+                        className="px-4 py-2 rounded-full text-sm font-semibold bg-brand text-white hover:bg-brand-dark disabled:opacity-50"
+                      >
+                        {isBusy ? "Saving…" : "Confirm new time"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeReschedule}
+                        disabled={isBusy}
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                      >
+                        Never mind
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

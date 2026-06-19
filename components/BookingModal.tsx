@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BookingFlowForm from "@/components/booking/BookingFlowForm";
+import BookingFormCard from "@/components/booking/BookingFormCard";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -48,13 +49,15 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
         aria-hidden="true"
       />
       <div
-        className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto scrollbar-grey"
+        className="relative z-10 w-full max-w-lg"
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Book an appointment"
       >
-        <BookingFlowForm onClose={onClose} />
+        <BookingFormCard>
+          <BookingFlowForm onClose={onClose} />
+        </BookingFormCard>
       </div>
     </div>,
     document.body

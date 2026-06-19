@@ -54,7 +54,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
         aria-label="Book an appointment"
       >
         <BookingFormCard>
-          <BookingFlowForm onClose={onClose} />
+          <BookingFlowForm onClose={onClose} funnelViewSource="booking_modal" />
         </BookingFormCard>
       </div>
     </div>,

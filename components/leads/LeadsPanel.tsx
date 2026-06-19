@@ -75,10 +75,20 @@ function displayName(lead: LeadRow) {
   return "—";
 }
 
-function rowStyle(mode: LeadFollowUpMode) {
-  return mode === "fu"
-    ? "border-green-400 bg-green-50"
-    : "border-amber-300 bg-amber-50";
+function isScheduledLead(lead: Pick<LeadRow, "funnelStep" | "appointmentStartAt">): boolean {
+  if (!lead.appointmentStartAt) return false;
+  if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
+  return new Date(lead.appointmentStartAt) >= new Date();
+}
+
+function rowStyle(lead: LeadRow) {
+  if (isScheduledLead(lead)) {
+    return "border-green-400 bg-green-50";
+  }
+  if (lead.followUpMode === "chill") {
+    return "border-blue-300 bg-blue-50";
+  }
+  return "border-amber-300 bg-amber-50";
 }
 
 function FunnelProgress({ step }: { step: LeadFunnelStep }) {
@@ -153,8 +163,8 @@ function FollowUpToggle({
         onClick={() => onChange("fu")}
         className={`px-2.5 py-1 transition-colors ${
           mode === "fu"
-            ? "bg-green-600 text-white"
-            : "bg-white text-gray-500 hover:bg-green-50"
+            ? "bg-amber-400 text-amber-950"
+            : "bg-white text-gray-500 hover:bg-amber-50"
         } disabled:opacity-50`}
       >
         FU
@@ -165,8 +175,8 @@ function FollowUpToggle({
         onClick={() => onChange("chill")}
         className={`px-2.5 py-1 transition-colors ${
           mode === "chill"
-            ? "bg-amber-400 text-amber-950"
-            : "bg-white text-gray-500 hover:bg-amber-50"
+            ? "bg-blue-500 text-white"
+            : "bg-white text-gray-500 hover:bg-blue-50"
         } disabled:opacity-50`}
       >
         Chill
@@ -325,8 +335,8 @@ export default function LeadsPanel() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
-              {leads.length} lead{leads.length === 1 ? "" : "s"} · Green = FU, yellow =
-              Chill
+              {leads.length} lead{leads.length === 1 ? "" : "s"} · Green = scheduled,
+              yellow = FU, blue = Chill
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -363,7 +373,7 @@ export default function LeadsPanel() {
               return (
                 <article
                   key={lead.id}
-                  className={`rounded-xl border overflow-hidden ${rowStyle(lead.followUpMode)}`}
+                  className={`rounded-xl border overflow-hidden ${rowStyle(lead)}`}
                 >
                   <button
                     type="button"
@@ -375,8 +385,13 @@ export default function LeadsPanel() {
                         <p className="font-semibold text-gray-900">
                           {formatPhoneDisplay(lead.phone)}
                         </p>
-                        {lead.followUpDue && lead.followUpMode === "fu" && (
+                        {isScheduledLead(lead) && (
                           <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
+                            Scheduled
+                          </span>
+                        )}
+                        {lead.followUpDue && lead.followUpMode === "fu" && !isScheduledLead(lead) && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
                             Due
                           </span>
                         )}

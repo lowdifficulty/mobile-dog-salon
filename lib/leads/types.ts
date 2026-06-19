@@ -29,7 +29,7 @@ export interface LeadNote {
   createdAt: string;
 }
 
-/** FU = follow up (green). Chill = on hold (yellow). */
+/** FU = follow up (yellow). Chill = on hold (blue). Scheduled leads show green in CRM. */
 export type LeadFollowUpMode = "fu" | "chill";
 
 /** active = main leads list. cold_storage = archived subtab (still in analytics). */
@@ -71,6 +71,15 @@ export interface Lead {
 
 export interface LeadsData {
   leads: Lead[];
+  funnelViews?: FunnelView[];
+}
+
+export type FunnelViewSource = "booking_modal" | "book_page";
+
+export interface FunnelView {
+  sessionId: string;
+  viewedAt: string;
+  source: FunnelViewSource;
 }
 
 export interface LeadUpsertInput {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { LeadFunnelStep } from "@/lib/leads/types";
+import type { LeadFunnelStep, FunnelViewSource } from "@/lib/leads/types";
 import { trackMetaLeadIfConversion } from "@/lib/meta-pixel";
 
 const SESSION_KEY = "mds_lead_session_id";
@@ -56,5 +56,20 @@ export async function saveLead(payload: SaveLeadPayload): Promise<void> {
     });
   } catch {
     // Non-blocking — booking flow should continue if CRM save fails
+  }
+}
+
+export async function trackFunnelView(source: FunnelViewSource): Promise<void> {
+  try {
+    await fetch("/api/leads/funnel-view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leadSessionId: getLeadSessionId(),
+        source,
+      }),
+    });
+  } catch {
+    // Non-blocking
   }
 }

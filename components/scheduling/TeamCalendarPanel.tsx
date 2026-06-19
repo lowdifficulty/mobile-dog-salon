@@ -16,11 +16,16 @@ const TEAM_TABS: { id: TeamTab; label: string }[] = [
   { id: "past", label: "Past" },
 ];
 
+type GroomerFilter = GroomerId | "all";
+
 export default function TeamCalendarPanel() {
   const [tab, setTab] = useState<TeamTab>("calendar");
-  const [groomerId, setGroomerId] = useState<GroomerId>("melanie");
+  const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
 
-  const appointmentApi = `/api/admin/appointments?groomerId=${groomerId}`;
+  const appointmentApi =
+    groomerId === "all"
+      ? "/api/admin/appointments"
+      : `/api/admin/appointments?groomerId=${groomerId}`;
   const showGroomerPicker = tab === "upcoming" || tab === "past";
 
   return (
@@ -47,9 +52,10 @@ export default function TeamCalendarPanel() {
           <label className="text-sm font-semibold text-gray-700">Groomer</label>
           <select
             value={groomerId}
-            onChange={(e) => setGroomerId(e.target.value as GroomerId)}
+            onChange={(e) => setGroomerId(e.target.value as GroomerFilter)}
             className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm font-semibold"
           >
+            <option value="all">All groomers</option>
             {(Object.keys(GROOMERS) as GroomerId[]).map((id) => (
               <option key={id} value={id}>
                 {GROOMERS[id].name}

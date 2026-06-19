@@ -70,7 +70,14 @@ export default function FunnelAnalyticsPanel() {
         <p className="text-sm text-gray-500 py-12 text-center">Loading analytics…</p>
       ) : data ? (
         <>
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="site-card p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Funnel views
+              </p>
+              <p className="text-3xl font-bold text-brand mt-2">{data.funnelViews}</p>
+              <p className="text-xs text-gray-500 mt-1">{data.rangeLabel}</p>
+            </div>
             <div className="site-card p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Leads entered
@@ -114,9 +121,9 @@ export default function FunnelAnalyticsPanel() {
               </button>
             </div>
 
-            {data.totalLeads === 0 ? (
+            {data.funnelViews === 0 && data.totalLeads === 0 ? (
               <p className="text-sm text-gray-500 py-8 text-center">
-                No leads in this period yet.
+                No funnel activity in this period yet.
               </p>
             ) : (
               <div className="space-y-4">
@@ -151,8 +158,8 @@ export default function FunnelAnalyticsPanel() {
           </div>
 
           <p className="text-xs text-gray-500">
-            Percentages show how many leads in the selected period reached at least each step.
-            Dates use Pacific time.
+            Funnel views count unique booking sessions. Step percentages show how many
+            views reached each stage. Dates use Pacific time.
           </p>
         </>
       ) : null}

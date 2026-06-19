@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getServiceLabel } from "@/lib/pricing";
 import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
 import { GROOMERS } from "@/lib/scheduling/groomers";
@@ -36,13 +36,19 @@ export default function AppointmentList({
 
   const manageApiBase = apiUrl.split("?")[0];
 
+  const listUrl = useMemo(() => {
+    const url = new URL(apiUrl, "http://local");
+    url.searchParams.set("filter", filter);
+    return `${url.pathname}${url.search}`;
+  }, [apiUrl, filter]);
+
   const loadAppointments = useCallback(() => {
     setLoading(true);
-    return fetch(`${apiUrl}?filter=${filter}`)
+    return fetch(listUrl)
       .then((r) => r.json())
       .then((d) => setAppointments(d.appointments ?? []))
       .finally(() => setLoading(false));
-  }, [apiUrl, filter]);
+  }, [listUrl]);
 
   useEffect(() => {
     loadAppointments();

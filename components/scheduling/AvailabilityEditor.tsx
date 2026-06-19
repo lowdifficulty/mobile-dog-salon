@@ -11,13 +11,9 @@ import {
   setBookingBlockEnabled,
 } from "@/lib/scheduling/availability";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
+import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function formatDateLabel(date: string): string {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
@@ -60,7 +56,7 @@ export default function AvailabilityEditor({
   groomerId?: GroomerId;
   readOnly?: boolean;
 }) {
-  const today = todayString();
+  const today = getTodayPacificDate();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
@@ -238,7 +234,7 @@ export default function AvailabilityEditor({
               const isPast = date < today;
               const isToday = date === today;
               const isSelected = date === selectedDate;
-              const hasHours = Boolean(rows[date]?.length);
+              const hasHours = Boolean(rows[date]?.length) && !isPast;
               const weekday = new Date(`${date}T12:00:00`).getDay();
               const isWeekend = weekday === 0 || weekday === 6;
 

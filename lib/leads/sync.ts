@@ -2,6 +2,7 @@ import "server-only";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { readLeadsData, writeLeadsData } from "./store";
 import { normalizePhone } from "./normalize";
+import { leadFieldsFromAppointment } from "./appointment-fields";
 import type { Lead } from "./types";
 
 const FOLLOW_UP_DAYS = 14;
@@ -38,6 +39,11 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
         );
 
     if (appointment && appointment.status === "confirmed") {
+      const bookingFields = leadFieldsFromAppointment(appointment);
+      const needsBookingFields =
+        next.appointmentStartAt !== bookingFields.appointmentStartAt ||
+        next.groomerName !== bookingFields.groomerName;
+
       const endMs =
         new Date(appointment.startAt).getTime() +
         appointment.durationMinutes * 60 * 1000;
@@ -49,10 +55,14 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
             funnelStep: "appointment_completed",
             appointmentId: appointment.id,
             lastAppointmentAt: appointment.startAt,
+            ...bookingFields,
           };
           changed = true;
         } else if (next.lastAppointmentAt !== appointment.startAt) {
-          next = { ...next, lastAppointmentAt: appointment.startAt };
+          next = { ...next, lastAppointmentAt: appointment.startAt, ...bookingFields };
+          changed = true;
+        } else if (needsBookingFields) {
+          next = { ...next, ...bookingFields };
           changed = true;
         }
       } else if (funnelIsBeforeScheduled(next.funnelStep)) {
@@ -61,7 +71,11 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
           funnelStep: "scheduled",
           appointmentId: appointment.id,
           scheduledAt: next.scheduledAt ?? appointment.createdAt,
+          ...bookingFields,
         };
+        changed = true;
+      } else if (needsBookingFields) {
+        next = { ...next, ...bookingFields };
         changed = true;
       }
     }

@@ -8,14 +8,10 @@ import {
 } from "@/lib/scheduling/groomers";
 import { listBookingBlockStarts } from "@/lib/scheduling/availability";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
+import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const GROOMER_IDS: GroomerId[] = ["melanie", "diamond"];
-
-function todayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 function monthLabel(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
@@ -56,7 +52,7 @@ function emptyRows(): RowsByGroomer {
 }
 
 export default function TeamAvailabilityCalendar() {
-  const today = todayString();
+  const today = getTodayPacificDate();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
@@ -167,8 +163,13 @@ export default function TeamAvailabilityCalendar() {
               return <div key={`empty-${index}`} className="aspect-square" />;
             }
 
-            const melanieBlocks = listBookingBlockStarts(rows.melanie[date] ?? []);
-            const diamondBlocks = listBookingBlockStarts(rows.diamond[date] ?? []);
+            const isPast = date < today;
+            const melanieBlocks = isPast
+              ? []
+              : listBookingBlockStarts(rows.melanie[date] ?? []);
+            const diamondBlocks = isPast
+              ? []
+              : listBookingBlockStarts(rows.diamond[date] ?? []);
             const melanieHours = melanieBlocks.length;
             const diamondHours = diamondBlocks.length;
             const hasAny = melanieHours > 0 || diamondHours > 0;
@@ -179,14 +180,17 @@ export default function TeamAvailabilityCalendar() {
               <button
                 key={date}
                 type="button"
-                onClick={() => setSelectedDate(date)}
+                onClick={() => !isPast && setSelectedDate(date)}
+                disabled={isPast}
                 className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-1 text-sm font-semibold border transition-all p-1 ${
-                  isSelected
-                    ? "bg-brand text-white border-brand shadow-md"
-                    : hasAny
-                      ? "bg-white text-gray-800 border-accent/30 hover:border-accent"
-                      : "bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200"
-                } ${isToday && !isSelected ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                  isPast
+                    ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
+                    : isSelected
+                      ? "bg-brand text-white border-brand shadow-md"
+                      : hasAny
+                        ? "bg-white text-gray-800 border-accent/30 hover:border-accent"
+                        : "bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200"
+                } ${isToday && !isSelected && !isPast ? "ring-2 ring-accent ring-offset-1" : ""}`}
               >
                 <span>{Number(date.slice(8, 10))}</span>
                 <div className="flex gap-1">
@@ -214,7 +218,7 @@ export default function TeamAvailabilityCalendar() {
       </div>
 
       <div className="site-card p-6 lg:sticky lg:top-8 space-y-6">
-        {selectedDate ? (
+        {selectedDate && selectedDate >= today ? (
           <>
             <h3 className="text-lg font-bold text-brand">{formatDateLabel(selectedDate)}</h3>
             {GROOMER_IDS.map((id) => {

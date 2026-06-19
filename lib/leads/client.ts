@@ -35,6 +35,9 @@ export interface SaveLeadPayload {
   smsOptIn?: boolean;
   appointmentId?: string;
   scheduledAt?: string;
+  appointmentStartAt?: string;
+  groomerId?: string;
+  groomerName?: string;
   message?: string;
   source?: "booking" | "contact";
 }

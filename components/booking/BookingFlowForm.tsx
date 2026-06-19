@@ -14,6 +14,7 @@ import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPick
 import AddToCalendarButtons from "@/components/booking/AddToCalendarButtons";
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
+import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
 import { formatAppointmentAddress, isValidZipCode } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { saveLead, type SaveLeadPayload } from "@/lib/leads/client";
@@ -82,7 +83,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [queuedPets, setQueuedPets] = useState<DraftPet[]>([]);
   const [bookingPets, setBookingPets] = useState<BookingPet[]>([]);
   const [discountActive, setDiscountActive] = useState(false);
-  const [discountSkipped, setDiscountSkipped] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,8 +117,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     }));
   };
 
-  const phoneRequired = discountSkipped || discountActive;
-
   const collectDraftPets = (): DraftPet[] => {
     const all = [...queuedPets];
     if (data.petName.trim() && data.petSize) {
@@ -144,7 +142,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       city: data.city,
       zipCode: data.zipCode,
       discountActive,
-      discountSkipped,
       smsOptIn: discountActive,
       source: "booking",
       ...extra,
@@ -177,7 +174,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return discountSkipped || data.phone.trim().length >= 10;
+        return data.phone.trim().length >= 10;
       case 2:
         return collectDraftPets().length >= 1;
       case 3:
@@ -188,8 +185,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             data.email.trim() &&
             data.address.trim() &&
             data.city.trim() &&
-            isValidZipCode(data.zipCode) &&
-            (!phoneRequired || data.phone.trim().length >= 10)
+            isValidZipCode(data.zipCode)
         );
       case 5:
         return Boolean(data.slotKey);
@@ -198,22 +194,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     }
   };
 
-  const handleSkipDiscount = () => {
-    setDiscountSkipped(true);
-    setDiscountActive(false);
-    setData((prev) => ({ ...prev, phone: "" }));
-    void saveLead({
-      funnelStep: "phone_entered",
-      discountSkipped: true,
-      source: "booking",
-    });
-    setStep(2);
-  };
-
   const handleApplyDiscount = () => {
     if (data.phone.trim().length < 10) return;
     setDiscountActive(true);
-    setDiscountSkipped(false);
     void saveLead({
       funnelStep: "phone_entered",
       phone: data.phone,
@@ -288,6 +271,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         return;
       }
       setAppointmentId(result.appointmentId);
+      const { groomerId, date, time } = parseSlotKey(data.slotKey);
       void saveLead({
         funnelStep: "scheduled",
         phone: data.phone,
@@ -301,10 +285,12 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         city: data.city,
         zipCode: data.zipCode,
         discountActive,
-        discountSkipped,
         smsOptIn: discountActive,
         appointmentId: result.appointmentId,
         scheduledAt: new Date().toISOString(),
+        appointmentStartAt: slotToISO(date, time),
+        groomerId,
+        groomerName: data.groomerName,
         source: "booking",
       });
       setSubmitted(true);
@@ -382,7 +368,11 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   }
 
   return (
-    <div className="flex flex-col">
+    <form
+      className="flex flex-col"
+      autoComplete="on"
+      onSubmit={(e) => e.preventDefault()}
+    >
       <div className="px-4 pt-3 pb-2 border-b border-gray-100 shrink-0 relative">
         {onClose && (
           <button
@@ -432,18 +422,20 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 50% OFF your Next Appointment
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-800 leading-tight">
-                Enter your phone number to unlock half off your next groom!
+                Enter your phone number and receive half off your next groom!
               </p>
             </div>
             <div>
-              <label htmlFor="discount-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                Phone Number
+              <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                Phone Number *
               </label>
               <input
-                id="discount-phone"
-                name="phone"
+                id="booking-phone"
+                name="tel"
                 type="tel"
+                inputMode="tel"
                 autoComplete="tel"
+                required
                 value={data.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(714) 555-0123"
@@ -457,13 +449,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               className="w-full px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Unlock 50% Off
-            </button>
-            <button
-              type="button"
-              onClick={handleSkipDiscount}
-              className="w-full text-xs font-medium text-gray-500 hover:text-gray-800 underline"
-            >
-              Skip — pay full price
             </button>
           </div>
         )}
@@ -585,69 +570,76 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         {step === 4 && (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
+              <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
+                Name *
+              </label>
               <input
+                id="booking-name"
+                name="name"
                 type="text"
                 value={data.fullName}
                 onChange={(e) => update("fullName", e.target.value)}
                 placeholder="Your full name"
-                autoComplete="name"
+                autoComplete="shipping name"
                 className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Email *</label>
+              <label htmlFor="booking-email" className="block text-xs font-medium text-gray-700 mb-1">
+                Email *
+              </label>
               <input
+                id="booking-email"
+                name="email"
                 type="email"
                 value={data.email}
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="you@email.com"
-                autoComplete="email"
+                autoComplete="shipping email"
                 className={inputClass}
               />
             </div>
-            {discountSkipped && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Phone *</label>
-                <input
-                  type="tel"
-                  value={data.phone}
-                  onChange={(e) => update("phone", e.target.value)}
-                  placeholder="(714) 555-0123"
-                  autoComplete="tel"
-                  className={inputClass}
-                />
-              </div>
-            )}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Street Address *</label>
+              <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
+                Street Address *
+              </label>
               <input
+                id="booking-address"
+                name="address-line1"
                 type="text"
                 value={data.address}
                 onChange={(e) => update("address", e.target.value)}
                 placeholder="123 Main St"
-                autoComplete="street-address"
+                autoComplete="shipping street-address"
                 className={inputClass}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">City *</label>
+                <label htmlFor="booking-city" className="block text-xs font-medium text-gray-700 mb-1">
+                  City *
+                </label>
                 <input
+                  id="booking-city"
+                  name="address-level2"
                   type="text"
                   value={data.city}
                   onChange={(e) => update("city", e.target.value)}
                   placeholder="Irvine"
-                  autoComplete="address-level2"
+                  autoComplete="shipping address-level2"
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">ZIP *</label>
+                <label htmlFor="booking-zip" className="block text-xs font-medium text-gray-700 mb-1">
+                  ZIP *
+                </label>
                 <input
+                  id="booking-zip"
+                  name="postal-code"
                   type="text"
                   inputMode="numeric"
-                  autoComplete="postal-code"
+                  autoComplete="shipping postal-code"
                   value={data.zipCode}
                   onChange={(e) => update("zipCode", e.target.value)}
                   placeholder="92618"
@@ -751,6 +743,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           </div>
         </div>
       )}
-    </div>
+    </form>
   );
 }

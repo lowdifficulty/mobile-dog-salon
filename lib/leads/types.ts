@@ -29,6 +29,12 @@ export interface LeadNote {
   createdAt: string;
 }
 
+/** FU = follow up (green). Chill = on hold (yellow). */
+export type LeadFollowUpMode = "fu" | "chill";
+
+/** active = main leads list. cold_storage = archived subtab (still in analytics). */
+export type LeadListStatus = "active" | "cold_storage";
+
 export interface Lead {
   id: string;
   leadSessionId?: string;
@@ -51,7 +57,12 @@ export interface Lead {
   smsOptIn?: boolean;
   appointmentId?: string;
   scheduledAt?: string;
+  appointmentStartAt?: string;
+  groomerId?: string;
+  groomerName?: string;
   lastAppointmentAt?: string;
+  followUpMode?: LeadFollowUpMode;
+  listStatus?: LeadListStatus;
   notes: LeadNote[];
   source: "booking" | "contact";
   createdAt: string;
@@ -82,6 +93,11 @@ export interface LeadUpsertInput {
   smsOptIn?: boolean;
   appointmentId?: string;
   scheduledAt?: string;
+  appointmentStartAt?: string;
+  groomerId?: string;
+  groomerName?: string;
+  followUpMode?: LeadFollowUpMode;
+  listStatus?: LeadListStatus;
   message?: string;
   source?: "booking" | "contact";
 }

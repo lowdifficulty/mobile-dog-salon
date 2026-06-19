@@ -4,6 +4,7 @@ import {
   type AnalyticsRange,
   computeFunnelAnalytics,
 } from "@/lib/leads/analytics";
+import { leadsForAnalytics } from "@/lib/leads/filters";
 import { syncLeadsWithAppointments } from "@/lib/leads/sync";
 
 const VALID_RANGES: AnalyticsRange[] = ["today", "week", "month", "all"];
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
       ? (rangeParam as AnalyticsRange)
       : "week";
 
-    const leads = await syncLeadsWithAppointments();
+    const leads = leadsForAnalytics(await syncLeadsWithAppointments());
     const analytics = computeFunnelAnalytics(leads, range);
 
     return NextResponse.json(analytics);

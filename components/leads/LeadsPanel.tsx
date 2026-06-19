@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
-import { funnelStepOrder, LEAD_FUNNEL_STEPS, type LeadFunnelStep } from "@/lib/leads/types";
+import {
+  funnelStepOrder,
+  LEAD_FUNNEL_STEPS,
+  type LeadFollowUpMode,
+  type LeadFunnelStep,
+  type LeadListStatus,
+} from "@/lib/leads/types";
 import { formatLeadPets } from "@/lib/booking/pets";
+import { formatLeadAppointmentWhen } from "@/lib/leads/appointment-fields";
 import { getServiceLabel } from "@/lib/pricing";
 
 interface LeadNote {
@@ -31,6 +38,10 @@ interface LeadRow {
   discountActive?: boolean;
   lastAppointmentAt?: string;
   scheduledAt?: string;
+  appointmentStartAt?: string;
+  groomerName?: string;
+  followUpMode: LeadFollowUpMode;
+  listStatus: LeadListStatus;
   notes: LeadNote[];
   source: "booking" | "contact";
   followUpDue?: boolean;
@@ -62,6 +73,12 @@ function displayName(lead: LeadRow) {
     return [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   }
   return "—";
+}
+
+function rowStyle(mode: LeadFollowUpMode) {
+  return mode === "fu"
+    ? "border-green-400 bg-green-50"
+    : "border-amber-300 bg-amber-50";
 }
 
 function FunnelProgress({ step }: { step: LeadFunnelStep }) {
@@ -116,7 +133,50 @@ function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
   return sorted;
 }
 
+function FollowUpToggle({
+  mode,
+  disabled,
+  onChange,
+}: {
+  mode: LeadFollowUpMode;
+  disabled?: boolean;
+  onChange: (mode: LeadFollowUpMode) => void;
+}) {
+  return (
+    <div
+      className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-bold"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("fu")}
+        className={`px-2.5 py-1 transition-colors ${
+          mode === "fu"
+            ? "bg-green-600 text-white"
+            : "bg-white text-gray-500 hover:bg-green-50"
+        } disabled:opacity-50`}
+      >
+        FU
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("chill")}
+        className={`px-2.5 py-1 transition-colors ${
+          mode === "chill"
+            ? "bg-amber-400 text-amber-950"
+            : "bg-white text-gray-500 hover:bg-amber-50"
+        } disabled:opacity-50`}
+      >
+        Chill
+      </button>
+    </div>
+  );
+}
+
 export default function LeadsPanel() {
+  const [view, setView] = useState<LeadListStatus>("active");
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -130,7 +190,7 @@ export default function LeadsPanel() {
   const loadLeads = useCallback(() => {
     setLoading(true);
     setError(null);
-    return fetch("/api/admin/leads")
+    return fetch(`/api/admin/leads?view=${view}`)
       .then((r) => {
         if (!r.ok) throw new Error("Unauthorized");
         return r.json();
@@ -138,11 +198,61 @@ export default function LeadsPanel() {
       .then((d) => setLeads(d.leads ?? []))
       .catch(() => setError("Could not load leads."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     loadLeads();
   }, [loadLeads]);
+
+  async function patchLead(
+    leadId: string,
+    body: { followUpMode?: LeadFollowUpMode; listStatus?: LeadListStatus }
+  ) {
+    setSavingId(leadId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Failed");
+      if (body.listStatus === "cold_storage" && view === "active") {
+        setExpandedId(null);
+      }
+      if (body.listStatus === "active" && view === "cold_storage") {
+        setExpandedId(null);
+      }
+      await loadLeads();
+    } catch {
+      setError("Could not update lead.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function deleteLead(leadId: string) {
+    if (
+      !window.confirm(
+        "Delete this lead permanently? Their appointment will be cancelled and they will be removed from analytics."
+      )
+    ) {
+      return;
+    }
+
+    setSavingId(leadId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/leads/${leadId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      setExpandedId(null);
+      await loadLeads();
+    } catch {
+      setError("Could not delete lead.");
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   async function addNote(leadId: string) {
     const text = noteDrafts[leadId]?.trim();
@@ -167,188 +277,260 @@ export default function LeadsPanel() {
     }
   }
 
-  if (loading) {
-    return <p className="text-sm text-gray-500">Loading leads…</p>;
-  }
-
-  if (error && leads.length === 0) {
-    return <p className="text-sm text-red-600">{error}</p>;
-  }
-
-  if (leads.length === 0) {
-    return (
-      <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-6">
-        No leads yet. They appear here when someone starts the booking flow, submits the
-        contact form, or completes an appointment.
-      </p>
-    );
-  }
+  const emptyMessage =
+    view === "active"
+      ? "No active leads with a phone number yet. Leads without a phone still count in Analytics."
+      : "No leads in cold storage.";
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-gray-600">
-          {leads.length} lead{leads.length === 1 ? "" : "s"} · Green rows are ready for
-          follow-up (2+ weeks after last appointment)
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <span className="font-medium text-gray-700">Sort</span>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as LeadSort)}
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={() => loadLeads()}
-            className="text-sm font-semibold text-brand hover:text-accent"
-          >
-            Refresh
-          </button>
-        </div>
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        <button
+          type="button"
+          onClick={() => {
+            setView("active");
+            setExpandedId(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            view === "active"
+              ? "bg-brand text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setView("cold_storage");
+            setExpandedId(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            view === "cold_storage"
+              ? "bg-brand text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Cold storage
+        </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="space-y-3">
-        {sortedLeads.map((lead) => {
-          const expanded = expandedId === lead.id;
-          const followUp = lead.followUpDue;
-
-          return (
-            <article
-              key={lead.id}
-              className={`rounded-xl border overflow-hidden ${
-                followUp
-                  ? "border-green-400 bg-green-50"
-                  : "border-gray-200 bg-white"
-              }`}
-            >
+      {loading ? (
+        <p className="text-sm text-gray-500">Loading leads…</p>
+      ) : leads.length === 0 ? (
+        <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-6">
+          {error ?? emptyMessage}
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-gray-600">
+              {leads.length} lead{leads.length === 1 ? "" : "s"} · Green = FU, yellow =
+              Chill
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="font-medium text-gray-700">Sort</span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as LeadSort)}
+                  className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
-                onClick={() => setExpandedId(expanded ? null : lead.id)}
-                className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                onClick={() => loadLeads()}
+                className="text-sm font-semibold text-brand hover:text-accent"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-gray-900">
-                      {lead.phone ? formatPhoneDisplay(lead.phone) : "No phone"}
-                    </p>
-                    {followUp && (
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
-                        Follow up
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 mt-0.5">{displayName(lead)}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Contact: {formatDate(lead.contactMadeAt)}
-                  </p>
-                </div>
-                <div className="shrink-0">
-                  <FunnelProgress step={lead.funnelStep} />
-                </div>
+                Refresh
               </button>
+            </div>
+          </div>
 
-              {expanded && (
-                <div className="border-t border-gray-200/80 px-4 py-4 space-y-4 bg-white/60">
-                  <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                    <p>
-                      <span className="text-gray-400">Email:</span> {lead.email || "—"}
-                    </p>
-                    <p>
-                      <span className="text-gray-400">Source:</span>{" "}
-                      {lead.source === "contact" ? "Contact form" : "Booking"}
-                    </p>
-                    <p>
-                      <span className="text-gray-400">Pets:</span> {formatLeadPets(lead)}
-                    </p>
-                    <p>
-                      <span className="text-gray-400">Service:</span>{" "}
-                      {lead.service ? getServiceLabel(lead.service) : "—"}
-                    </p>
-                    <p className="sm:col-span-2">
-                      <span className="text-gray-400">Address:</span>{" "}
-                      {[lead.address, lead.city, lead.zipCode].filter(Boolean).join(", ") ||
-                        "—"}
-                    </p>
-                    {lead.discountActive && (
-                      <p>
-                        <span className="text-gray-400">Discount:</span> 50% phone offer
-                      </p>
-                    )}
-                    {lead.scheduledAt && (
-                      <p>
-                        <span className="text-gray-400">Booked:</span>{" "}
-                        {formatDate(lead.scheduledAt)}
-                      </p>
-                    )}
-                    {lead.lastAppointmentAt && (
-                      <p>
-                        <span className="text-gray-400">Last appointment:</span>{" "}
-                        {formatShortDate(lead.lastAppointmentAt)}
-                      </p>
-                    )}
-                  </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                      Notes
-                    </p>
-                    {lead.notes.length === 0 ? (
-                      <p className="text-sm text-gray-500 mb-2">No notes yet.</p>
-                    ) : (
-                      <ul className="space-y-2 mb-3">
-                        {lead.notes.map((note) => (
-                          <li
-                            key={note.id}
-                            className="text-sm bg-gray-50 border border-gray-100 rounded-lg px-3 py-2"
-                          >
-                            <p>{note.text}</p>
-                            <p className="text-[11px] text-gray-400 mt-1">
-                              {formatDate(note.createdAt)}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={noteDrafts[lead.id] ?? ""}
-                        onChange={(e) =>
-                          setNoteDrafts((prev) => ({
-                            ...prev,
-                            [lead.id]: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g. Left VM, sent text follow up"
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
-                      />
-                      <button
-                        type="button"
-                        disabled={savingId === lead.id}
-                        onClick={() => addNote(lead.id)}
-                        className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark disabled:opacity-50"
-                      >
-                        Add
-                      </button>
+          <div className="space-y-3">
+            {sortedLeads.map((lead) => {
+              const expanded = expandedId === lead.id;
+              const busy = savingId === lead.id;
+
+              return (
+                <article
+                  key={lead.id}
+                  className={`rounded-xl border overflow-hidden ${rowStyle(lead.followUpMode)}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : lead.id)}
+                    className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-gray-900">
+                          {formatPhoneDisplay(lead.phone)}
+                        </p>
+                        {lead.followUpDue && lead.followUpMode === "fu" && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
+                            Due
+                          </span>
+                        )}
+                        <FollowUpToggle
+                          mode={lead.followUpMode}
+                          disabled={busy}
+                          onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 mt-0.5">{displayName(lead)}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Contact: {formatDate(lead.contactMadeAt)}
+                      </p>
                     </div>
-                  </div>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
+                    <div className="shrink-0">
+                      <FunnelProgress step={lead.funnelStep} />
+                    </div>
+                  </button>
+
+                  {expanded && (
+                    <div className="border-t border-gray-200/80 px-4 py-4 space-y-4 bg-white/60">
+                      <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                        <p>
+                          <span className="text-gray-400">Email:</span> {lead.email || "—"}
+                        </p>
+                        <p>
+                          <span className="text-gray-400">Source:</span>{" "}
+                          {lead.source === "contact" ? "Contact form" : "Booking"}
+                        </p>
+                        <p>
+                          <span className="text-gray-400">Pets:</span> {formatLeadPets(lead)}
+                        </p>
+                        <p>
+                          <span className="text-gray-400">Service:</span>{" "}
+                          {lead.service ? getServiceLabel(lead.service) : "—"}
+                        </p>
+                        <p className="sm:col-span-2">
+                          <span className="text-gray-400">Address:</span>{" "}
+                          {[lead.address, lead.city, lead.zipCode].filter(Boolean).join(", ") ||
+                            "—"}
+                        </p>
+                        {lead.discountActive && (
+                          <p>
+                            <span className="text-gray-400">Discount:</span> 50% phone offer
+                          </p>
+                        )}
+                        {lead.appointmentStartAt && (
+                          <p>
+                            <span className="text-gray-400">Appointment:</span>{" "}
+                            {formatLeadAppointmentWhen(
+                              lead.appointmentStartAt,
+                              lead.groomerName
+                            )}
+                          </p>
+                        )}
+                        {lead.scheduledAt && (
+                          <p>
+                            <span className="text-gray-400">Booked:</span>{" "}
+                            {formatDate(lead.scheduledAt)}
+                          </p>
+                        )}
+                        {lead.lastAppointmentAt && (
+                          <p>
+                            <span className="text-gray-400">Last appointment:</span>{" "}
+                            {formatShortDate(lead.lastAppointmentAt)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                          Notes
+                        </p>
+                        {lead.notes.length === 0 ? (
+                          <p className="text-sm text-gray-500 mb-2">No notes yet.</p>
+                        ) : (
+                          <ul className="space-y-2 mb-3">
+                            {lead.notes.map((note) => (
+                              <li
+                                key={note.id}
+                                className="text-sm bg-gray-50 border border-gray-100 rounded-lg px-3 py-2"
+                              >
+                                <p>{note.text}</p>
+                                <p className="text-[11px] text-gray-400 mt-1">
+                                  {formatDate(note.createdAt)}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={noteDrafts[lead.id] ?? ""}
+                            onChange={(e) =>
+                              setNoteDrafts((prev) => ({
+                                ...prev,
+                                [lead.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. Left VM, sent text follow up"
+                            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => addNote(lead.id)}
+                            className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark disabled:opacity-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        className="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {view === "active" ? (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => patchLead(lead.id, { listStatus: "cold_storage" })}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Move to cold storage
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => patchLead(lead.id, { listStatus: "active" })}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-brand bg-white text-brand hover:bg-brand/5 disabled:opacity-50"
+                          >
+                            Restore to active
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => deleteLead(lead.id)}
+                          className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Delete permanently
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

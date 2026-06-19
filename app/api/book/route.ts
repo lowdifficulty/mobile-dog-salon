@@ -14,6 +14,7 @@ import {
 } from "@/lib/scheduling/availability";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
+import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
 import type { Appointment } from "@/lib/scheduling/types";
 
@@ -143,6 +144,7 @@ export async function POST(request: Request) {
       discountActive: Boolean(smsOptIn),
       appointmentId: appointment.id,
       scheduledAt: appointment.createdAt,
+      ...leadFieldsFromAppointment(appointment),
       source: "booking",
     });
   } catch (err) {

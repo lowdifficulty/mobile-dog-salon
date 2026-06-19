@@ -129,6 +129,11 @@ export function isBookableDate(date: string): boolean {
   return date > getTodayPacificDate();
 }
 
+/** Today or earlier in Pacific time — not shown as open on calendars. */
+export function isPastCalendarDate(date: string): boolean {
+  return date <= getTodayPacificDate();
+}
+
 /** Parse appointment startAt back to Pacific date + HH:mm. */
 export function parseSlotFromIso(iso: string): { date: string; time: string } {
   const d = new Date(iso);
@@ -222,7 +227,7 @@ export function getWeekAvailability(
       weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
-      isPast: !isBookableDate(date),
+      isPast: isPastCalendarDate(date),
       slots,
     };
   });

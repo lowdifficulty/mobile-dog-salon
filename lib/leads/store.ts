@@ -138,6 +138,9 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
       smsOptIn: input.smsOptIn ?? existing.smsOptIn,
       appointmentId: input.appointmentId ?? existing.appointmentId,
       scheduledAt: input.scheduledAt ?? existing.scheduledAt,
+      appointmentStartAt: input.appointmentStartAt ?? existing.appointmentStartAt,
+      groomerId: input.groomerId ?? existing.groomerId,
+      groomerName: input.groomerName ?? existing.groomerName,
       source: input.source ?? existing.source,
       updatedAt: now,
     };
@@ -168,6 +171,11 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
     smsOptIn: input.smsOptIn,
     appointmentId: input.appointmentId,
     scheduledAt: input.scheduledAt,
+    appointmentStartAt: input.appointmentStartAt,
+    groomerId: input.groomerId,
+    groomerName: input.groomerName,
+    followUpMode: "fu",
+    listStatus: "active",
     notes: input.message
       ? [{ id: randomUUID(), text: input.message, createdAt: now }]
       : [],
@@ -179,6 +187,39 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
   data.leads.push(lead);
   await writeLeadsData(data);
   return lead;
+}
+
+export async function updateLeadFields(
+  leadId: string,
+  patch: Partial<Pick<Lead, "followUpMode" | "listStatus">>
+): Promise<Lead | null> {
+  const data = await readLeadsData();
+  const index = data.leads.findIndex((l) => l.id === leadId);
+  if (index === -1) return null;
+
+  const lead = data.leads[index];
+  if (patch.followUpMode !== undefined) {
+    lead.followUpMode = patch.followUpMode;
+  }
+  if (patch.listStatus !== undefined) {
+    lead.listStatus = patch.listStatus;
+  }
+  lead.updatedAt = new Date().toISOString();
+  data.leads[index] = lead;
+  await writeLeadsData(data);
+  return lead;
+}
+
+export async function deleteLeadById(
+  leadId: string
+): Promise<{ lead: Lead; appointmentId?: string } | null> {
+  const data = await readLeadsData();
+  const index = data.leads.findIndex((l) => l.id === leadId);
+  if (index === -1) return null;
+
+  const [lead] = data.leads.splice(index, 1);
+  await writeLeadsData(data);
+  return { lead, appointmentId: lead.appointmentId };
 }
 
 export async function addLeadNote(leadId: string, text: string): Promise<Lead | null> {

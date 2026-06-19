@@ -138,10 +138,14 @@ export default function WeekAvailabilityPicker({
     }
   }
 
-  const selectedDay = days.find((d) => d.date === selectedDate);
-  const availableDays = days.filter((d) => !d.isPast && d.slots.length > 0);
+  const selectedDay = days.find((d) => d.date === selectedDate && !d.isPast);
+  const visibleDays = days.filter((d) => !d.isPast);
+  const availableDays = visibleDays.filter((d) => d.slots.length > 0);
+  const earliestWeekStart = getWeekStart();
+  const canGoPrevWeek = weekStart > earliestWeekStart;
 
   function shiftWeek(offset: number) {
+    if (offset < 0 && !canGoPrevWeek) return;
     const next = offset > 0 ? nextWeekStart(weekStart) : addDays(weekStart, -7);
     onSelectDate("");
     void loadWeek(next);
@@ -160,7 +164,8 @@ export default function WeekAvailabilityPicker({
         <button
           type="button"
           onClick={() => shiftWeek(-1)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-bright/50"
+          disabled={!canGoPrevWeek}
+          className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed"
           aria-label="Previous week"
         >
           ←
@@ -186,9 +191,9 @@ export default function WeekAvailabilityPicker({
           their calendars.
         </p>
       ) : (
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-          {days.map((day) => {
-            const hasSlots = !day.isPast && day.slots.length > 0;
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
+          {visibleDays.map((day) => {
+            const hasSlots = day.slots.length > 0;
             const isSelected = selectedDate === day.date;
             return (
               <button

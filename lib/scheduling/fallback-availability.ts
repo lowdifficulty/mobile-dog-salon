@@ -1,5 +1,5 @@
 import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay } from "./groomers";
-import { addDays, getWeekDates, isBookableDate } from "./slots";
+import { addDays, getWeekDates, isBookableDate, isPastCalendarDate } from "./slots";
 import { listBookingBlockStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {
@@ -39,7 +39,7 @@ export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
       weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
-      isPast: !isBookableDate(date),
+      isPast: isPastCalendarDate(date),
       slots: slots.sort((a, b) => a.time.localeCompare(b.time)),
     };
   });

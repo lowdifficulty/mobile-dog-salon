@@ -11,6 +11,9 @@ import {
   getServicePrice,
 } from "@/lib/pricing";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
+import SmsOptInField from "@/components/SmsOptInField";
+import Link from "next/link";
+import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 
 interface BookingFormData {
@@ -281,21 +284,11 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
                   />
                 </div>
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    id="book-sms-opt-in"
-                    name="sms_opt_in"
-                    type="checkbox"
-                    checked={data.smsOptIn}
-                    onChange={(e) => update("smsOptIn", e.target.checked)}
-                    className="mt-1 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand-bright/30"
-                  />
-                  <span className="text-sm text-gray-600 leading-relaxed">
-                    I agree to receive SMS messages from Mobile Dog Salon at the phone number
-                    provided above. Message frequency varies. Message and data rates may apply.
-                    Reply STOP to opt out or HELP for help.
-                  </span>
-                </label>
+                <SmsOptInField
+                  checked={data.smsOptIn}
+                  onChange={(checked) => update("smsOptIn", checked)}
+                  id="book-sms-opt-in"
+                />
               </>
             )}
           </div>
@@ -460,6 +453,19 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
               </div>
             </div>
             {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+            {isBookPage && (
+              <p className="text-xs leading-relaxed text-gray-500">
+                By booking, you agree to our{" "}
+                <Link href={legalRoutes.privacy} className="font-medium text-brand hover:text-accent">
+                  Privacy Policy
+                </Link>{" "}
+                and{" "}
+                <Link href={legalRoutes.terms} className="font-medium text-brand hover:text-accent">
+                  Terms &amp; Conditions
+                </Link>
+                .
+              </p>
+            )}
           </div>
         )}
       </div>

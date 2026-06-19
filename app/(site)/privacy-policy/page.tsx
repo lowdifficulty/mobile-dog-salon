@@ -1,5 +1,8 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import PageHero from "@/components/pages/PageHero";
+import { companyLegal, legalRoutes } from "@/lib/company-legal";
+import { smsPrivacyNotice, smsMessageFlowDescription } from "@/lib/a2p";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Mobile Dog Salon",
@@ -7,7 +10,7 @@ export const metadata: Metadata = {
     "How Mobile Dog Salon collects, uses, and protects your information when you book grooming, contact us, or use our online payment portal.",
 };
 
-const LAST_UPDATED = "June 15, 2026";
+const LAST_UPDATED = "June 18, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -73,7 +76,7 @@ export default function PrivacyPage() {
               <p className="mb-3">We use your information to:</p>
               <ul className="list-disc pl-6 space-y-2">
                 <li>Schedule, confirm, and perform grooming appointments</li>
-                <li>Send booking confirmations and calendar invitations by email</li>
+                <li>Send booking confirmations, appointment reminders, and calendar invitations by email and SMS (when opted in)</li>
                 <li>Respond to questions and customer service requests</li>
                 <li>Process payments and maintain payment records through Square</li>
                 <li>Operate staff scheduling tools for our groomers</li>
@@ -81,7 +84,39 @@ export default function PrivacyPage() {
                 <li>Comply with legal obligations</li>
               </ul>
               <p className="mt-3">
-                We do not sell your personal information.
+                We do not sell your personal information.{" "}
+                <strong className="text-gray-800">
+                  Mobile Dog Salon does not sell, rent, or share mobile phone numbers or SMS
+                  opt-in consent with third parties or affiliates for marketing or promotional
+                  purposes.
+                </strong>
+              </p>
+            </section>
+
+            <section>
+              <h2 className="site-heading-section text-xl mb-3">SMS Privacy Notice</h2>
+              {smsPrivacyNotice.split("\n\n").map((paragraph) => (
+                <p key={paragraph.slice(0, 48)} className="mb-3">
+                  {paragraph}
+                </p>
+              ))}
+            </section>
+
+            <section>
+              <h2 className="site-heading-section text-xl mb-3">SMS text messaging</h2>
+              <p>{smsMessageFlowDescription}</p>
+              <p className="mt-3">
+                You can opt out at any time by replying <strong className="text-gray-800">STOP</strong>{" "}
+                to any message. For help, reply <strong className="text-gray-800">HELP</strong> or
+                email{" "}
+                <a href={`mailto:${companyLegal.contactEmail}`} className="site-link">
+                  {companyLegal.contactEmail}
+                </a>
+                . See our{" "}
+                <Link href={legalRoutes.terms} className="site-link">
+                  Terms &amp; Conditions
+                </Link>
+                .
               </p>
             </section>
 
@@ -106,15 +141,19 @@ export default function PrivacyPage() {
                   cards on file
                 </li>
                 <li>
-                  <strong className="text-gray-800">Resend</strong> — transactional email (such as
-                  booking confirmations)
+                  <strong className="text-gray-800">Resend</strong> — transactional email (booking
+                  confirmations and reminders)
+                </li>
+                <li>
+                  <strong className="text-gray-800">Twilio</strong> — SMS message delivery when you
+                  opt in to text messages
+                </li>
+                <li>
+                  <strong className="text-gray-800">Upstash</strong> — appointment storage and
+                  scheduled reminder delivery
                 </li>
                 <li>
                   <strong className="text-gray-800">Vercel</strong> — website hosting
-                </li>
-                <li>
-                  <strong className="text-gray-800">Upstash</strong> — secure data storage for
-                  appointments and client accounts when configured
                 </li>
               </ul>
               <p className="mt-3">

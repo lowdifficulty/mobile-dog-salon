@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SmsOptInField from "@/components/SmsOptInField";
 
 export default function BathingA2PForm() {
   const [phone, setPhone] = useState("");
@@ -16,11 +17,11 @@ export default function BathingA2PForm() {
         </p>
         <div className="site-card p-6 space-y-4">
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label htmlFor="a2p-phone" className="block text-sm font-medium text-gray-700 mb-1.5">
               Phone Number *
             </label>
             <input
-              id="phone"
+              id="a2p-phone"
               name="phone"
               type="tel"
               autoComplete="tel"
@@ -30,21 +31,11 @@ export default function BathingA2PForm() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
             />
           </div>
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              id="a2p-sms-opt-in"
-              name="sms_opt_in"
-              type="checkbox"
-              checked={smsOptIn}
-              onChange={(e) => setSmsOptIn(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand-bright/30"
-            />
-            <span className="text-sm text-gray-600 leading-relaxed">
-              I agree to receive SMS messages from Mobile Dog Salon at the phone number provided
-              above. Message frequency varies. Message and data rates may apply. Reply STOP to opt
-              out or HELP for help.
-            </span>
-          </label>
+          <SmsOptInField
+            checked={smsOptIn}
+            onChange={setSmsOptIn}
+            id="a2p-sms-opt-in"
+          />
         </div>
       </div>
     </section>

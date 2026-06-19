@@ -44,6 +44,12 @@ export async function sendBookingSms(to: string, body: string): Promise<boolean>
     return false;
   }
 
+  const { isSmsOptedOut } = await import("./sms-opt-out");
+  if (await isSmsOptedOut(toE164)) {
+    console.log("SMS skipped — number opted out:", toE164);
+    return false;
+  }
+
   await client.messages.create({ from, to: toE164, body });
   return true;
 }

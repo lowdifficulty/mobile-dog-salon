@@ -2,9 +2,9 @@ import { ALL_ORANGE_COUNTY_CITIES } from "./page-content";
 
 export const BOOKING_URL = "https://tpmr.com/i/99105";
 
-export const PHONE_NUMBER = "(714) 555-0123";
-export const PHONE_HREF = "tel:+17145550123";
-export const SMS_HREF = "sms:+17145550123";
+export const PHONE_NUMBER = "(949) 755-8994";
+export const PHONE_HREF = "tel:+19497558994";
+export const SMS_HREF = "sms:+19497558994";
 
 export const ORANGE_COUNTY_CITIES = ALL_ORANGE_COUNTY_CITIES;
 

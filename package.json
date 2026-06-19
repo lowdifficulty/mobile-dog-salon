@@ -13,6 +13,7 @@
     "verify": "npm run build && node scripts/verify-site.mjs --start",
     "verify-scheduling": "node scripts/verify-scheduling.mjs",
     "reminders": "node scripts/run-reminders.mjs",
+    "a2p-info": "node scripts/print-a2p-campaign-info.mjs",
     "import-blogs": "node scripts/import-blog-pack.mjs",
     "fetch-blog-images": "node scripts/fetch-blog-images.mjs",
     "apply-blog-images": "node scripts/apply-blog-image-links.mjs",

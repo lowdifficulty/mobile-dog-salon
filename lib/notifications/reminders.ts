@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
+import { companyLegal } from "@/lib/company-legal";
 import { sendBookingSms } from "./twilio";
 
 const ORGANIZER_EMAIL =
@@ -37,7 +38,7 @@ function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string
       <strong>Location:</strong> ${appointment.address}, ${appointment.city}
     </p>
     <p>Our groomer will arrive at your driveway. Please have your pet ready with access to water and a safe area for grooming.</p>
-    <p>Questions? Reply to this email or call us at (949) 755-8994.</p>
+    <p>Questions? Reply to this email or call us at ${companyLegal.businessPhoneDisplay}.</p>
     <p>— Mobile Dog Salon</p>
   `;
 }

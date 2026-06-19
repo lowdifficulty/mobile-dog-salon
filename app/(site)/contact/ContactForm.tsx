@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import SmsOptInField from "@/components/SmsOptInField";
+import { legalRoutes } from "@/lib/company-legal";
 
 export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [smsOptIn, setSmsOptIn] = useState(false);
 
   return (
     <section className="site-section bg-section-white">
@@ -22,42 +27,65 @@ export default function ContactForm() {
             }}
           >
             <div>
-              <label className="block text-sm font-semibold text-brand mb-1">Name</label>
+              <label className="block text-sm font-semibold text-brand mb-1">Name *</label>
               <input
                 required
+                name="name"
                 type="text"
+                autoComplete="name"
                 className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-brand mb-1">Email</label>
+              <label className="block text-sm font-semibold text-brand mb-1">Email *</label>
               <input
                 required
+                name="email"
                 type="email"
+                autoComplete="email"
+                className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-brand mb-1">Phone *</label>
+              <input
+                required
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-brand mb-1">Zip Code</label>
               <input
+                name="zip"
                 type="text"
-                className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-brand mb-1">Phone</label>
-              <input
-                type="tel"
                 className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none"
               />
             </div>
             <div>
               <label className="block text-sm font-semibold text-brand mb-1">Message</label>
               <textarea
+                name="message"
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-200 rounded-[20px] focus:ring-2 focus:ring-accent/30 focus:border-accent outline-none resize-none"
               />
             </div>
+            <SmsOptInField checked={smsOptIn} onChange={setSmsOptIn} id="contact-sms-opt-in" />
+            <p className="text-xs leading-relaxed text-gray-500">
+              By submitting, you agree to our{" "}
+              <Link href={legalRoutes.privacy} className="font-medium text-brand hover:text-accent">
+                Privacy Policy
+              </Link>{" "}
+              and{" "}
+              <Link href={legalRoutes.terms} className="font-medium text-brand hover:text-accent">
+                Terms &amp; Conditions
+              </Link>
+              .
+            </p>
             <button type="submit" className="site-btn w-full">Send Message</button>
           </form>
         )}

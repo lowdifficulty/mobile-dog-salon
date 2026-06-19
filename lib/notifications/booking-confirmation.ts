@@ -4,6 +4,7 @@ import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
 import { sendBookingSms } from "./twilio";
+import { companyLegal } from "@/lib/company-legal";
 
 const ORGANIZER_EMAIL =
   process.env.BOOKING_ORGANIZER_EMAIL ?? "bookings@mobiledog-salon.com";
@@ -39,7 +40,7 @@ export async function sendCustomerConfirmationEmail(
         <strong>Location:</strong> ${appointment.address}, ${appointment.city}
       </p>
       <p>We look forward to seeing you and ${appointment.petName}!</p>
-      <p>Questions? Reply to this email or call us at (949) 755-8994.</p>
+      <p>Questions? Reply to this email or call us at {companyLegal.businessPhoneDisplay}.</p>
       <p>— Mobile Dog Salon</p>
     `,
     attachments: [

@@ -19,6 +19,7 @@ export const ROUTES = {
   blog: "/blog",
   contact: "/contact",
   privacy: "/privacy-policy",
+  terms: "/terms-and-conditions",
   groomerLogin: "/groomer/login",
   clientPortal: "/client/login",
   clientRegister: "/client/register",

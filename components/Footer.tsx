@@ -89,6 +89,8 @@ export default function Footer() {
           <p className="text-xs text-white/50">
             Copyright {new Date().getFullYear()} © Mobile Dog Salon.{" "}
             <Link href={ROUTES.privacy} className="hover:text-accent">Privacy Policy</Link>
+            {" · "}
+            <Link href={ROUTES.terms} className="hover:text-accent">Terms &amp; Conditions</Link>
           </p>
         </div>
       </div>

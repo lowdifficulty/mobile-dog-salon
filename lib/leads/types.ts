@@ -41,6 +41,7 @@ export interface Lead {
   email?: string;
   petName?: string;
   petSize?: string;
+  pets?: { petName: string; petSize: string }[];
   service?: string;
   address?: string;
   city?: string;
@@ -71,6 +72,7 @@ export interface LeadUpsertInput {
   fullName?: string;
   petName?: string;
   petSize?: string;
+  pets?: { petName: string; petSize: string }[];
   service?: string;
   address?: string;
   city?: string;

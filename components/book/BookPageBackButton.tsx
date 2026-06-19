@@ -2,6 +2,20 @@
 
 import { useRouter } from "next/navigation";
 
+function canNavigateBack(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const historyIdx = (window.history.state as { idx?: number } | null)?.idx;
+  if (typeof historyIdx === "number") return historyIdx > 0;
+
+  try {
+    if (!document.referrer) return false;
+    return new URL(document.referrer).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 export default function BookPageBackButton() {
   const router = useRouter();
 
@@ -9,7 +23,7 @@ export default function BookPageBackButton() {
     <button
       type="button"
       onClick={() => {
-        if (typeof window !== "undefined" && window.history.length > 1) {
+        if (canNavigateBack()) {
           router.back();
         } else {
           router.push("/");

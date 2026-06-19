@@ -17,6 +17,7 @@ export interface Appointment {
   petName: string;
   petBreed: string;
   petSize: string;
+  additionalPets?: { petName: string; petSize: string }[];
   service: string;
   firstName: string;
   lastName: string;

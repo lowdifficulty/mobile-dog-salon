@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import { funnelStepOrder, LEAD_FUNNEL_STEPS, type LeadFunnelStep } from "@/lib/leads/types";
+import { formatLeadPets } from "@/lib/booking/pets";
 import { getServiceLabel } from "@/lib/pricing";
 
 interface LeadNote {
@@ -22,6 +23,7 @@ interface LeadRow {
   email?: string;
   petName?: string;
   petSize?: string;
+  pets?: { petName: string; petSize: string }[];
   service?: string;
   address?: string;
   city?: string;
@@ -267,10 +269,7 @@ export default function LeadsPanel() {
                       {lead.source === "contact" ? "Contact form" : "Booking"}
                     </p>
                     <p>
-                      <span className="text-gray-400">Pet:</span>{" "}
-                      {lead.petName
-                        ? `${lead.petName}${lead.petSize ? ` (${lead.petSize})` : ""}`
-                        : "—"}
+                      <span className="text-gray-400">Pets:</span> {formatLeadPets(lead)}
                     </p>
                     <p>
                       <span className="text-gray-400">Service:</span>{" "}

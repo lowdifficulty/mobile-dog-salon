@@ -18,6 +18,15 @@ import { formatAppointmentAddress, isValidZipCode } from "@/lib/scheduling/addre
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { saveLead, type SaveLeadPayload } from "@/lib/leads/client";
 import type { LeadFunnelStep } from "@/lib/leads/types";
+import {
+  buildBookingNotes,
+  draftToBookingPet,
+  formatPetNames,
+  formatPetsList,
+  getPetSizeLabel,
+  type BookingPet,
+  type DraftPet,
+} from "@/lib/booking/pets";
 
 interface BookingFormData {
   petName: string;
@@ -70,6 +79,8 @@ interface BookingFlowFormProps {
 export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialData);
+  const [queuedPets, setQueuedPets] = useState<DraftPet[]>([]);
+  const [bookingPets, setBookingPets] = useState<BookingPet[]>([]);
   const [discountActive, setDiscountActive] = useState(false);
   const [discountSkipped, setDiscountSkipped] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -108,14 +119,26 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const phoneRequired = discountSkipped || discountActive;
 
+  const collectDraftPets = (): DraftPet[] => {
+    const all = [...queuedPets];
+    if (data.petName.trim() && data.petSize) {
+      all.push({ name: data.petName.trim(), size: data.petSize });
+    }
+    return all;
+  };
+
+  const getDraftBookingPets = (): BookingPet[] => collectDraftPets().map(draftToBookingPet);
+
   const persistLead = (funnelStep: LeadFunnelStep, extra?: Partial<SaveLeadPayload>) => {
+    const activePets = bookingPets.length ? bookingPets : getDraftBookingPets();
     void saveLead({
       funnelStep,
       phone: data.phone,
       email: data.email,
       fullName: data.fullName,
-      petName: data.petName,
-      petSize: data.petSize,
+      petName: activePets[0]?.petName ?? data.petName,
+      petSize: activePets[0]?.petSize ?? data.petSize,
+      pets: activePets.length ? activePets : undefined,
       service: data.service,
       address: data.address,
       city: data.city,
@@ -130,7 +153,22 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const advanceStep = () => {
     if (!canProceed()) return;
-    if (step === 2) persistLead("pet_info");
+    if (step === 2) {
+      const allPets = collectDraftPets();
+      const finalized = allPets.map(draftToBookingPet);
+      setBookingPets(finalized);
+      setQueuedPets([]);
+      setData((prev) => ({
+        ...prev,
+        petName: allPets[0]?.name ?? "",
+        petSize: allPets[0]?.size ?? "",
+      }));
+      persistLead("pet_info", {
+        petName: allPets[0]?.name,
+        petSize: allPets[0]?.size,
+        pets: finalized,
+      });
+    }
     if (step === 3) persistLead("package_selected");
     if (step === 4) persistLead("contact_details");
     setStep(step + 1);
@@ -141,7 +179,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       case 1:
         return discountSkipped || data.phone.trim().length >= 10;
       case 2:
-        return Boolean(data.petName.trim() && data.petSize);
+        return collectDraftPets().length >= 1;
       case 3:
         return Boolean(data.service && data.petSize);
       case 4:
@@ -186,6 +224,30 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setStep(2);
   };
 
+  const handleAddAnotherPet = () => {
+    if (!data.petName.trim() || !data.petSize) return;
+    setQueuedPets((prev) => [...prev, { name: data.petName.trim(), size: data.petSize }]);
+    setData((prev) => ({ ...prev, petName: "", petSize: "" }));
+  };
+
+  const handleRemoveQueuedPet = (index: number) => {
+    setQueuedPets((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleBack = () => {
+    if (step === 3 && bookingPets.length > 0) {
+      const [primary, ...rest] = bookingPets;
+      setQueuedPets(rest.map((pet) => ({ name: pet.petName, size: pet.petSize })));
+      setData((prev) => ({
+        ...prev,
+        petName: primary.petName,
+        petSize: primary.petSize,
+      }));
+      setBookingPets([]);
+    }
+    setStep(step - 1);
+  };
+
   const handleSubmit = async () => {
     if (!canProceed()) return;
     setIsSubmitting(true);
@@ -193,15 +255,20 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
     const { firstName, lastName } = splitName(data.fullName);
 
+    const finalizedPets =
+      bookingPets.length > 0 ? bookingPets : getDraftBookingPets();
+    const additionalPets = finalizedPets.slice(1);
+
     try {
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slotKey: data.slotKey,
-          petName: data.petName,
+          petName: finalizedPets[0]?.petName ?? data.petName,
           petBreed: "",
-          petSize: data.petSize,
+          petSize: finalizedPets[0]?.petSize ?? data.petSize,
+          additionalPets: additionalPets.length ? additionalPets : undefined,
           service: data.service,
           firstName,
           lastName,
@@ -211,7 +278,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           address: data.address,
           city: data.city,
           zipCode: data.zipCode,
-          notes: discountActive ? "50% phone discount applied" : "",
+          notes: buildBookingNotes(discountActive, additionalPets),
         }),
       });
       const result = await res.json();
@@ -226,8 +293,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         phone: data.phone,
         email: data.email,
         fullName: data.fullName,
-        petName: data.petName,
-        petSize: data.petSize,
+        petName: finalizedPets[0]?.petName ?? data.petName,
+        petSize: finalizedPets[0]?.petSize ?? data.petSize,
+        pets: finalizedPets,
         service: data.service,
         address: data.address,
         city: data.city,
@@ -268,6 +336,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     : null;
 
   if (submitted && calendarDetails) {
+    const bookedPets =
+      bookingPets.length > 0 ? bookingPets : getDraftBookingPets();
+    const petLabel = formatPetNames(bookedPets);
+
     return (
       <div className="py-6 px-4 overflow-y-auto scrollbar-grey">
         <div className="text-center">
@@ -278,8 +350,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           </div>
           <h3 className="font-bold text-xl text-gray-900 mb-2">You&apos;re booked!</h3>
           <p className="text-sm text-gray-600 mb-2 max-w-md mx-auto">
-            Thanks, {splitName(data.fullName).firstName}! <strong>{data.petName}</strong> is scheduled
-            with <strong>{data.groomerName}</strong> on {data.preferredDate} at {data.preferredTime}.
+            Thanks, {splitName(data.fullName).firstName}! <strong>{petLabel}</strong>{" "}
+            {bookedPets.length > 1 ? "are" : "is"} scheduled with{" "}
+            <strong>{data.groomerName}</strong> on {data.preferredDate} at {data.preferredTime}.
           </p>
           {discountActive && selectedPrice != null && (
             <p className="text-sm font-semibold text-brand mb-2">
@@ -355,9 +428,11 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         {step === 1 && (
           <div className="space-y-3">
             <div className="rounded-xl border border-accent/20 bg-accent-light px-2.5 py-3 text-center">
-              <p className="text-2xl font-bold text-brand leading-tight">50% OFF</p>
+              <p className="text-2xl font-bold text-brand leading-tight">
+                50% OFF your Next Appointment
+              </p>
               <p className="mt-2 text-sm font-semibold text-gray-800 leading-tight">
-                Enter your phone number to unlock half off your first groom!
+                Enter your phone number to unlock half off your next groom!
               </p>
             </div>
             <div>
@@ -395,6 +470,30 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
         {step === 2 && (
           <div className="space-y-3">
+            {queuedPets.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-700">Pets added</p>
+                <ul className="space-y-1.5">
+                  {queuedPets.map((pet, index) => (
+                    <li
+                      key={`${pet.name}-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+                    >
+                      <span className="text-gray-800">
+                        {pet.name} ({getPetSizeLabel(pet.size)})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQueuedPet(index)}
+                        className="text-xs font-medium text-gray-500 hover:text-gray-800"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Pet&apos;s Name *</label>
               <input
@@ -564,7 +663,11 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           <div className="space-y-3">
             <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600 space-y-0.5">
               <p>
-                <span className="text-gray-400">Pet:</span> {data.petName} — {getServiceLabel(data.service)}
+                <span className="text-gray-400">Pets:</span>{" "}
+                {formatPetsList(
+                  bookingPets.length > 0 ? bookingPets : getDraftBookingPets()
+                )}{" "}
+                — {getServiceLabel(data.service)}
                 {selectedPrice != null && ` (${formatPrice(selectedPrice)})`}
               </p>
               <p>
@@ -608,31 +711,44 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
           <button
             type="button"
-            onClick={() => setStep(step - 1)}
+            onClick={handleBack}
             className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
           >
             Back
           </button>
 
-          {step < STEP_COUNT ? (
-            <button
-              type="button"
-              onClick={advanceStep}
-              disabled={!canProceed()}
-              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continue
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!canProceed() || isSubmitting}
-              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Booking…" : "Book Appointment"}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {step === 2 && (
+              <button
+                type="button"
+                onClick={handleAddAnotherPet}
+                disabled={!data.petName.trim() || !data.petSize}
+                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-full hover:text-brand hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add Another Pet
+              </button>
+            )}
+
+            {step < STEP_COUNT ? (
+              <button
+                type="button"
+                onClick={advanceStep}
+                disabled={!canProceed()}
+                className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canProceed() || isSubmitting}
+                className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? "Booking…" : "Book Appointment"}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

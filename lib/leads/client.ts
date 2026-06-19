@@ -25,6 +25,7 @@ export interface SaveLeadPayload {
   fullName?: string;
   petName?: string;
   petSize?: string;
+  pets?: { petName: string; petSize: string }[];
   service?: string;
   address?: string;
   city?: string;

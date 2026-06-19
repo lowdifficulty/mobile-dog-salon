@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getServiceLabel } from "@/lib/pricing";
+import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
@@ -68,7 +69,7 @@ export default function AppointmentList({
 
   async function handleCancel(ap: Appointment) {
     const ok = window.confirm(
-      `Cancel ${ap.petName}'s appointment on ${formatWhen(ap.startAt)}?`
+      `Cancel ${formatPetNames(getAppointmentPets(ap))}'s appointment on ${formatWhen(ap.startAt)}?`
     );
     if (!ok) return;
 
@@ -136,6 +137,8 @@ export default function AppointmentList({
 
       {appointments.map((ap) => {
         const serviceLabel = getServiceLabel(ap.service);
+        const appointmentPets = getAppointmentPets(ap);
+        const petSummary = formatPetsList(appointmentPets);
         const isRescheduling = rescheduleId === ap.id;
         const isBusy = busyId === ap.id;
 
@@ -158,7 +161,8 @@ export default function AppointmentList({
               </div>
             </div>
             <p className="text-sm text-gray-800">
-              <strong>{ap.petName}</strong> ({ap.petBreed}) — {serviceLabel}
+              <strong>{petSummary}</strong>
+              {ap.petBreed ? ` (${ap.petBreed})` : ""} — {serviceLabel}
             </p>
             <p className="text-sm text-gray-600 mt-1">
               {ap.firstName} {ap.lastName} · {ap.phone}

@@ -4,6 +4,7 @@ import type { Appointment } from "./types";
 import { formatAppointmentAddress } from "./address";
 import { CALENDAR_NOTIFY_EMAILS, GROOMERS } from "./groomers";
 import { getServiceLabel } from "@/lib/pricing";
+import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
 
 const TZ = "America/Los_Angeles";
 const ORGANIZER_EMAIL =
@@ -67,11 +68,15 @@ export function buildIcsEvent(appointment: Appointment): string {
   const groomer = GROOMERS[appointment.groomerId];
   const serviceLabel = getServiceLabel(appointment.service);
 
+  const pets = getAppointmentPets(appointment);
+  const petSummary = formatPetsList(pets);
+  const petNames = formatPetNames(pets);
+
   const summary = escapeIcs(
-    `Mobile Dog Salon — ${appointment.petName} (${serviceLabel})`
+    `Mobile Dog Salon — ${petNames} (${serviceLabel})`
   );
   const description = escapeIcs(
-    `Groomer: ${groomer.name}\nDuration: 2 hours\nPet: ${appointment.petName} (${appointment.petBreed}, ${appointment.petSize})\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${formatAppointmentAddress(appointment)}\nNotes: ${appointment.notes || "—"}`
+    `Groomer: ${groomer.name}\nDuration: 2 hours\nPets: ${petSummary}\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${formatAppointmentAddress(appointment)}\nNotes: ${appointment.notes || "—"}`
   );
   const location = escapeIcs(`${formatAppointmentAddress(appointment)}, CA`);
 
@@ -122,12 +127,16 @@ export async function sendCalendarInvites(appointment: Appointment): Promise<boo
     new Date(appointment.startAt).getTime() + appointment.durationMinutes * 60 * 1000
   ).toLocaleString("en-US", { timeZone: TZ, timeStyle: "short" });
 
-  const subject = `Appointment: ${appointment.petName} with ${groomer.name} — ${serviceLabel} (2 hrs)`;
+  const pets = getAppointmentPets(appointment);
+  const petSummary = formatPetsList(pets);
+  const petNames = formatPetNames(pets);
+
+  const subject = `Appointment: ${petNames} with ${groomer.name} — ${serviceLabel} (2 hrs)`;
   const html = `
     <p><strong>New Mobile Dog Salon appointment (2 hours)</strong></p>
     <p><strong>Groomer:</strong> ${groomer.name}<br/>
     <strong>When:</strong> ${startLocal} – ${endLocal} Pacific<br/>
-    <strong>Pet:</strong> ${appointment.petName} (${appointment.petBreed})<br/>
+    <strong>Pets:</strong> ${petSummary}<br/>
     <strong>Service:</strong> ${serviceLabel}<br/>
     <strong>Client:</strong> ${appointment.firstName} ${appointment.lastName}<br/>
     <strong>Phone:</strong> ${appointment.phone}<br/>

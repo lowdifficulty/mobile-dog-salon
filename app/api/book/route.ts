@@ -14,6 +14,7 @@ import {
 } from "@/lib/scheduling/availability";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
+import { getAppointmentPets } from "@/lib/booking/pets";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     petName,
     petBreed,
     petSize,
+    additionalPets,
     service,
     firstName,
     lastName,
@@ -99,6 +101,9 @@ export async function POST(request: Request) {
     petName,
     petBreed: petBreed ?? "",
     petSize: petSize ?? "",
+    additionalPets: Array.isArray(additionalPets)
+      ? additionalPets.filter((pet) => pet?.petName?.trim())
+      : undefined,
     service,
     firstName,
     lastName,
@@ -129,6 +134,7 @@ export async function POST(request: Request) {
       lastName: appointment.lastName,
       petName: appointment.petName,
       petSize: appointment.petSize,
+      pets: getAppointmentPets(appointment),
       service: appointment.service,
       address: appointment.address,
       city: appointment.city,

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import BookingFlowForm from "@/components/booking/BookingFlowForm";
 import BookingFormCard from "@/components/booking/BookingFormCard";
+import { lockPageScroll } from "@/lib/scroll-lock";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -19,21 +20,18 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      document.body.style.overflow = "";
-      return;
-    }
+    if (!isOpen) return;
 
     ignoreBackdropClose.current = true;
     const unlockBackdrop = window.setTimeout(() => {
       ignoreBackdropClose.current = false;
     }, 100);
 
-    document.body.style.overflow = "hidden";
+    const unlockScroll = lockPageScroll();
 
     return () => {
       window.clearTimeout(unlockBackdrop);
-      document.body.style.overflow = "";
+      unlockScroll();
     };
   }, [isOpen]);
 
@@ -42,7 +40,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/75 backdrop-blur-[2px]"
         onMouseDown={() => {
           if (!ignoreBackdropClose.current) onClose();
         }}

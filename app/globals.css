@@ -21,6 +21,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 18px;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -100,7 +101,7 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: rgba(15, 36, 71, 0.18);
+    background: rgba(15, 36, 71, 0.1);
     pointer-events: none;
     z-index: 1;
   }

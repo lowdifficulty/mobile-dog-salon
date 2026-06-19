@@ -4,7 +4,6 @@ import {
   buildGoogleCalendarUrl,
   buildOutlookCalendarUrl,
   buildYahooCalendarUrl,
-  downloadIcsFile,
   type CalendarEventDetails,
 } from "@/lib/calendar-links";
 
@@ -19,7 +18,7 @@ export default function AddToCalendarButtons({ details }: AddToCalendarButtonsPr
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-gray-700">Add to your calendar</p>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2">
         <a
           href={buildGoogleCalendarUrl(details)}
           target="_blank"
@@ -44,13 +43,6 @@ export default function AddToCalendarButtons({ details }: AddToCalendarButtonsPr
         >
           Yahoo
         </a>
-        <button
-          type="button"
-          onClick={() => downloadIcsFile(details)}
-          className={`${buttonClass} col-span-2 sm:col-span-1`}
-        >
-          Apple / .ics
-        </button>
       </div>
     </div>
   );

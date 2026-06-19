@@ -1,7 +1,17 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import BookingModal from "./BookingModal";
+
+function isBookHash() {
+  return typeof window !== "undefined" && window.location.hash === "#book";
+}
+
+function clearBookHash() {
+  if (!isBookHash()) return;
+  const url = window.location.pathname + window.location.search;
+  window.history.replaceState(null, "", url);
+}
 
 interface BookingContextValue {
   openBooking: () => void;
@@ -22,7 +32,20 @@ export default function BookingProvider({ children }: { children: React.ReactNod
   const [isOpen, setIsOpen] = useState(false);
 
   const openBooking = useCallback(() => setIsOpen(true), []);
-  const closeBooking = useCallback(() => setIsOpen(false), []);
+  const closeBooking = useCallback(() => {
+    setIsOpen(false);
+    clearBookHash();
+  }, []);
+
+  useEffect(() => {
+    const syncFromHash = () => {
+      if (isBookHash()) setIsOpen(true);
+    };
+
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
 
   return (
     <BookingContext.Provider value={{ openBooking, closeBooking }}>

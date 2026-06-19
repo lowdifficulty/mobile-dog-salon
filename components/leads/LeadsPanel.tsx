@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
-import { LEAD_FUNNEL_STEPS, type LeadFunnelStep } from "@/lib/leads/types";
+import { funnelStepOrder, LEAD_FUNNEL_STEPS, type LeadFunnelStep } from "@/lib/leads/types";
 import { getServiceLabel } from "@/lib/pricing";
 
 interface LeadNote {
@@ -90,6 +90,30 @@ function FunnelProgress({ step }: { step: LeadFunnelStep }) {
   );
 }
 
+type LeadSort = "funnel_desc" | "funnel_asc" | "contact_desc" | "contact_asc";
+
+const SORT_OPTIONS: { value: LeadSort; label: string }[] = [
+  { value: "funnel_desc", label: "Funnel: furthest along" },
+  { value: "funnel_asc", label: "Funnel: earliest step" },
+  { value: "contact_desc", label: "Contact date: newest" },
+  { value: "contact_asc", label: "Contact date: oldest" },
+];
+
+function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
+  const sorted = [...leads];
+  sorted.sort((a, b) => {
+    if (sort === "funnel_desc" || sort === "funnel_asc") {
+      const stepDiff = funnelStepOrder(a.funnelStep) - funnelStepOrder(b.funnelStep);
+      if (stepDiff !== 0) return sort === "funnel_desc" ? -stepDiff : stepDiff;
+      return new Date(b.contactMadeAt).getTime() - new Date(a.contactMadeAt).getTime();
+    }
+    const timeDiff =
+      new Date(a.contactMadeAt).getTime() - new Date(b.contactMadeAt).getTime();
+    return sort === "contact_desc" ? -timeDiff : timeDiff;
+  });
+  return sorted;
+}
+
 export default function LeadsPanel() {
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,6 +121,9 @@ export default function LeadsPanel() {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sort, setSort] = useState<LeadSort>("funnel_desc");
+
+  const sortedLeads = useMemo(() => sortLeads(leads, sort), [leads, sort]);
 
   const loadLeads = useCallback(() => {
     setLoading(true);
@@ -162,19 +189,35 @@ export default function LeadsPanel() {
           {leads.length} lead{leads.length === 1 ? "" : "s"} · Green rows are ready for
           follow-up (2+ weeks after last appointment)
         </p>
-        <button
-          type="button"
-          onClick={() => loadLeads()}
-          className="text-sm font-semibold text-brand hover:text-accent"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="font-medium text-gray-700">Sort</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as LeadSort)}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => loadLeads()}
+            className="text-sm font-semibold text-brand hover:text-accent"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="space-y-3">
-        {leads.map((lead) => {
+        {sortedLeads.map((lead) => {
           const expanded = expandedId === lead.id;
           const followUp = lead.followUpDue;
 

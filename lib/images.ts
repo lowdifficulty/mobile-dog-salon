@@ -1,6 +1,9 @@
 /** Real groomed-dog photos from Mobile Dog Salon (Google Drive). */
 export const BRANDING_AD = "/images/branding-ad.png";
 
+/** 1200×630 — Facebook, Instagram, and link preview sharing */
+export const OG_HOME_IMAGE = "/images/og-home.jpg";
+
 /** IMG_6951 (dog-04) removed — stressed dog, not used on site. */
 export const DOG_PHOTOS = [
   "/images/dogs/dog-01.jpg",

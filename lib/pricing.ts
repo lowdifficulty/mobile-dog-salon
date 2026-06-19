@@ -19,16 +19,16 @@ export const SERVICE_PRICING: Record<
   Record<GroomingServiceId, number>
 > = {
   small: {
-    "full-groom": 110,
-    "bath-brush": 90,
+    "full-groom": 90,
+    "bath-brush": 70,
   },
   medium: {
-    "full-groom": 120,
-    "bath-brush": 100,
+    "full-groom": 100,
+    "bath-brush": 80,
   },
   large: {
-    "full-groom": 130,
-    "bath-brush": 110,
+    "full-groom": 110,
+    "bath-brush": 90,
   },
 };
 

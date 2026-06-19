@@ -92,21 +92,21 @@ export const VAN_FEATURES = [
 export const SERVICE_PACKAGES = [
   {
     name: "Signature Spa Package",
-    price: "From $120",
+    price: "From $100",
     description: "Our most popular full-service groom — bath, blow dry, brush out, ears, nails, and more.",
     features: ["Warm filtered bath", "All-natural shampoo & conditioner", "Hand blow dry", "Gentle brush out", "Ear cleaning", "Nail trim & file", "Teeth brushing"],
     href: ROUTES.mobileSpa,
   },
   {
     name: "Bath & Brush",
-    price: "From $90",
+    price: "From $70",
     description: "Perfect for regular maintenance between full grooms.",
     features: ["Warm bath", "Blow dry", "Brush out", "Ear cleaning", "Nail trim available"],
     href: ROUTES.bathing,
   },
   {
     name: "Full Groom with Haircut",
-    price: "From $150",
+    price: "From $110",
     description: "Complete groom with breed-specific or custom haircut styling.",
     features: ["Everything in Signature", "Breed-specific haircut", "Sanitary trim", "Paw pad trim"],
     href: ROUTES.mobileSpa,

@@ -97,6 +97,6 @@ export const PET_SIZES = [
 
 /** @deprecated Use GROOMING_SERVICES from lib/pricing.ts for booking */
 export const SERVICE_OPTIONS = [
-  { value: "full-groom", label: "Full Groom and Haircut", price: "From $110" },
-  { value: "bath-brush", label: "Bath & Brush", price: "From $90" },
+  { value: "full-groom", label: "Full Groom and Haircut", price: "From $90" },
+  { value: "bath-brush", label: "Bath & Brush", price: "From $70" },
 ];

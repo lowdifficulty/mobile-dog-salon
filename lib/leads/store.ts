@@ -7,7 +7,6 @@ import { assertWritablePersistence } from "@/lib/scheduling/persistence";
 import { normalizePhone } from "./normalize";
 import {
   funnelStepOrder,
-  type FunnelViewSource,
   type Lead,
   type LeadFunnelStep,
   type LeadNote,
@@ -19,14 +18,14 @@ const FILE_PATH = path.join(process.cwd(), "data", "leads.json");
 const REDIS_KEY = "mds:leads";
 
 export function emptyLeadsData(): LeadsData {
-  return { leads: [], funnelViews: [] };
+  return { leads: [] };
 }
 
 async function readFromLocalFile(): Promise<LeadsData> {
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
     const parsed = JSON.parse(raw) as LeadsData;
-    return { leads: parsed.leads ?? [], funnelViews: parsed.funnelViews ?? [] };
+    return { leads: parsed.leads ?? [] };
   } catch {
     return emptyLeadsData();
   }
@@ -41,7 +40,7 @@ export async function readLeadsData(): Promise<LeadsData> {
   const redis = getRedisClient();
   if (redis) {
     const data = await redis.get<LeadsData>(REDIS_KEY);
-    if (data) return { leads: data.leads ?? [], funnelViews: data.funnelViews ?? [] };
+    if (data) return { leads: data.leads ?? [] };
     const empty = emptyLeadsData();
     await redis.set(REDIS_KEY, empty);
     return empty;
@@ -56,10 +55,7 @@ export async function readLeadsData(): Promise<LeadsData> {
 
 export async function writeLeadsData(data: LeadsData): Promise<void> {
   assertWritablePersistence();
-  const normalized: LeadsData = {
-    leads: data.leads ?? [],
-    funnelViews: data.funnelViews ?? [],
-  };
+  const normalized: LeadsData = { leads: data.leads ?? [] };
   const redis = getRedisClient();
   if (redis) {
     await redis.set(REDIS_KEY, normalized);
@@ -146,6 +142,7 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
       groomerId: input.groomerId ?? existing.groomerId,
       groomerName: input.groomerName ?? existing.groomerName,
       source: input.source ?? existing.source,
+      lastActiveAt: now,
       updatedAt: now,
     };
     data.leads[idx] = updated;
@@ -184,6 +181,7 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
       ? [{ id: randomUUID(), text: input.message, createdAt: now }]
       : [],
     source: input.source ?? "booking",
+    lastActiveAt: now,
     createdAt: now,
     updatedAt: now,
   };
@@ -252,28 +250,14 @@ export async function getLeadById(leadId: string): Promise<Lead | null> {
   return data.leads.find((l) => l.id === leadId) ?? null;
 }
 
-export async function recordFunnelView(
-  sessionId: string,
-  source: FunnelViewSource
-): Promise<void> {
+export async function touchLeadActivity(sessionId: string): Promise<void> {
   if (!sessionId) return;
 
   const data = await readLeadsData();
-  const views = data.funnelViews ?? [];
+  const index = data.leads.findIndex((l) => l.leadSessionId === sessionId);
+  if (index < 0) return;
+
   const now = new Date().toISOString();
-  const index = views.findIndex((view) => view.sessionId === sessionId);
-
-  if (index >= 0) {
-    views[index] = { sessionId, viewedAt: now, source };
-  } else {
-    views.push({ sessionId, viewedAt: now, source });
-  }
-
-  data.funnelViews = views;
+  data.leads[index] = { ...data.leads[index], lastActiveAt: now };
   await writeLeadsData(data);
-}
-
-export async function readFunnelViews() {
-  const data = await readLeadsData();
-  return data.funnelViews ?? [];
 }

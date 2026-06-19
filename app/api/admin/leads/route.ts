@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/scheduling/auth";
+import { isLeadCurrentlyActive } from "@/lib/leads/activity";
 import { leadMatchesCrmView, withLeadDefaults, type LeadCrmView } from "@/lib/leads/filters";
 import { isFollowUpDue, syncLeadsWithAppointments } from "@/lib/leads/sync";
 
@@ -24,6 +25,7 @@ export async function GET(request: Request) {
       leads: filtered.map((lead) => ({
         ...lead,
         followUpDue: isFollowUpDue(lead),
+        currentlyActive: isLeadCurrentlyActive(lead),
       })),
     });
   } catch {

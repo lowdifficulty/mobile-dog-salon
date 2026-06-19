@@ -5,7 +5,6 @@ import {
   computeFunnelAnalytics,
 } from "@/lib/leads/analytics";
 import { leadsForAnalytics } from "@/lib/leads/filters";
-import { readFunnelViews } from "@/lib/leads/store";
 import { syncLeadsWithAppointments } from "@/lib/leads/sync";
 
 const VALID_RANGES: AnalyticsRange[] = ["today", "week", "month", "all"];
@@ -20,8 +19,7 @@ export async function GET(request: Request) {
       : "week";
 
     const leads = leadsForAnalytics(await syncLeadsWithAppointments());
-    const funnelViews = await readFunnelViews();
-    const analytics = computeFunnelAnalytics(leads, range, funnelViews);
+    const analytics = computeFunnelAnalytics(leads, range);
 
     return NextResponse.json(analytics);
   } catch {

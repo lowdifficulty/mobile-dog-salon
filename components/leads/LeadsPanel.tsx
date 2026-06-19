@@ -46,6 +46,7 @@ interface LeadRow {
   notes: LeadNote[];
   source: "booking" | "contact";
   followUpDue?: boolean;
+  currentlyActive?: boolean;
 }
 
 function formatDate(iso: string) {
@@ -412,7 +413,12 @@ export default function LeadsPanel() {
                           onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
                         />
                       </div>
-                      <p className="text-sm text-gray-600 mt-0.5">{displayName(lead)}</p>
+                      <p className="text-sm text-gray-600 mt-0.5">
+                        {displayName(lead)}
+                        {lead.currentlyActive && (
+                          <span className="text-brand font-semibold"> (currently active)</span>
+                        )}
+                      </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Contact: {formatDate(lead.contactMadeAt)}
                       </p>

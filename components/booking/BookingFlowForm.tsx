@@ -17,8 +17,8 @@ import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
 import { formatAppointmentAddress, isValidZipCode } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
-import { saveLead, trackFunnelView, type SaveLeadPayload } from "@/lib/leads/client";
-import type { FunnelViewSource, LeadFunnelStep } from "@/lib/leads/types";
+import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
+import type { LeadFunnelStep } from "@/lib/leads/types";
 import {
   buildBookingNotes,
   draftToBookingPet,
@@ -75,13 +75,9 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
 
 interface BookingFlowFormProps {
   onClose?: () => void;
-  funnelViewSource?: FunnelViewSource;
 }
 
-export default function BookingFlowForm({
-  onClose,
-  funnelViewSource = "book_page",
-}: BookingFlowFormProps) {
+export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialData);
   const [queuedPets, setQueuedPets] = useState<DraftPet[]>([]);
@@ -93,8 +89,12 @@ export default function BookingFlowForm({
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
-    void trackFunnelView(funnelViewSource);
-  }, [funnelViewSource]);
+    void pingLeadActivity();
+    const interval = window.setInterval(() => {
+      void pingLeadActivity();
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const update = (field: keyof BookingFormData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));

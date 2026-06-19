@@ -1,6 +1,6 @@
 "use client";
 
-import type { LeadFunnelStep, FunnelViewSource } from "@/lib/leads/types";
+import type { LeadFunnelStep } from "@/lib/leads/types";
 import { trackMetaLeadIfConversion } from "@/lib/meta-pixel";
 
 const SESSION_KEY = "mds_lead_session_id";
@@ -59,15 +59,12 @@ export async function saveLead(payload: SaveLeadPayload): Promise<void> {
   }
 }
 
-export async function trackFunnelView(source: FunnelViewSource): Promise<void> {
+export async function pingLeadActivity(): Promise<void> {
   try {
-    await fetch("/api/leads/funnel-view", {
+    await fetch("/api/leads/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        leadSessionId: getLeadSessionId(),
-        source,
-      }),
+      body: JSON.stringify({ leadSessionId: getLeadSessionId() }),
     });
   } catch {
     // Non-blocking

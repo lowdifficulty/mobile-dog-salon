@@ -1,6 +1,7 @@
 "use client";
 
 import type { LeadFunnelStep } from "@/lib/leads/types";
+import { trackMetaLeadIfConversion } from "@/lib/meta-pixel";
 
 const SESSION_KEY = "mds_lead_session_id";
 
@@ -38,6 +39,8 @@ export interface SaveLeadPayload {
 }
 
 export async function saveLead(payload: SaveLeadPayload): Promise<void> {
+  trackMetaLeadIfConversion(payload.funnelStep, payload.source ?? "booking");
+
   try {
     await fetch("/api/leads", {
       method: "POST",

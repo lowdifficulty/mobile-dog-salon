@@ -221,6 +221,24 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         return;
       }
       setAppointmentId(result.appointmentId);
+      void saveLead({
+        funnelStep: "scheduled",
+        phone: data.phone,
+        email: data.email,
+        fullName: data.fullName,
+        petName: data.petName,
+        petSize: data.petSize,
+        service: data.service,
+        address: data.address,
+        city: data.city,
+        zipCode: data.zipCode,
+        discountActive,
+        discountSkipped,
+        smsOptIn: discountActive,
+        appointmentId: result.appointmentId,
+        scheduledAt: new Date().toISOString(),
+        source: "booking",
+      });
       setSubmitted(true);
     } catch {
       setSubmitError("Something went wrong. Please try again.");
@@ -336,10 +354,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       <div className="px-4 py-3">
         {step === 1 && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-accent/20 bg-accent-light px-4 py-3 text-center">
+            <div className="rounded-xl border border-accent/20 bg-accent-light px-2.5 py-3 text-center">
               <p className="text-2xl font-bold text-brand leading-tight">50% OFF</p>
-              <p className="mt-1 text-xs text-gray-600">
-                Enter your phone number to unlock half off your first groom.
+              <p className="mt-2 text-sm font-semibold text-gray-800 leading-tight">
+                Enter your phone number to unlock half off your first groom!
               </p>
             </div>
             <div>

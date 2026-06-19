@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import SmsOptInField from "@/components/SmsOptInField";
 import { legalRoutes } from "@/lib/company-legal";
+import { saveLead } from "@/lib/leads/client";
 
 export default function ContactForm() {
   const [submitted, setSubmitted] = useState(false);
   const [phone, setPhone] = useState("");
   const [smsOptIn, setSmsOptIn] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   return (
     <section className="site-section bg-section-white">
@@ -21,8 +23,21 @@ export default function ContactForm() {
         ) : (
           <form
             className="site-card p-8 space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
+              setSubmitting(true);
+              const form = new FormData(e.currentTarget);
+              await saveLead({
+                funnelStep: "contact_details",
+                fullName: String(form.get("name") ?? ""),
+                email: String(form.get("email") ?? ""),
+                phone,
+                zipCode: String(form.get("zip") ?? ""),
+                message: String(form.get("message") ?? ""),
+                smsOptIn,
+                source: "contact",
+              });
+              setSubmitting(false);
               setSubmitted(true);
             }}
           >
@@ -86,7 +101,9 @@ export default function ContactForm() {
               </Link>
               .
             </p>
-            <button type="submit" className="site-btn w-full">Send Message</button>
+            <button type="submit" disabled={submitting} className="site-btn w-full">
+              {submitting ? "Sending…" : "Send Message"}
+            </button>
           </form>
         )}
         <p className="text-center text-gray-600 mt-8">

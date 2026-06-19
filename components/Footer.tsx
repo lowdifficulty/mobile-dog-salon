@@ -19,7 +19,15 @@ export default function Footer() {
       <div className="site-container py-12 md:py-16">
         <div className="text-center mb-10">
           {!hideBookingUi && (
-            <button type="button" onClick={openBooking} className="site-btn mb-6">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.requestAnimationFrame(() => openBooking());
+              }}
+              className="site-btn mb-6"
+            >
               Book an Appointment
             </button>
           )}

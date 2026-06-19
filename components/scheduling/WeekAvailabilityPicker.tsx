@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { AvailableSlot } from "@/lib/scheduling/types";
-import { getWeekStart } from "@/lib/scheduling/slots";
+import { addDays, getWeekStart } from "@/lib/scheduling/slots";
+import {
+  buildFallbackWeekDays,
+  nextWeekStart,
+  type FallbackWeekDay,
+} from "@/lib/scheduling/fallback-availability";
 
-interface WeekDay {
-  date: string;
-  weekday: string;
-  dayNumber: number;
-  monthShort: string;
-  isPast: boolean;
-  slots: AvailableSlot[];
-}
+interface WeekDay extends FallbackWeekDay {}
 
 interface WeekAvailabilityPickerProps {
   service: string;
@@ -37,6 +35,27 @@ function formatWeekRange(weekStart: string): string {
   return `${startLabel} – ${endLabel}`;
 }
 
+async function fetchWeek(
+  weekStart: string,
+  service: string
+): Promise<{ days: WeekDay[]; weekStart: string }> {
+  const res = await fetch(
+    `/api/availability?week=${weekStart}&service=${encodeURIComponent(service)}`
+  );
+  if (!res.ok) {
+    throw new Error("Availability request failed");
+  }
+  const data = await res.json();
+  return {
+    days: data.days ?? [],
+    weekStart: data.weekStart ?? weekStart,
+  };
+}
+
+function weekHasAvailability(days: WeekDay[]): boolean {
+  return days.some((day) => !day.isPast && day.slots.length > 0);
+}
+
 export default function WeekAvailabilityPicker({
   service,
   selectedDate,
@@ -47,37 +66,96 @@ export default function WeekAvailabilityPicker({
   const [weekStart, setWeekStart] = useState(() => getWeekStart());
   const [days, setDays] = useState<WeekDay[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   useEffect(() => {
     if (!service) {
       setDays([]);
       return;
     }
+
+    let cancelled = false;
+
+    async function loadInitialWeek() {
+      setLoading(true);
+      setFallbackMode(false);
+
+      try {
+        let cursor = getWeekStart();
+        for (let i = 0; i < 12; i++) {
+          const result = await fetchWeek(cursor, service);
+          if (cancelled) return;
+
+          if (weekHasAvailability(result.days)) {
+            setWeekStart(result.weekStart);
+            setDays(result.days);
+            return;
+          }
+
+          cursor = nextWeekStart(result.weekStart);
+        }
+
+        const emptyStart = getWeekStart();
+        setWeekStart(emptyStart);
+        setDays([]);
+      } catch {
+        if (cancelled) return;
+        const fallbackStart = getWeekStart();
+        setWeekStart(fallbackStart);
+        setDays(buildFallbackWeekDays(fallbackStart));
+        setFallbackMode(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadInitialWeek();
+    return () => {
+      cancelled = true;
+    };
+  }, [service]);
+
+  async function loadWeek(start: string) {
+    if (!service) return;
+
     setLoading(true);
-    fetch(
-      `/api/availability?week=${weekStart}&service=${encodeURIComponent(service)}`
-    )
-      .then((r) => r.json())
-      .then((d) => setDays(d.days ?? []))
-      .catch(() => setDays([]))
-      .finally(() => setLoading(false));
-  }, [service, weekStart]);
+    try {
+      if (fallbackMode) {
+        setWeekStart(start);
+        setDays(buildFallbackWeekDays(start));
+        return;
+      }
+
+      const result = await fetchWeek(start, service);
+      setWeekStart(result.weekStart);
+      setDays(result.days);
+    } catch {
+      setWeekStart(start);
+      setDays(buildFallbackWeekDays(start));
+      setFallbackMode(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const selectedDay = days.find((d) => d.date === selectedDate);
   const availableDays = days.filter((d) => !d.isPast && d.slots.length > 0);
 
   function shiftWeek(offset: number) {
-    const d = new Date(`${weekStart}T12:00:00`);
-    d.setDate(d.getDate() + offset * 7);
-    const next = getWeekStart(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-    );
-    setWeekStart(next);
+    const next = offset > 0 ? nextWeekStart(weekStart) : addDays(weekStart, -7);
     onSelectDate("");
+    void loadWeek(next);
   }
 
   return (
     <div className="space-y-4">
+      {fallbackMode && (
+        <p className="text-sm text-amber-800 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+          We couldn&apos;t load live availability. All time slots are shown as open — your
+          groomer will confirm your appointment.
+        </p>
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -104,8 +182,8 @@ export default function WeekAvailabilityPicker({
         <p className="text-sm text-gray-500">Loading availability…</p>
       ) : availableDays.length === 0 ? (
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-          No open appointments this week. Try the next week — groomers post availability
-          in their calendars.
+          No open appointments this week. Try the next week — groomers post availability in
+          their calendars.
         </p>
       ) : (
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
@@ -138,7 +216,7 @@ export default function WeekAvailabilityPicker({
                 {hasSlots && (
                   <span
                     className={`mt-1 text-[10px] font-semibold ${
-                      isSelected ? "text-white/90" : "text-brand-bright"
+                      isSelected ? "text-white/90" : "text-brand"
                     }`}
                   >
                     {day.slots.length} open
@@ -164,7 +242,7 @@ export default function WeekAvailabilityPicker({
                 className={`px-3 py-3 rounded-xl border text-sm font-semibold text-left transition-all ${
                   selectedSlotKey === slot.slotKey
                     ? "border-brand bg-brand text-white"
-                    : "border-gray-200 hover:border-accent text-gray-800"
+                    : "border-gray-200 hover:border-brand text-gray-800"
                 }`}
               >
                 <span className="block">{slot.displayTime}</span>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import BookingForm from "./BookingForm";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import BookingFlowForm from "@/components/booking/BookingFlowForm";
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -9,46 +10,53 @@ interface BookingModalProps {
 }
 
 export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
+  const [mounted, setMounted] = useState(false);
+  const ignoreBackdropClose = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) {
       document.body.style.overflow = "";
+      return;
     }
+
+    ignoreBackdropClose.current = true;
+    const unlockBackdrop = window.setTimeout(() => {
+      ignoreBackdropClose.current = false;
+    }, 100);
+
+    document.body.style.overflow = "hidden";
+
     return () => {
+      window.clearTimeout(unlockBackdrop);
       document.body.style.overflow = "";
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onMouseDown={() => {
+          if (!ignoreBackdropClose.current) onClose();
+        }}
+        aria-hidden="true"
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M4.5 9.5C4.5 6.462 7.462 3.5 10.5 3.5S16.5 6.462 16.5 9.5c0 2.2-1.4 4.1-3.4 4.8-.3.1-.6.2-.9.2s-.6-.1-.9-.2C5.9 13.6 4.5 11.7 4.5 9.5z" />
-              </svg>
-            </div>
-            <span className="font-bold font-bold text-gray-900">Book an Appointment</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <BookingForm onClose={onClose} />
+      <div
+        className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto scrollbar-grey"
+        onMouseDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Book an appointment"
+      >
+        <BookingFlowForm onClose={onClose} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

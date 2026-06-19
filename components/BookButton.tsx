@@ -15,7 +15,15 @@ export default function BookButton({
   const { openBooking } = useBooking();
 
   return (
-    <button type="button" onClick={openBooking} className={`site-btn ${className}`}>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.requestAnimationFrame(() => openBooking());
+      }}
+      className={`site-btn ${className}`}
+    >
       {children}
     </button>
   );

@@ -12,6 +12,7 @@ import {
   hasConsecutiveAvailability,
 } from "@/lib/scheduling/availability";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
+import { upsertLead } from "@/lib/leads/store";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -110,6 +111,29 @@ export async function POST(request: Request) {
     actor: email,
     groomerId,
   });
+
+  try {
+    await upsertLead({
+      funnelStep: "scheduled",
+      phone: appointment.phone,
+      email: appointment.email,
+      firstName: appointment.firstName,
+      lastName: appointment.lastName,
+      petName: appointment.petName,
+      petSize: appointment.petSize,
+      service: appointment.service,
+      address: appointment.address,
+      city: appointment.city,
+      zipCode: appointment.zipCode,
+      smsOptIn: appointment.smsOptIn,
+      discountActive: Boolean(smsOptIn),
+      appointmentId: appointment.id,
+      scheduledAt: appointment.createdAt,
+      source: "booking",
+    });
+  } catch (err) {
+    console.error("Lead sync failed:", err);
+  }
 
   try {
     await sendCalendarInvites(appointment);

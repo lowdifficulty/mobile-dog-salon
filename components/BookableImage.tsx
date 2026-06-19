@@ -22,7 +22,11 @@ export default function BookableImage({
   return (
     <button
       type="button"
-      onClick={openBooking}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.requestAnimationFrame(() => openBooking());
+      }}
       className="block w-full cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
       aria-label="Book an appointment"
     >

@@ -50,6 +50,33 @@ export function getServicePrice(
   return null;
 }
 
+/** Discounted price shown when the customer enters a phone number on step 1. */
+export function getDiscountedServicePrice(
+  petSize: string,
+  service: string
+): number | null {
+  return getServicePrice(petSize, service);
+}
+
+/** Full price before the 50% phone discount (2× the discounted rate). */
+export function getListServicePrice(
+  petSize: string,
+  service: string
+): number | null {
+  const discounted = getDiscountedServicePrice(petSize, service);
+  return discounted != null ? discounted * 2 : null;
+}
+
+export function getQuotedServicePrice(
+  petSize: string,
+  service: string,
+  discountActive: boolean
+): number | null {
+  const list = getListServicePrice(petSize, service);
+  if (list == null) return null;
+  return discountActive ? list / 2 : list;
+}
+
 export function formatPrice(amount: number): string {
   return `$${amount}`;
 }

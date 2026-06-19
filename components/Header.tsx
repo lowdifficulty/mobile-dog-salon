@@ -175,7 +175,15 @@ export default function Header() {
               Careers
             </Link>
             {!hideBookingUi && (
-              <button type="button" onClick={openBooking} className="site-btn text-sm !py-2.5 !px-6">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.requestAnimationFrame(() => openBooking());
+                }}
+                className="site-btn text-sm !py-2.5 !px-6"
+              >
                 Book an Appointment
               </button>
             )}
@@ -183,7 +191,15 @@ export default function Header() {
 
           <div className="flex items-center gap-3 lg:hidden">
             {!hideBookingUi && (
-              <button type="button" onClick={openBooking} className="site-btn text-sm !py-2 !px-4">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.requestAnimationFrame(() => openBooking());
+                }}
+                className="site-btn text-sm !py-2 !px-4"
+              >
                 Book
               </button>
             )}
@@ -223,9 +239,13 @@ export default function Header() {
             {!hideBookingUi && (
               <button
                 type="button"
-                onClick={() => {
-                  openBooking();
-                  closeMobile();
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.requestAnimationFrame(() => {
+                    openBooking();
+                    closeMobile();
+                  });
                 }}
                 className="site-btn text-sm w-full mt-2"
               >

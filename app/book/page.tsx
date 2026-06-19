@@ -10,24 +10,24 @@ export const metadata = {
 export default function BookPage() {
   return (
     <div className="min-h-screen bg-section-pink">
-      <header className="bg-white shadow-[0_2px_2px_#F4F4F4]">
-        <div className="site-container py-4 flex items-center justify-between">
-          <Link href={ROUTES.home} className="flex items-center gap-3">
-            <img src="/images/branding-ad.png" alt="Good Dogs Take Baths" className="h-12 w-auto rounded-sticker" />
-            <span className="font-bold text-brand hidden sm:block">Book a Bath</span>
+      <header className="bg-white shadow-[0_1px_0_#F4F4F4]">
+        <div className="site-container py-2 flex items-center justify-between">
+          <Link href={ROUTES.home} className="flex items-center gap-2">
+            <img
+              src="/images/branding-ad.png"
+              alt="Good Dogs Take Baths"
+              className="h-8 w-auto rounded-sticker"
+            />
+            <span className="text-sm font-semibold text-brand hidden sm:block">Book</span>
           </Link>
-          <Link href={ROUTES.home} className="text-sm text-gray-500 hover:text-accent transition-colors">
-            Back to Home
+          <Link href={ROUTES.home} className="text-xs text-gray-500 hover:text-accent transition-colors">
+            Home
           </Link>
         </div>
       </header>
 
-      <div className="site-container py-8 max-w-lg mx-auto">
-        <h1 className="site-heading-on-pink text-center mb-2">Book an Appointment</h1>
-        <p className="text-center text-on-pink-muted mb-8">
-          Schedule mobile grooming at your curb in Orange County.
-        </p>
-        <div className="bg-white rounded-[30px] shadow-xl overflow-hidden border border-accent/10 flex flex-col max-h-[calc(100vh-8rem)]">
+      <div className="site-container px-3 py-3 sm:px-4 sm:py-4 max-w-lg mx-auto w-full">
+        <div className="bg-white rounded-2xl sm:rounded-[24px] shadow-xl overflow-hidden border border-accent/10">
           <BookPageForm />
         </div>
       </div>

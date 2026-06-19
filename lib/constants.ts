@@ -90,16 +90,13 @@ export const FAQS = [
 ];
 
 export const PET_SIZES = [
-  { value: "small", label: "Small (under 25 lbs)" },
-  { value: "medium", label: "Medium (25–50 lbs)" },
-  { value: "large", label: "Large (50–80 lbs)" },
-  { value: "xlarge", label: "Extra Large (80+ lbs)" },
+  { value: "small", title: "Small Dog", weight: "1-30 lbs", label: "Small Dog (1-30 lbs)" },
+  { value: "medium", title: "Medium Dog", weight: "30-50 lbs", label: "Medium Dog (30-50 lbs)" },
+  { value: "large", title: "Large Dog", weight: "50+ lbs", label: "Large Dog (50+ lbs)" },
 ];
 
+/** @deprecated Use GROOMING_SERVICES from lib/pricing.ts for booking */
 export const SERVICE_OPTIONS = [
-  { value: "signature", label: "Signature Service", price: "From $120" },
+  { value: "full-groom", label: "Full Groom and Haircut", price: "From $110" },
   { value: "bath-brush", label: "Bath & Brush", price: "From $90" },
-  { value: "full-groom", label: "Full Groom with Haircut", price: "From $150" },
-  { value: "nail-only", label: "Nail Trim Only", price: "From $35" },
-  { value: "teeth-only", label: "Teeth Brushing Only", price: "From $25" },
 ];

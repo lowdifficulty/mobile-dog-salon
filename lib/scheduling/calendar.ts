@@ -2,7 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import type { Appointment } from "./types";
 import { CALENDAR_NOTIFY_EMAILS, GROOMERS } from "./groomers";
-import { SERVICE_OPTIONS } from "@/lib/constants";
+import { getServiceLabel } from "@/lib/pricing";
 
 const TZ = "America/Los_Angeles";
 const ORGANIZER_EMAIL =
@@ -64,8 +64,7 @@ export function buildIcsEvent(appointment: Appointment): string {
   const start = new Date(appointment.startAt);
   const end = new Date(start.getTime() + appointment.durationMinutes * 60 * 1000);
   const groomer = GROOMERS[appointment.groomerId];
-  const serviceLabel =
-    SERVICE_OPTIONS.find((s) => s.value === appointment.service)?.label ?? appointment.service;
+  const serviceLabel = getServiceLabel(appointment.service);
 
   const summary = escapeIcs(
     `Mobile Dog Salon — ${appointment.petName} (${serviceLabel})`
@@ -110,8 +109,7 @@ function calendarRecipients(appointment: Appointment): string[] {
 export async function sendCalendarInvites(appointment: Appointment): Promise<boolean> {
   const ics = buildIcsEvent(appointment);
   const groomer = GROOMERS[appointment.groomerId];
-  const serviceLabel =
-    SERVICE_OPTIONS.find((s) => s.value === appointment.service)?.label ?? appointment.service;
+  const serviceLabel = getServiceLabel(appointment.service);
   const recipients = calendarRecipients(appointment);
 
   const startLocal = new Date(appointment.startAt).toLocaleString("en-US", {

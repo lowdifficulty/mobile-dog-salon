@@ -2,8 +2,8 @@ import type {
   Appointment,
   AvailabilityDay,
   AvailableSlot,
-  GroomerId,
 } from "./types";
+import type { GroomerId } from "./types";
 import { GROOMERS, formatDisplayTime } from "./groomers";
 import { BOOKING_DURATION_MINUTES } from "./services";
 import { hasConsecutiveAvailability } from "./availability";
@@ -134,4 +134,62 @@ export function upcomingMonthDates(): string[] {
     d.setDate(d.getDate() + 1);
   }
   return dates;
+}
+
+export function formatDateISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** Sunday-start week containing the given date (YYYY-MM-DD). */
+export function getWeekStart(dateStr?: string): string {
+  const base = dateStr ? new Date(`${dateStr}T12:00:00`) : new Date();
+  base.setHours(12, 0, 0, 0);
+  base.setDate(base.getDate() - base.getDay());
+  return formatDateISO(base);
+}
+
+export function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return formatDateISO(d);
+}
+
+export function getWeekDates(weekStart: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+}
+
+export interface WeekDayAvailability {
+  date: string;
+  weekday: string;
+  dayNumber: number;
+  monthShort: string;
+  isPast: boolean;
+  slots: AvailableSlot[];
+}
+
+export function getWeekAvailability(
+  weekStart: string,
+  availability: AvailabilityDay[],
+  appointments: Appointment[],
+  service: string
+): WeekDayAvailability[] {
+  const today = formatDateISO(new Date());
+
+  return getWeekDates(weekStart).map((date) => {
+    const d = new Date(`${date}T12:00:00`);
+    const slots = getAvailableSlotsForDate(
+      date,
+      availability,
+      appointments,
+      service
+    );
+    return {
+      date,
+      weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
+      dayNumber: d.getDate(),
+      monthShort: d.toLocaleDateString("en-US", { month: "short" }),
+      isPast: date < today,
+      slots,
+    };
+  });
 }

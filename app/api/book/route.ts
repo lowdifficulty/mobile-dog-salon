@@ -100,6 +100,23 @@ export async function POST(request: Request) {
     console.error("Calendar invite failed:", err);
   }
 
+  try {
+    const { sendBookingConfirmations } = await import("@/lib/notifications/booking-confirmation");
+    await sendBookingConfirmations(appointment);
+  } catch (err) {
+    console.error("Customer confirmation notifications failed:", err);
+  }
+
+  try {
+    const { sendBookingToGoHighLevel } = await import("@/lib/gohighlevel");
+    const ghlResult = await sendBookingToGoHighLevel(appointment);
+    if (ghlResult.errors.length) {
+      console.warn("GoHighLevel partial sync:", ghlResult.errors.join("; "));
+    }
+  } catch (err) {
+    console.error("GoHighLevel sync failed:", err);
+  }
+
   return NextResponse.json({
     success: true,
     message: "Your appointment is confirmed!",

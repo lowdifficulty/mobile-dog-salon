@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SERVICE_OPTIONS } from "@/lib/constants";
+import { getServiceLabel } from "@/lib/pricing";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import type { Appointment } from "@/lib/scheduling/types";
 
@@ -48,7 +48,7 @@ export default function AppointmentList({
     <div className="space-y-3">
       {appointments.map((ap) => {
         const serviceLabel =
-          SERVICE_OPTIONS.find((s) => s.value === ap.service)?.label ?? ap.service;
+          getServiceLabel(ap.service);
         return (
           <div key={ap.id} className="site-card p-4 border-l-4 border-accent">
             <div className="flex flex-wrap justify-between gap-2 mb-2">

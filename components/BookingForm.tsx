@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   PET_SIZES,
-  SERVICE_OPTIONS,
-  ORANGE_COUNTY_CITIES,
 } from "@/lib/constants";
+import {
+  GROOMING_SERVICES,
+  formatPrice,
+  getServiceLabel,
+  getServicePrice,
+} from "@/lib/pricing";
+import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 
 interface BookingFormData {
@@ -48,7 +53,7 @@ const initialData: BookingFormData = {
 
 const STEPS = [
   { id: 1, title: "Your Pet", subtitle: "Tell us about your furry friend" },
-  { id: 2, title: "Service", subtitle: "Choose the perfect grooming package" },
+  { id: 2, title: "Service", subtitle: "Choose your grooming package" },
   { id: 3, title: "Schedule", subtitle: "Pick an open slot with your groomer" },
   { id: 4, title: "Contact", subtitle: "How can we reach you?" },
 ];
@@ -66,40 +71,15 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   const update = (field: keyof BookingFormData, value: string | boolean) => {
     setData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const currentMonth = data.preferredDate
-    ? data.preferredDate.slice(0, 7)
-    : new Date().toISOString().slice(0, 7);
-
-  useEffect(() => {
-    if (!data.service) return;
-    fetch(`/api/availability?month=${currentMonth}&service=${encodeURIComponent(data.service)}`)
-      .then((r) => r.json())
-      .then((d) => setAvailableDates(d.dates ?? []))
-      .catch(() => setAvailableDates([]));
-  }, [data.service, currentMonth]);
-
-  useEffect(() => {
-    if (!data.preferredDate || !data.service) {
-      setSlots([]);
-      return;
-    }
-    setSlotsLoading(true);
-    fetch(
-      `/api/availability?date=${data.preferredDate}&service=${encodeURIComponent(data.service)}`
-    )
-      .then((r) => r.json())
-      .then((d) => setSlots(d.slots ?? []))
-      .catch(() => setSlots([]))
-      .finally(() => setSlotsLoading(false));
-  }, [data.preferredDate, data.service]);
+  const selectedPrice =
+    data.petSize && data.service
+      ? getServicePrice(data.petSize, data.service)
+      : null;
 
   const selectSlot = (slot: AvailableSlot) => {
     setData((prev) => ({
@@ -108,6 +88,16 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
       preferredDate: slot.date,
       preferredTime: slot.displayTime,
       groomerName: slot.groomerName,
+    }));
+  };
+
+  const clearSchedule = () => {
+    setData((prev) => ({
+      ...prev,
+      slotKey: "",
+      preferredDate: "",
+      preferredTime: "",
+      groomerName: "",
     }));
   };
 
@@ -125,9 +115,9 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
         }
         return data.petName && data.petBreed && data.petSize;
       case 2:
-        return data.service;
+        return data.service && data.petSize;
       case 3:
-        return data.address && data.city && data.slotKey;
+        return data.address && data.city.trim() && data.slotKey;
       case 4:
         return isBookPage
           ? data.firstName && data.lastName && data.email
@@ -250,19 +240,26 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Size *</label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {PET_SIZES.map((size) => (
                   <button
                     key={size.value}
                     type="button"
-                    onClick={() => update("petSize", size.value)}
-                    className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    onClick={() => {
+                      update("petSize", size.value);
+                      update("service", "");
+                      clearSchedule();
+                    }}
+                    className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all text-center ${
                       data.petSize === size.value
                         ? "border-brand-bright bg-brand-bright/10 text-brand-bright"
                         : "border-gray-200 text-gray-700 hover:border-brand-bright/50"
                     }`}
                   >
-                    {size.label}
+                    <span className="block leading-tight">{size.title}</span>
+                    <span className="block text-sm mt-1 leading-tight opacity-80">
+                      ({size.weight})
+                    </span>
                   </button>
                 ))}
               </div>
@@ -305,27 +302,44 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
         )}
 
         {step === 2 && (
-          <div className="space-y-3">
-            {SERVICE_OPTIONS.map((service) => (
-              <button
-                key={service.value}
-                type="button"
-                onClick={() => {
-                  update("service", service.value);
-                  update("slotKey", "");
-                  update("preferredTime", "");
-                  update("groomerName", "");
-                }}
-                className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-all ${
-                  data.service === service.value
-                    ? "border-brand-bright bg-brand-bright/10"
-                    : "border-gray-200 hover:border-brand-bright/50"
-                }`}
-              >
-                <span className="font-medium text-gray-900">{service.label}</span>
-                <span className="text-sm text-brand-bright font-semibold">{service.price}</span>
-              </button>
-            ))}
+          <div className="space-y-4">
+            {!data.petSize ? (
+              <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                Go back and select your dog&apos;s size to see pricing.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">
+                  Pricing for{" "}
+                  <strong>{PET_SIZES.find((s) => s.value === data.petSize)?.label}</strong>
+                </p>
+                <div className="space-y-3">
+                  {GROOMING_SERVICES.map((service) => {
+                    const price = getServicePrice(data.petSize, service.value);
+                    return (
+                      <button
+                        key={service.value}
+                        type="button"
+                        onClick={() => {
+                          update("service", service.value);
+                          clearSchedule();
+                        }}
+                        className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-all ${
+                          data.service === service.value
+                            ? "border-brand-bright bg-brand-bright/10"
+                            : "border-gray-200 hover:border-brand-bright/50"
+                        }`}
+                      >
+                        <span className="font-medium text-gray-900">{service.label}</span>
+                        <span className="text-sm text-brand-bright font-semibold">
+                          {price != null ? formatPrice(price) : "—"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -343,71 +357,31 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
-              <select
+              <input
+                type="text"
                 value={data.city}
                 onChange={(e) => update("city", e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
-              >
-                <option value="">Select your city</option>
-                {ORANGE_COUNTY_CITIES.map((city) => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Date *</label>
-              {data.service && availableDates.length === 0 && !slotsLoading && (
-                <p className="text-sm text-gray-600 mb-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-                  No availability right now. Melanie and Diamond have not posted open times for this
-                  month.
-                </p>
-              )}
-              <input
-                type="date"
-                value={data.preferredDate}
-                onChange={(e) => {
-                  update("preferredDate", e.target.value);
-                  update("slotKey", "");
-                  update("preferredTime", "");
-                  update("groomerName", "");
-                }}
-                min={new Date().toISOString().split("T")[0]}
-                disabled={Boolean(data.service && availableDates.length === 0)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none disabled:bg-gray-50 disabled:text-gray-400"
+                placeholder="e.g. Irvine, Huntington Beach, Anaheim"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Available times *
-              </label>
-              {!data.preferredDate ? (
-                <p className="text-sm text-gray-500">Choose a date to see open slots.</p>
-              ) : slotsLoading ? (
-                <p className="text-sm text-gray-500">Loading open slots…</p>
-              ) : slots.length === 0 ? (
-                <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-                  None available for this day with Melanie or Diamond.
-                </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date &amp; time *</label>
+              {!data.service ? (
+                <p className="text-sm text-gray-500">Choose a service first to see open appointments.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {slots.map((slot) => (
-                    <button
-                      key={slot.slotKey}
-                      type="button"
-                      onClick={() => selectSlot(slot)}
-                      className={`px-3 py-3 rounded-xl border text-sm font-semibold text-left transition-all ${
-                        data.slotKey === slot.slotKey
-                          ? "border-brand bg-brand text-white"
-                          : "border-gray-200 hover:border-accent text-gray-800"
-                      }`}
-                    >
-                      <span className="block">{slot.displayTime} · 2 hrs</span>
-                      <span className={`block text-xs mt-0.5 ${data.slotKey === slot.slotKey ? "text-white/90" : "text-gray-500"}`}>
-                        with {slot.groomerName}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <WeekAvailabilityPicker
+                  service={data.service}
+                  selectedDate={data.preferredDate}
+                  selectedSlotKey={data.slotKey}
+                  onSelectDate={(date) => {
+                    update("preferredDate", date);
+                    update("slotKey", "");
+                    update("preferredTime", "");
+                    update("groomerName", "");
+                  }}
+                  onSelectSlot={selectSlot}
+                />
               )}
             </div>
             <div>
@@ -472,7 +446,11 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
               <h4 className="font-semibold text-gray-900 mb-2 text-sm">Booking Summary</h4>
               <div className="space-y-1 text-sm text-gray-600">
                 <p><span className="text-gray-400">Pet:</span> {data.petName} ({data.petBreed})</p>
-                <p><span className="text-gray-400">Service:</span> {SERVICE_OPTIONS.find((s) => s.value === data.service)?.label}</p>
+                <p>
+                  <span className="text-gray-400">Service:</span>{" "}
+                  {getServiceLabel(data.service)}
+                  {selectedPrice != null && ` — ${formatPrice(selectedPrice)}`}
+                </p>
                 <p><span className="text-gray-400">When:</span> {data.preferredDate} at {data.preferredTime}</p>
                 <p><span className="text-gray-400">Groomer:</span> {data.groomerName}</p>
                 <p><span className="text-gray-400">Where:</span> {data.address}, {data.city}</p>

@@ -27,6 +27,14 @@ export interface Appointment {
   city: string;
   notes: string;
   createdAt: string;
+  /** ISO timestamp when 24-hour reminder email was sent */
+  reminder24hEmailSentAt?: string;
+  /** ISO timestamp when 24-hour reminder SMS was sent */
+  reminder24hSmsSentAt?: string;
+  /** ISO timestamp when 2-hour reminder email was sent */
+  reminder2hEmailSentAt?: string;
+  /** ISO timestamp when 2-hour reminder SMS was sent */
+  reminder2hSmsSentAt?: string;
 }
 
 export interface SchedulingData {

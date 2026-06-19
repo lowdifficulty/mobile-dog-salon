@@ -12,6 +12,7 @@
     "qa": "npm run build && node scripts/verify-site.mjs --start",
     "verify": "npm run build && node scripts/verify-site.mjs --start",
     "verify-scheduling": "node scripts/verify-scheduling.mjs",
+    "reminders": "node scripts/run-reminders.mjs",
     "import-blogs": "node scripts/import-blog-pack.mjs",
     "fetch-blog-images": "node scripts/fetch-blog-images.mjs",
     "apply-blog-images": "node scripts/apply-blog-image-links.mjs",
@@ -29,6 +30,7 @@
     "resend": "^6.12.4",
     "server-only": "^0.0.1",
     "square": "^44.1.0",
+    "twilio": "^6.0.2",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

@@ -8,9 +8,10 @@ import TeamAvailabilityCalendar from "./TeamAvailabilityCalendar";
 import AvailabilityHistoryPanel from "./AvailabilityHistoryPanel";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
+import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-type Tab = "team-calendar" | "history" | "upcoming" | "past" | "payments";
+type Tab = "team-calendar" | "history" | "upcoming" | "past" | "payments" | "qa";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function AdminDashboard() {
     { id: "upcoming", label: "Upcoming" },
     { id: "past", label: "Past" },
     { id: "payments", label: "Payments" },
+    { id: "qa", label: "QA" },
   ];
 
   const appointmentApi = `/api/admin/appointments?groomerId=${groomerId}`;
@@ -81,6 +83,7 @@ export default function AdminDashboard() {
         <AppointmentList apiUrl={appointmentApi} filter="past" />
       )}
       {tab === "payments" && <StaffPaymentsPanel />}
+      {tab === "qa" && <QaDiagnosticsPanel />}
     </SchedulingShell>
   );
 }

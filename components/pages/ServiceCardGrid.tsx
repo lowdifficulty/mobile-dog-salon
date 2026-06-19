@@ -15,6 +15,7 @@ export default function ServiceCardGrid({ excludeHref }: { excludeHref?: string 
               src={card.image}
               alt={card.title}
               className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              style={card.imagePosition ? { objectPosition: card.imagePosition } : undefined}
             />
           </div>
           <div className="p-5 border-t-4 border-accent">

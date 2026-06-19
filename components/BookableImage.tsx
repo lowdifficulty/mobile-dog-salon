@@ -7,16 +7,19 @@ export default function BookableImage({
   alt,
   className = "",
   bookable = true,
+  objectPosition,
 }: {
   src: string;
   alt: string;
   className?: string;
   bookable?: boolean;
+  objectPosition?: string;
 }) {
+  const imgStyle = objectPosition ? { objectPosition } : undefined;
   const { openBooking } = useBooking();
 
   if (!bookable) {
-    return <img src={src} alt={alt} className={className} />;
+    return <img src={src} alt={alt} className={className} style={imgStyle} />;
   }
 
   return (
@@ -34,6 +37,7 @@ export default function BookableImage({
         src={src}
         alt={alt}
         className={`${className} group-hover:scale-[1.02] transition-transform duration-300`}
+        style={imgStyle}
       />
     </button>
   );

@@ -65,12 +65,12 @@ body {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    background-color: #5f9ec9;
+    background-color: #2d8fd4;
     background-image:
-      radial-gradient(ellipse 90% 55% at 50% -5%, rgba(255, 255, 255, 0.38) 0%, transparent 58%),
-      radial-gradient(ellipse 45% 35% at 92% 88%, rgba(255, 255, 255, 0.1) 0%, transparent 55%),
-      radial-gradient(ellipse 40% 32% at 8% 72%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
-      linear-gradient(168deg, #7eb5e0 0%, #5f9ec9 42%, #4a88b5 100%);
+      radial-gradient(ellipse 90% 55% at 50% -5%, rgba(255, 255, 255, 0.32) 0%, transparent 58%),
+      radial-gradient(ellipse 45% 35% at 92% 88%, rgba(120, 210, 255, 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 32% at 8% 72%, rgba(100, 195, 255, 0.14) 0%, transparent 50%),
+      linear-gradient(168deg, #5ec4f5 0%, #2d8fd4 42%, #1a6fb8 100%);
   }
 
   .bg-book-spa::before {
@@ -100,7 +100,7 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(15, 36, 71, 0.18);
     pointer-events: none;
     z-index: 1;
   }

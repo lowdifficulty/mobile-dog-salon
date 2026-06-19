@@ -58,23 +58,27 @@ export const ALL_SERVICES = [
     description: "Salon-quality care at your curb.",
     href: ROUTES.mobileSpa,
     image: IMAGE_SLOTS.serviceSpa,
+    imagePosition: "52% 22%",
   },
   {
     title: "Nail Trimming",
     description: "Quiet, careful, and never rushed.",
     href: ROUTES.nails,
     image: IMAGE_SLOTS.serviceNails,
+    imagePosition: "48% 28%",
   },
   {
     title: "Bathing & Washing",
     description: "Warm, gentle, eco-friendly baths.",
     href: ROUTES.bathing,
     image: IMAGE_SLOTS.serviceBath,
+    imagePosition: "50% 25%",
   },
   {
     title: "Deshedding",
     description: "Less shedding. Softer, healthier coats.",
     href: ROUTES.deshedding,
     image: IMAGE_SLOTS.serviceDeshed,
+    imagePosition: "50% 28%",
   },
 ];

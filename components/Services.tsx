@@ -27,6 +27,7 @@ export default function Services() {
                   src={card.image}
                   alt={card.title}
                   bookable={index % 2 === 0}
+                  objectPosition={card.imagePosition}
                   className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>

@@ -1,6 +1,7 @@
 import "server-only";
 import { Resend } from "resend";
 import type { Appointment } from "./types";
+import { formatAppointmentAddress } from "./address";
 import { CALENDAR_NOTIFY_EMAILS, GROOMERS } from "./groomers";
 import { getServiceLabel } from "@/lib/pricing";
 
@@ -70,9 +71,9 @@ export function buildIcsEvent(appointment: Appointment): string {
     `Mobile Dog Salon — ${appointment.petName} (${serviceLabel})`
   );
   const description = escapeIcs(
-    `Groomer: ${groomer.name}\nDuration: 2 hours\nPet: ${appointment.petName} (${appointment.petBreed}, ${appointment.petSize})\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${appointment.address}, ${appointment.city}\nNotes: ${appointment.notes || "—"}`
+    `Groomer: ${groomer.name}\nDuration: 2 hours\nPet: ${appointment.petName} (${appointment.petBreed}, ${appointment.petSize})\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${formatAppointmentAddress(appointment)}\nNotes: ${appointment.notes || "—"}`
   );
-  const location = escapeIcs(`${appointment.address}, ${appointment.city}, CA`);
+  const location = escapeIcs(`${formatAppointmentAddress(appointment)}, CA`);
 
   return [
     "BEGIN:VCALENDAR",
@@ -131,7 +132,7 @@ export async function sendCalendarInvites(appointment: Appointment): Promise<boo
     <strong>Client:</strong> ${appointment.firstName} ${appointment.lastName}<br/>
     <strong>Phone:</strong> ${appointment.phone}<br/>
     <strong>Email:</strong> ${appointment.email}<br/>
-    <strong>Address:</strong> ${appointment.address}, ${appointment.city}</p>
+    <strong>Address:</strong> ${formatAppointmentAddress(appointment)}</p>
     <p>Open the attached calendar invite to add this 2-hour appointment to Outlook.</p>
   `;
 

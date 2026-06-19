@@ -30,11 +30,27 @@ export async function POST(request: Request) {
     smsOptIn,
     address,
     city,
+    zipCode,
     notes,
   } = body;
 
-  if (!slotKey || !petName || !service || !firstName || !lastName || !email || !address || !city) {
+  if (
+    !slotKey ||
+    !petName ||
+    !service ||
+    !firstName ||
+    !lastName ||
+    !email ||
+    !address ||
+    !city ||
+    !zipCode
+  ) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const zipTrimmed = String(zipCode).trim();
+  if (!/^\d{5}(-\d{4})?$/.test(zipTrimmed)) {
+    return NextResponse.json({ error: "Invalid ZIP code" }, { status: 400 });
   }
 
   const phoneTrimmed = phone?.trim() ?? "";
@@ -82,6 +98,7 @@ export async function POST(request: Request) {
     smsOptIn: Boolean(smsOptIn),
     address,
     city,
+    zipCode: zipTrimmed,
     notes: notes ?? "",
     createdAt: new Date().toISOString(),
   };

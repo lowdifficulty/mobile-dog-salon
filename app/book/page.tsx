@@ -27,7 +27,7 @@ export default function BookPage() {
         <p className="text-center text-on-pink-muted mb-8">
           Schedule mobile grooming at your curb in Orange County.
         </p>
-        <div className="bg-white rounded-[30px] shadow-xl overflow-hidden border border-accent/10">
+        <div className="bg-white rounded-[30px] shadow-xl overflow-hidden border border-accent/10 flex flex-col max-h-[calc(100vh-8rem)]">
           <BookPageForm />
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getServiceLabel } from "@/lib/pricing";
 import { GROOMERS } from "@/lib/scheduling/groomers";
+import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
 
 function formatWhen(startAt: string) {
@@ -61,7 +62,7 @@ export default function AppointmentList({
             <p className="text-sm text-gray-600 mt-1">
               {ap.firstName} {ap.lastName} · {ap.phone}
             </p>
-            <p className="text-sm text-gray-600">{ap.address}, {ap.city}</p>
+            <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
           </div>
         );

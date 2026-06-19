@@ -25,6 +25,7 @@ export interface Appointment {
   smsOptIn: boolean;
   address: string;
   city: string;
+  zipCode: string;
   notes: string;
   createdAt: string;
   /** ISO timestamp when 24-hour reminder email was sent */

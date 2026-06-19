@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
@@ -35,7 +36,7 @@ function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string
       <strong>Groomer:</strong> ${groomerName}<br/>
       <strong>Pet:</strong> ${appointment.petName} (${appointment.petBreed || "—"})<br/>
       <strong>Service:</strong> ${serviceLabel}<br/>
-      <strong>Location:</strong> ${appointment.address}, ${appointment.city}
+      <strong>Location:</strong> ${formatAppointmentAddress(appointment)}
     </p>
     <p>Our groomer will arrive at your driveway. Please have your pet ready with access to water and a safe area for grooming.</p>
     <p>Questions? Reply to this email or call us at ${companyLegal.businessPhoneDisplay}.</p>
@@ -54,7 +55,7 @@ function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
     `Mobile Dog Salon: ${lead}`,
     `${serviceLabel} · ${when.smsWhen}`,
     `Groomer: ${groomerName}`,
-    `${appointment.address}, ${appointment.city}`,
+    formatAppointmentAddress(appointment),
     `Reply STOP to opt out. HELP for help.`,
   ].join("\n");
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
@@ -37,7 +38,7 @@ export async function sendCustomerConfirmationEmail(
         <strong>Groomer:</strong> ${groomerName}<br/>
         <strong>Pet:</strong> ${appointment.petName} (${appointment.petBreed || "—"})<br/>
         <strong>Service:</strong> ${serviceLabel}<br/>
-        <strong>Location:</strong> ${appointment.address}, ${appointment.city}
+        <strong>Location:</strong> ${formatAppointmentAddress(appointment)}
       </p>
       <p>We look forward to seeing you and ${appointment.petName}!</p>
       <p>Questions? Reply to this email or call us at {companyLegal.businessPhoneDisplay}.</p>
@@ -69,7 +70,7 @@ export async function sendCustomerConfirmationSms(
     `${appointment.petName} — ${serviceLabel}`,
     `${when.smsWhen}`,
     `Groomer: ${groomerName}`,
-    `${appointment.address}, ${appointment.city}`,
+    formatAppointmentAddress(appointment),
     `Reply STOP to opt out. HELP for help.`,
   ].join("\n");
 

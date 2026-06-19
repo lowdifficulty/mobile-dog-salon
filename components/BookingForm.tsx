@@ -15,6 +15,7 @@ import SmsOptInField from "@/components/SmsOptInField";
 import Link from "next/link";
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
+import { formatAppointmentAddress, isValidZipCode } from "@/lib/scheduling/address";
 
 interface BookingFormData {
   petName: string;
@@ -28,6 +29,7 @@ interface BookingFormData {
   smsOptIn: boolean;
   address: string;
   city: string;
+  zipCode: string;
   preferredDate: string;
   preferredTime: string;
   slotKey: string;
@@ -47,6 +49,7 @@ const initialData: BookingFormData = {
   smsOptIn: false,
   address: "",
   city: "",
+  zipCode: "",
   preferredDate: "",
   preferredTime: "",
   slotKey: "",
@@ -57,9 +60,12 @@ const initialData: BookingFormData = {
 const STEPS = [
   { id: 1, title: "Your Pet", subtitle: "Tell us about your furry friend" },
   { id: 2, title: "Service", subtitle: "Choose your grooming package" },
-  { id: 3, title: "Schedule", subtitle: "Pick an open slot with your groomer" },
-  { id: 4, title: "Contact", subtitle: "How can we reach you?" },
+  { id: 3, title: "Location", subtitle: "Where should we meet you?" },
+  { id: 4, title: "Schedule", subtitle: "Pick an open slot with your groomer" },
+  { id: 5, title: "Contact", subtitle: "How can we reach you?" },
 ];
+
+const TOTAL_STEPS = STEPS.length;
 
 interface BookingFormProps {
   onClose?: () => void;
@@ -120,11 +126,15 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
       case 2:
         return data.service && data.petSize;
       case 3:
-        return data.address && data.city.trim() && data.slotKey;
+        return Boolean(
+          data.address.trim() && data.city.trim() && isValidZipCode(data.zipCode)
+        );
       case 4:
+        return Boolean(data.slotKey);
+      case 5:
         return isBookPage
-          ? data.firstName && data.lastName && data.email
-          : data.firstName && data.lastName && data.email && data.phone;
+          ? Boolean(data.firstName && data.lastName && data.email)
+          : Boolean(data.firstName && data.lastName && data.email && data.phone);
       default:
         return false;
     }
@@ -186,13 +196,13 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
   }
 
   return (
-    <div className={`flex flex-col ${isBookPage ? "" : "h-full"}`}>
-      <div className="px-6 pt-6 pb-4 border-b border-gray-100">
+    <div className="flex flex-col min-h-0 h-full">
+      <div className="px-6 pt-6 pb-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center justify-between mb-4">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center flex-1">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors ${
                   step >= s.id ? "bg-brand text-white" : "bg-gray-100 text-gray-400"
                 }`}
               >
@@ -218,7 +228,7 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
         <p className="text-sm text-gray-500">{STEPS[step - 1].subtitle}</p>
       </div>
 
-      <div className={`px-6 py-6 ${isBookPage ? "" : "flex-1 overflow-y-auto"}`}>
+      <div className="px-6 py-6 flex-1 min-h-0 overflow-y-auto">
         {step === 1 && (
           <div className="space-y-4">
             <div>
@@ -348,49 +358,69 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
-              <input
-                type="text"
-                value={data.city}
-                onChange={(e) => update("city", e.target.value)}
-                placeholder="e.g. Irvine, Huntington Beach, Anaheim"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date &amp; time *</label>
-              {!data.service ? (
-                <p className="text-sm text-gray-500">Choose a service first to see open appointments.</p>
-              ) : (
-                <WeekAvailabilityPicker
-                  service={data.service}
-                  selectedDate={data.preferredDate}
-                  selectedSlotKey={data.slotKey}
-                  onSelectDate={(date) => {
-                    update("preferredDate", date);
-                    update("slotKey", "");
-                    update("preferredTime", "");
-                    update("groomerName", "");
-                  }}
-                  onSelectSlot={selectSlot}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">City *</label>
+                <input
+                  type="text"
+                  value={data.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="e.g. Irvine"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
                 />
-              )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">ZIP Code *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  value={data.zipCode}
+                  onChange={(e) => update("zipCode", e.target.value)}
+                  placeholder="92618"
+                  maxLength={10}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Special Notes</label>
-              <textarea
-                value={data.notes}
-                onChange={(e) => update("notes", e.target.value)}
-                placeholder="Any special needs, behavioral notes, or requests..."
-                rows={3}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none resize-none"
-              />
-            </div>
+            <p className="text-sm text-gray-500">
+              We come to your curb anywhere in Orange County.
+            </p>
           </div>
         )}
 
         {step === 4 && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Service at{" "}
+              <strong>
+                {formatAppointmentAddress({
+                  address: data.address,
+                  city: data.city,
+                  zipCode: data.zipCode,
+                })}
+              </strong>
+            </p>
+            {!data.service ? (
+              <p className="text-sm text-gray-500">Choose a service first to see open appointments.</p>
+            ) : (
+              <WeekAvailabilityPicker
+                service={data.service}
+                selectedDate={data.preferredDate}
+                selectedSlotKey={data.slotKey}
+                onSelectDate={(date) => {
+                  update("preferredDate", date);
+                  update("slotKey", "");
+                  update("preferredTime", "");
+                  update("groomerName", "");
+                }}
+                onSelectSlot={selectSlot}
+              />
+            )}
+          </div>
+        )}
+
+        {step === 5 && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -435,6 +465,17 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
               </div>
             )}
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Special Notes</label>
+              <textarea
+                value={data.notes}
+                onChange={(e) => update("notes", e.target.value)}
+                placeholder="Any special needs, behavioral notes, or requests..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none resize-none"
+              />
+            </div>
+
             <div className="bg-brand-light rounded-xl p-4 mt-4 border border-accent/20">
               <h4 className="font-semibold text-gray-900 mb-2 text-sm">Booking Summary</h4>
               <div className="space-y-1 text-sm text-gray-600">
@@ -446,7 +487,14 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
                 </p>
                 <p><span className="text-gray-400">When:</span> {data.preferredDate} at {data.preferredTime}</p>
                 <p><span className="text-gray-400">Groomer:</span> {data.groomerName}</p>
-                <p><span className="text-gray-400">Where:</span> {data.address}, {data.city}</p>
+                <p>
+                  <span className="text-gray-400">Where:</span>{" "}
+                  {formatAppointmentAddress({
+                    address: data.address,
+                    city: data.city,
+                    zipCode: data.zipCode,
+                  })}
+                </p>
                 {data.phone && (
                   <p><span className="text-gray-400">Phone:</span> {data.phone}</p>
                 )}
@@ -470,7 +518,7 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
         )}
       </div>
 
-      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-4">
+      <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-4 shrink-0">
         {step > 1 ? (
           <button
             type="button"
@@ -483,7 +531,7 @@ export default function BookingForm({ onClose, variant = "modal" }: BookingFormP
           <div />
         )}
 
-        {step < 4 ? (
+        {step < TOTAL_STEPS ? (
           <button
             type="button"
             onClick={() => canProceed() && setStep(step + 1)}

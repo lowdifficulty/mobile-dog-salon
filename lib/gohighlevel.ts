@@ -1,4 +1,5 @@
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import { getServiceLabel, getServicePrice, normalizePetSize } from "@/lib/pricing";
 import { GROOMERS, formatDisplayTime } from "@/lib/scheduling/groomers";
 
@@ -20,6 +21,7 @@ interface GhlContactInput {
   phone: string;
   address1: string;
   city: string;
+  postalCode?: string;
   tags: string[];
   customFields: Record<string, string>;
 }
@@ -81,7 +83,7 @@ function buildCustomFields(appointment: Appointment): Record<string, string> {
     appointment_time: formatAppointmentTime(appointment.startAt),
     appointment_start: start.toISOString(),
     appointment_end: end.toISOString(),
-    appointment_address: `${appointment.address}, ${appointment.city}`,
+    appointment_address: formatAppointmentAddress(appointment),
     booking_id: appointment.id,
     booking_notes: appointment.notes ?? "",
   };
@@ -108,7 +110,7 @@ function buildAppointmentNote(appointment: Appointment): string {
     `Date: ${formatAppointmentDate(appointment.startAt)}`,
     `Time: ${formatAppointmentTime(appointment.startAt)} (2 hours)`,
     `Groomer: ${groomer}`,
-    `Address: ${appointment.address}, ${appointment.city}`,
+    `Address: ${formatAppointmentAddress(appointment)}`,
     appointment.notes ? `Notes: ${appointment.notes}` : "",
     appointment.smsOptIn ? "SMS opt-in: Yes" : "SMS opt-in: No",
   ]
@@ -132,6 +134,7 @@ function buildWebhookPayload(appointment: Appointment): Record<string, unknown> 
     phone: appointment.phone,
     address: appointment.address,
     city: appointment.city,
+    zipCode: appointment.zipCode ?? "",
     petName: appointment.petName,
     petBreed: appointment.petBreed,
     petSize: normalizePetSize(appointment.petSize),
@@ -163,6 +166,7 @@ async function upsertContact(input: GhlContactInput): Promise<string | null> {
       phone: input.phone,
       address1: input.address1,
       city: input.city,
+      postalCode: input.postalCode,
       tags: input.tags,
       source: "Mobile Dog Salon Booking",
       customFields: customFieldsToApi(input.customFields),
@@ -214,7 +218,7 @@ async function createGhlAppointment(
       contactId,
       title: `Mobile Dog Groom — ${appointment.petName}`,
       appointmentStatus: "confirmed",
-      address: `${appointment.address}, ${appointment.city}, CA`,
+      address: `${formatAppointmentAddress(appointment)}, CA`,
       description: buildAppointmentNote(appointment),
       startTime: start.toISOString(),
       endTime: end.toISOString(),
@@ -321,6 +325,7 @@ export async function sendBookingToGoHighLevel(
       phone: appointment.phone,
       address1: appointment.address,
       city: appointment.city,
+      postalCode: appointment.zipCode,
       tags,
       customFields: buildCustomFields(appointment),
     });

@@ -10,6 +10,7 @@ export default function BookableImage({
   bookable = true,
   objectPosition,
   priority = false,
+  sizes,
 }: {
   src: string;
   alt: string;
@@ -17,6 +18,7 @@ export default function BookableImage({
   bookable?: boolean;
   objectPosition?: string;
   priority?: boolean;
+  sizes?: string;
 }) {
   const { openBooking } = useBooking();
 
@@ -25,7 +27,8 @@ export default function BookableImage({
       src={src}
       alt={alt}
       fill
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
+      sizes={sizes ?? "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"}
+      quality={priority ? 70 : 75}
       className={`object-cover ${bookable ? "group-hover:scale-[1.02] transition-transform duration-300" : ""}`}
       style={objectPosition ? { objectPosition } : undefined}
       priority={priority}

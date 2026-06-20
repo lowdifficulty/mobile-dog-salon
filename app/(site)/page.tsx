@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Hero from "@/components/Hero";
-import SitStay from "@/components/SitStay";
-import Services from "@/components/Services";
-import LovedByPets from "@/components/LovedByPets";
-import GroomersVans from "@/components/GroomersVans";
-import Reviews from "@/components/Reviews";
-import HowItWorks from "@/components/HowItWorks";
-import Locations from "@/components/Locations";
-import Careers from "@/components/Careers";
-import Blog from "@/components/Blog";
 import { OG_SHARE_IMAGE } from "@/lib/images";
 
+const SitStay = dynamic(() => import("@/components/SitStay"));
+const Services = dynamic(() => import("@/components/Services"));
+const LovedByPets = dynamic(() => import("@/components/LovedByPets"));
+const GroomersVans = dynamic(() => import("@/components/GroomersVans"));
+const Reviews = dynamic(() => import("@/components/Reviews"));
+const HowItWorks = dynamic(() => import("@/components/HowItWorks"));
+const Locations = dynamic(() => import("@/components/Locations"));
+const Careers = dynamic(() => import("@/components/Careers"));
+const Blog = dynamic(() => import("@/components/Blog"));
 const SITE_URL = "https://mobiledog-salon.com";
 const HOME_TITLE = "Mobile Dog Salon | Good Dogs Take Baths — Orange County";
 const HOME_DESCRIPTION =

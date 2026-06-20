@@ -3,6 +3,7 @@ import { readSchedulingData } from "@/lib/scheduling/store";
 import {
   getAvailableSlotsForDate,
   getDatesWithAvailability,
+  getRangeAvailability,
   getWeekAvailability,
   getWeekStart,
 } from "@/lib/scheduling/slots";
@@ -13,8 +14,25 @@ export async function GET(request: Request) {
   const service = searchParams.get("service") ?? "full-groom";
   const month = searchParams.get("month"); // YYYY-MM for date list
   const week = searchParams.get("week"); // YYYY-MM-DD week start (Sunday)
+  const from = searchParams.get("from"); // YYYY-MM-DD range start
+  const daysParam = searchParams.get("days");
 
   const data = await readSchedulingData();
+
+  if (from && daysParam) {
+    const dayCount = Number(daysParam);
+    if (!Number.isFinite(dayCount) || dayCount < 1) {
+      return NextResponse.json({ error: "Invalid days" }, { status: 400 });
+    }
+    const rangeDays = getRangeAvailability(
+      from,
+      dayCount,
+      data.availability,
+      data.appointments,
+      service
+    );
+    return NextResponse.json({ from, days: rangeDays });
+  }
 
   if (week) {
     const weekStart = getWeekStart(week);
@@ -46,7 +64,7 @@ export async function GET(request: Request) {
   }
 
   if (!date) {
-    return NextResponse.json({ error: "date or month required" }, { status: 400 });
+    return NextResponse.json({ error: "date, month, week, or from+days required" }, { status: 400 });
   }
 
   const slots = getAvailableSlotsForDate(

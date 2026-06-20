@@ -1,5 +1,5 @@
 import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay } from "./groomers";
-import { addDays, getWeekDates, isBookableDate, isPastCalendarDate } from "./slots";
+import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listBookingBlockStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {
@@ -14,7 +14,15 @@ export interface FallbackWeekDay {
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
 export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
-  return getWeekDates(weekStart).map((date) => {
+  return buildFallbackRangeDays(weekStart, 7);
+}
+
+export function buildFallbackRangeDays(
+  fromDate: string,
+  dayCount: number
+): FallbackWeekDay[] {
+  const count = Math.max(1, Math.min(dayCount, 90));
+  return Array.from({ length: count }, (_, i) => addDays(fromDate, i)).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots: AvailableSlot[] = [];
 

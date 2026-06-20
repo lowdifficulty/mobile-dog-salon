@@ -214,7 +214,18 @@ export function getWeekAvailability(
   appointments: Appointment[],
   service: string
 ): WeekDayAvailability[] {
-  return getWeekDates(weekStart).map((date) => {
+  return getRangeAvailability(weekStart, 7, availability, appointments, service);
+}
+
+export function getRangeAvailability(
+  fromDate: string,
+  dayCount: number,
+  availability: AvailabilityDay[],
+  appointments: Appointment[],
+  service: string
+): WeekDayAvailability[] {
+  const count = Math.max(1, Math.min(dayCount, 90));
+  return Array.from({ length: count }, (_, i) => addDays(fromDate, i)).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots = getAvailableSlotsForDate(
       date,

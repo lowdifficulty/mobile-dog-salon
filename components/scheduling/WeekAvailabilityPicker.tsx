@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AvailableSlot } from "@/lib/scheduling/types";
-import { addDays, getWeekStart } from "@/lib/scheduling/slots";
+import { formatDateISO } from "@/lib/scheduling/slots";
 import {
-  buildFallbackWeekDays,
-  nextWeekStart,
+  buildFallbackRangeDays,
   type FallbackWeekDay,
 } from "@/lib/scheduling/fallback-availability";
+
+const DAYS_TO_FETCH = 60;
+const VISIBLE_DAY_COUNT = 5;
 
 interface WeekDay extends FallbackWeekDay {}
 
@@ -19,249 +21,181 @@ interface WeekAvailabilityPickerProps {
   onSelectSlot: (slot: AvailableSlot) => void;
 }
 
-function formatWeekRange(weekStart: string): string {
-  const start = new Date(`${weekStart}T12:00:00`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  const startLabel = start.toLocaleDateString("en-US", {
+function formatDayRange(days: WeekDay[]): string {
+  if (days.length === 0) return "";
+  const first = new Date(`${days[0].date}T12:00:00`);
+  const last = new Date(`${days[days.length - 1].date}T12:00:00`);
+  const firstLabel = first.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
-  const endLabel = end.toLocaleDateString("en-US", {
+  const lastLabel = last.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric",
+    year: first.getFullYear() === last.getFullYear() ? undefined : "numeric",
   });
-  return `${startLabel} – ${endLabel}`;
+  if (days.length === 1) return firstLabel;
+  return `${firstLabel} – ${lastLabel}`;
 }
 
-async function fetchWeek(
-  weekStart: string,
+async function fetchAvailabilityRange(
+  fromDate: string,
   service: string
-): Promise<{ days: WeekDay[]; weekStart: string }> {
+): Promise<WeekDay[]> {
   const res = await fetch(
-    `/api/availability?week=${weekStart}&service=${encodeURIComponent(service)}`
+    `/api/availability?from=${fromDate}&days=${DAYS_TO_FETCH}&service=${encodeURIComponent(service)}`
   );
   if (!res.ok) {
     throw new Error("Availability request failed");
   }
   const data = await res.json();
-  return {
-    days: data.days ?? [],
-    weekStart: data.weekStart ?? weekStart,
-  };
-}
-
-function weekHasAvailability(days: WeekDay[]): boolean {
-  return days.some((day) => !day.isPast && day.slots.length > 0);
+  return data.days ?? [];
 }
 
 export default function WeekAvailabilityPicker({
   service,
-  selectedDate,
+  selectedDate: _selectedDate,
   selectedSlotKey,
   onSelectDate,
   onSelectSlot,
 }: WeekAvailabilityPickerProps) {
-  const [weekStart, setWeekStart] = useState(() => getWeekStart());
   const [days, setDays] = useState<WeekDay[]>([]);
+  const [pageStart, setPageStart] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(false);
 
   useEffect(() => {
     if (!service) {
       setDays([]);
+      setPageStart(0);
       return;
     }
 
     let cancelled = false;
 
-    async function loadInitialWeek() {
+    async function load() {
       setLoading(true);
       setFallbackMode(false);
+      setPageStart(0);
+
+      const fromDate = formatDateISO(new Date());
 
       try {
-        let cursor = getWeekStart();
-        for (let i = 0; i < 12; i++) {
-          const result = await fetchWeek(cursor, service);
-          if (cancelled) return;
-
-          if (weekHasAvailability(result.days)) {
-            setWeekStart(result.weekStart);
-            setDays(result.days);
-            return;
-          }
-
-          cursor = nextWeekStart(result.weekStart);
-        }
-
-        const emptyStart = getWeekStart();
-        setWeekStart(emptyStart);
-        setDays([]);
+        const result = await fetchAvailabilityRange(fromDate, service);
+        if (cancelled) return;
+        setDays(result);
       } catch {
         if (cancelled) return;
-        const fallbackStart = getWeekStart();
-        setWeekStart(fallbackStart);
-        setDays(buildFallbackWeekDays(fallbackStart));
+        setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
         setFallbackMode(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    loadInitialWeek();
+    load();
     return () => {
       cancelled = true;
     };
   }, [service]);
 
-  async function loadWeek(start: string) {
-    if (!service) return;
+  const availableDays = useMemo(
+    () => days.filter((day) => !day.isPast && day.slots.length > 0),
+    [days]
+  );
 
-    setLoading(true);
-    try {
-      if (fallbackMode) {
-        setWeekStart(start);
-        setDays(buildFallbackWeekDays(start));
-        return;
-      }
+  const visibleDays = availableDays.slice(pageStart, pageStart + VISIBLE_DAY_COUNT);
+  const canGoPrev = pageStart > 0;
+  const canGoNext = pageStart + VISIBLE_DAY_COUNT < availableDays.length;
 
-      const result = await fetchWeek(start, service);
-      setWeekStart(result.weekStart);
-      setDays(result.days);
-    } catch {
-      setWeekStart(start);
-      setDays(buildFallbackWeekDays(start));
-      setFallbackMode(true);
-    } finally {
-      setLoading(false);
-    }
+  function shiftPage(offset: number) {
+    if (offset < 0 && !canGoPrev) return;
+    if (offset > 0 && !canGoNext) return;
+    setPageStart((prev) => Math.max(0, prev + offset * VISIBLE_DAY_COUNT));
   }
 
-  const selectedDay = days.find((d) => d.date === selectedDate && !d.isPast);
-  const visibleDays = days.filter((d) => !d.isPast);
-  const availableDays = visibleDays.filter((d) => d.slots.length > 0);
-  const earliestWeekStart = getWeekStart();
-  const canGoPrevWeek = weekStart > earliestWeekStart;
-
-  function shiftWeek(offset: number) {
-    if (offset < 0 && !canGoPrevWeek) return;
-    const next = offset > 0 ? nextWeekStart(weekStart) : addDays(weekStart, -7);
-    onSelectDate("");
-    void loadWeek(next);
+  function handleSelectSlot(slot: AvailableSlot) {
+    onSelectDate(slot.date);
+    onSelectSlot(slot);
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {fallbackMode && (
-        <p className="text-sm text-amber-800 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+        <p className="text-xs text-amber-800 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
           We couldn&apos;t load live availability. All time slots are shown as open — your
           groomer will confirm your appointment.
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => shiftWeek(-1)}
-          disabled={!canGoPrevWeek}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Previous week"
-        >
-          ←
-        </button>
-        <p className="text-sm font-semibold text-gray-900 text-center">
-          {formatWeekRange(weekStart)}
-        </p>
-        <button
-          type="button"
-          onClick={() => shiftWeek(1)}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:border-brand-bright/50"
-          aria-label="Next week"
-        >
-          →
-        </button>
-      </div>
-
       {loading ? (
         <p className="text-sm text-gray-500">Loading availability…</p>
       ) : availableDays.length === 0 ? (
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-          No open appointments this week. Try the next week — groomers post availability in
-          their calendars.
+          No open appointments in the next {DAYS_TO_FETCH} days. Check back soon — groomers
+          post availability in their calendars.
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
-          {visibleDays.map((day) => {
-            const hasSlots = day.slots.length > 0;
-            const isSelected = selectedDate === day.date;
-            return (
-              <button
-                key={day.date}
-                type="button"
-                disabled={!hasSlots}
-                onClick={() => hasSlots && onSelectDate(day.date)}
-                className={`flex flex-col items-center rounded-xl border px-1 py-2 sm:px-2 sm:py-3 transition-all ${
-                  !hasSlots
-                    ? "border-transparent text-gray-300 cursor-not-allowed"
-                    : isSelected
-                      ? "border-brand bg-brand text-white shadow-sm"
-                      : "border-gray-200 text-gray-800 hover:border-brand-bright/50 bg-white"
-                }`}
-              >
-                <span className="text-[10px] sm:text-xs font-medium uppercase">
-                  {day.weekday}
-                </span>
-                <span className="text-base sm:text-lg font-bold leading-tight">
-                  {day.dayNumber}
-                </span>
-                <span className="text-[10px] sm:text-xs hidden sm:block">
-                  {day.monthShort}
-                </span>
-                {hasSlots && (
-                  <span
-                    className={`mt-1 text-[10px] font-semibold ${
-                      isSelected ? "text-white/90" : "text-brand"
-                    }`}
-                  >
-                    {day.slots.length} open
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => shiftPage(-1)}
+              disabled={!canGoPrev}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              aria-label="Earlier days"
+            >
+              ← Earlier
+            </button>
+            <p className="text-xs font-semibold text-gray-700 text-center">
+              {formatDayRange(visibleDays)}
+            </p>
+            <button
+              type="button"
+              onClick={() => shiftPage(1)}
+              disabled={!canGoNext}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              aria-label="Later days"
+            >
+              Later →
+            </button>
+          </div>
 
-      {selectedDay && selectedDay.slots.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Available times (2-hour appointments)
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {selectedDay.slots.map((slot) => (
-              <button
-                key={slot.slotKey}
-                type="button"
-                onClick={() => onSelectSlot(slot)}
-                className={`px-3 py-3 rounded-xl border text-sm font-semibold text-left transition-all ${
-                  selectedSlotKey === slot.slotKey
-                    ? "border-brand bg-brand text-white"
-                    : "border-gray-200 hover:border-brand text-gray-800"
-                }`}
-              >
-                <span className="block">{slot.displayTime}</span>
-                <span
-                  className={`block text-xs mt-0.5 ${
-                    selectedSlotKey === slot.slotKey ? "text-white/90" : "text-gray-500"
-                  }`}
-                >
-                  2 hr · with {slot.groomerName}
-                </span>
-              </button>
+          <div className="space-y-3">
+            {visibleDays.map((day) => (
+              <div key={day.date}>
+                <p className="text-xs font-bold text-gray-900 mb-1.5">
+                  {day.weekday}, {day.monthShort} {day.dayNumber}
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+                  {day.slots.map((slot) => (
+                    <button
+                      key={slot.slotKey}
+                      type="button"
+                      onClick={() => handleSelectSlot(slot)}
+                      className={`px-2 py-2 rounded-lg border text-left transition-all ${
+                        selectedSlotKey === slot.slotKey
+                          ? "border-brand bg-brand text-white"
+                          : "border-gray-200 hover:border-brand bg-white text-gray-800"
+                      }`}
+                    >
+                      <span className="block text-xs font-semibold leading-tight">
+                        {slot.displayTime}
+                      </span>
+                      <span
+                        className={`block text-[10px] mt-0.5 leading-tight truncate ${
+                          selectedSlotKey === slot.slotKey ? "text-white/85" : "text-gray-500"
+                        }`}
+                      >
+                        {slot.groomerName.split(" ")[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

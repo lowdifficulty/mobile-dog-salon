@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Caveat } from "next/font/google";
 import { Quicksand } from "next/font/google";
-import MetaPixel from "@/components/analytics/MetaPixel";
-import GoogleTag from "@/components/analytics/GoogleTag";
+import DeferredGoogleTag from "@/components/analytics/DeferredGoogleTag";
+import DeferredMetaPixel from "@/components/analytics/DeferredMetaPixel";
 import "./globals.css";
 
 const quicksand = Quicksand({
@@ -59,15 +59,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${quicksand.variable} ${caveat.variable}`}>
-      <head>
-        <link rel="preconnect" href="https://www.googletagmanager.com" />
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        <link rel="preconnect" href="https://connect.facebook.net" />
-        <link rel="dns-prefetch" href="https://connect.facebook.net" />
-      </head>
       <body className="font-sans">
-        <GoogleTag />
-        <MetaPixel />
+        <DeferredGoogleTag />
+        <DeferredMetaPixel />
         {children}
       </body>
     </html>

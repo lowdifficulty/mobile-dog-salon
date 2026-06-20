@@ -47,3 +47,15 @@ export function isValidBookingAddress(full: string): boolean {
   if (trimmed.length < 8) return false;
   return isValidZipCode(parseFullAddress(trimmed).zipCode);
 }
+
+export function isValidBookingContact(
+  address: string,
+  city: string,
+  zipCode: string
+): boolean {
+  return (
+    address.trim().length >= 3 &&
+    city.trim().length >= 2 &&
+    isValidZipCode(zipCode)
+  );
+}

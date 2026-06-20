@@ -29,6 +29,7 @@ export default function Services() {
                   bookable={index % 2 === 0}
                   objectPosition={card.imagePosition}
                   className="aspect-[4/3]"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 280px"
                 />
               </div>
               <div className="p-5 border-t-4 border-accent">

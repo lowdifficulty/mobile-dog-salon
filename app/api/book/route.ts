@@ -16,7 +16,6 @@ import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
-import { parseFullAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -45,18 +44,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
   }
 
-  const parsedAddress = parseFullAddress(String(address ?? ""));
-  const street = parsedAddress.address.trim();
-  const cityName = String(city ?? "").trim() || parsedAddress.city.trim();
-  const zipTrimmed = String(zipCode ?? "").trim() || parsedAddress.zipCode.trim();
+  const street = String(address ?? "").trim();
+  const cityName = String(city ?? "").trim();
+  const zipTrimmed = String(zipCode ?? "").trim();
 
-  if (!slotKey || !petSize || !service || !firstName || !lastName || !street) {
+  if (!slotKey || !petSize || !service || !firstName || !lastName || !street || !cityName) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
   if (!/^\d{5}(-\d{4})?$/.test(zipTrimmed)) {
     return NextResponse.json(
-      { error: "Please include a valid ZIP code in your address." },
+      { error: "Please enter a valid ZIP code." },
       { status: 400 }
     );
   }

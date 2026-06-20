@@ -13,15 +13,11 @@ import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPick
 import AddToCalendarButtons from "@/components/booking/AddToCalendarButtons";
 import BookingOptionButton, {
   DogSizeIcon,
-  ServiceIcon,
 } from "@/components/booking/BookingOptionButton";
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
-import {
-  isValidBookingAddress,
-  parseFullAddress,
-} from "@/lib/scheduling/address";
+import { isValidBookingContact } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
 import type { LeadFunnelStep } from "@/lib/leads/types";
@@ -34,8 +30,8 @@ import {
 } from "@/lib/booking/pets";
 
 const SERVICE_OPTIONS = [
-  { value: "full-groom", label: "Bath & Haircut", icon: "full-groom" as const },
-  { value: "bath-brush", label: "Bath Only", icon: "bath-brush" as const },
+  { value: "full-groom", label: "Bath & Haircut" },
+  { value: "bath-brush", label: "Bath Only" },
 ];
 
 interface BookingFormData {
@@ -43,7 +39,9 @@ interface BookingFormData {
   service: string;
   fullName: string;
   phone: string;
-  addressLine: string;
+  address: string;
+  city: string;
+  zipCode: string;
   preferredDate: string;
   preferredTime: string;
   slotKey: string;
@@ -55,7 +53,9 @@ const initialData: BookingFormData = {
   service: "",
   fullName: "",
   phone: "",
-  addressLine: "",
+  address: "",
+  city: "",
+  zipCode: "",
   preferredDate: "",
   preferredTime: "",
   slotKey: "",
@@ -101,8 +101,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const parsedAddress = parseFullAddress(data.addressLine);
-
   const selectedPrice =
     data.petSize && data.service
       ? getQuotedServicePrice(data.petSize, data.service, discountActive)
@@ -127,7 +125,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const persistLead = (funnelStep: LeadFunnelStep, extra?: Partial<SaveLeadPayload>) => {
     const activePets = getDraftBookingPets();
-    const { address, city, zipCode } = parseFullAddress(data.addressLine);
     void saveLead({
       funnelStep,
       phone: data.phone,
@@ -135,9 +132,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       petSize: activePets[0]?.petSize ?? data.petSize,
       pets: activePets.length ? activePets : undefined,
       service: data.service,
-      address,
-      city,
-      zipCode,
+      address: data.address,
+      city: data.city,
+      zipCode: data.zipCode,
       discountActive,
       smsOptIn: Boolean(data.phone.trim()),
       source: "booking",
@@ -193,7 +190,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         return Boolean(
           data.fullName.trim() &&
             data.phone.trim().length >= 10 &&
-            isValidBookingAddress(data.addressLine)
+            isValidBookingContact(data.address, data.city, data.zipCode)
         );
       default:
         return false;
@@ -206,7 +203,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setSubmitError("");
 
     const { firstName, lastName } = splitName(data.fullName);
-    const { address, city, zipCode } = parseFullAddress(data.addressLine);
+    const { address, city, zipCode } = data;
     const finalizedPets = getDraftBookingPets();
     const additionalPets = finalizedPets.slice(1);
 
@@ -275,9 +272,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         lastName: splitName(data.fullName).lastName,
         phone: data.phone,
         email: "",
-        address: parsedAddress.address,
-        city: parsedAddress.city,
-        zipCode: parsedAddress.zipCode,
+        address: data.address,
+        city: data.city,
+        zipCode: data.zipCode,
         groomerName: data.groomerName,
         preferredDate: data.preferredDate,
         preferredTime: data.preferredTime,
@@ -393,6 +390,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                   title={size.title}
                   subtitle={size.weight}
                   icon={<DogSizeIcon size={size.value as "small" | "medium" | "large"} />}
+                  iconSurface="image"
                   selected={data.petSize === size.value}
                   onClick={() => handleSelectSize(size.value)}
                 />
@@ -424,7 +422,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                     index={index + 1}
                     title={service.label}
                     detail={detail}
-                    icon={<ServiceIcon type={service.icon} />}
                     selected={data.service === service.value}
                     onClick={() => handleSelectService(service.value)}
                   />
@@ -438,7 +435,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           <div className="space-y-3">
             <div>
               <h3 className="text-base font-bold text-gray-900">Pick a time</h3>
-              <p className="text-xs text-gray-500 mt-1">Tap a day and time to continue.</p>
+              <p className="text-xs text-gray-500 mt-1">Tap a time to continue.</p>
             </div>
             <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600 space-y-0.5">
               <p>
@@ -503,19 +500,51 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             </div>
             <div>
               <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
-                Address *
+                Street address *
               </label>
               <input
                 id="booking-address"
                 name="address"
                 type="text"
-                value={data.addressLine}
-                onChange={(e) => update("addressLine", e.target.value)}
-                placeholder="123 Main St, Irvine, CA 92618"
+                value={data.address}
+                onChange={(e) => update("address", e.target.value)}
+                placeholder="123 Main St"
                 autoComplete="street-address"
                 className={inputClass}
               />
-              <p className="mt-1 text-[11px] text-gray-500">Include city and ZIP so we know where to come.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="booking-city" className="block text-xs font-medium text-gray-700 mb-1">
+                  City *
+                </label>
+                <input
+                  id="booking-city"
+                  name="city"
+                  type="text"
+                  value={data.city}
+                  onChange={(e) => update("city", e.target.value)}
+                  placeholder="Irvine"
+                  autoComplete="address-level2"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="booking-zip" className="block text-xs font-medium text-gray-700 mb-1">
+                  ZIP code *
+                </label>
+                <input
+                  id="booking-zip"
+                  name="zip"
+                  type="text"
+                  inputMode="numeric"
+                  value={data.zipCode}
+                  onChange={(e) => update("zipCode", e.target.value)}
+                  placeholder="92618"
+                  autoComplete="postal-code"
+                  className={inputClass}
+                />
+              </div>
             </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
             <p className="text-[11px] leading-relaxed text-gray-500">

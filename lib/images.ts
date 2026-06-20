@@ -1,6 +1,13 @@
 /** Real groomed-dog photos from Mobile Dog Salon (Google Drive). */
 export const BRANDING_AD = "/images/branding-ad.png";
 
+/** Dog size silhouettes — same assets as my.mobiledog-salon.com (Heyflow). */
+export const BOOKING_DOG_SIZE_ICONS = {
+  small: "/images/booking/dog-small.png",
+  medium: "/images/booking/dog-medium.png",
+  large: "/images/booking/dog-large.png",
+} as const;
+
 /** 1200×1200 — square link preview for Instagram, Facebook, iMessage */
 export const OG_SHARE_IMAGE = "/images/og-home-square.jpg";
 

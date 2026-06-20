@@ -22,6 +22,7 @@ export default function BlogPostCard({
           alt={post.imageAlt ?? post.title}
           bookable={bookableImage}
           className="aspect-[3/2]"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 320px"
         />
       </div>
       <Link href={blogPostPath(post.slug)} className="block p-5 border-t-4 border-accent flex-1">

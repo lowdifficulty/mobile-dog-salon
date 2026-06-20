@@ -20,6 +20,7 @@ export default function BlogListingCard({
           alt={post.imageAlt ?? post.title}
           bookable={bookableImage}
           className="img-blog w-full h-full"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 320px"
         />
       </div>
       <Link href={blogPostPath(post.slug)} className="block p-5 border-t-4 border-accent flex-1">

@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
-import { isScheduledLead, type LeadCrmView } from "@/lib/leads/filters";
+import {
+  hasValidLeadPhone,
+  isAbandonedLead,
+  isScheduledLead,
+  type LeadCrmView,
+} from "@/lib/leads/filters";
 import {
   funnelStepOrder,
   LEAD_FUNNEL_STEPS,
@@ -223,7 +228,7 @@ export default function LeadsPanel() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed");
-      if (body.listStatus === "cold_storage" && (view === "active" || view === "scheduled")) {
+      if (body.listStatus === "cold_storage" && (view === "active" || view === "abandoned" || view === "scheduled")) {
         setExpandedId(null);
       }
       if (body.listStatus === "active" && view === "cold_storage") {
@@ -286,9 +291,11 @@ export default function LeadsPanel() {
   const emptyMessage =
     view === "active"
       ? "No active leads with a phone number yet. Leads without a phone still count in Analytics."
-      : view === "scheduled"
-        ? "No upcoming scheduled appointments."
-        : "No leads in cold storage.";
+      : view === "abandoned"
+        ? "No abandoned bookings. Leads appear here after they pick a time but do not finish booking."
+        : view === "scheduled"
+          ? "No upcoming scheduled appointments."
+          : "No leads in cold storage.";
 
   return (
     <div className="space-y-4">
@@ -306,6 +313,20 @@ export default function LeadsPanel() {
           }`}
         >
           Active
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setView("abandoned");
+            setExpandedId(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            view === "abandoned"
+              ? "bg-brand text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Abandoned
         </button>
         <button
           type="button"
@@ -349,6 +370,7 @@ export default function LeadsPanel() {
             <p className="text-sm text-gray-600">
               {leads.length} lead{leads.length === 1 ? "" : "s"} · Green = scheduled,
               yellow = FU, blue = Chill
+              {view === "abandoned" ? " · picked a time, booking not finished" : ""}
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -395,11 +417,18 @@ export default function LeadsPanel() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-gray-900">
-                          {formatPhoneDisplay(lead.phone)}
+                          {hasValidLeadPhone(lead)
+                            ? formatPhoneDisplay(lead.phone)
+                            : "No phone on file"}
                         </p>
                         {isScheduledLead(lead) && (
                           <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
                             Scheduled
+                          </span>
+                        )}
+                        {isAbandonedLead(lead) && view === "abandoned" && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
+                            Picked time
                           </span>
                         )}
                         {lead.followUpDue && lead.followUpMode === "fu" && !isScheduledLead(lead) && (
@@ -419,6 +448,11 @@ export default function LeadsPanel() {
                           <span className="text-brand font-semibold"> (currently active)</span>
                         )}
                       </p>
+                      {lead.appointmentStartAt && isAbandonedLead(lead) && (
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">
+                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         Contact: {formatDate(lead.contactMadeAt)}
                       </p>
@@ -527,7 +561,7 @@ export default function LeadsPanel() {
                         className="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {view === "active" || view === "scheduled" ? (
+                        {view === "active" || view === "abandoned" || view === "scheduled" ? (
                           <button
                             type="button"
                             disabled={busy}

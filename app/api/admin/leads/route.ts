@@ -4,7 +4,7 @@ import { isLeadCurrentlyActive } from "@/lib/leads/activity";
 import { leadMatchesCrmView, withLeadDefaults, type LeadCrmView } from "@/lib/leads/filters";
 import { isFollowUpDue, syncLeadsWithAppointments } from "@/lib/leads/sync";
 
-const VALID_VIEWS: LeadCrmView[] = ["active", "scheduled", "cold_storage"];
+const VALID_VIEWS: LeadCrmView[] = ["active", "abandoned", "scheduled", "cold_storage"];
 
 export async function GET(request: Request) {
   try {

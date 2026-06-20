@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Shih Tzu at Home](/blog/how-to-groom-a-shih-tzu-at-home)
+- [Shih Tzu Grooming Tips for Long Hair](/blog/shih-tzu-grooming-tips-for-long-hair)
+- [Best Haircuts for Shih Tzus](/blog/best-haircuts-for-shih-tzus)

@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Border Collie at Home](/blog/how-to-groom-a-border-collie-at-home)
+- [Border Collie Grooming Tips for Active Dogs](/blog/border-collie-grooming-tips-for-active-dogs)
+- [How Often Should You Groom a Border Collie?](/blog/how-often-should-you-groom-a-border-collie)

@@ -106,3 +106,8 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Cocker Spaniel at Home](/blog/how-to-groom-a-cocker-spaniel-at-home)
+- [Cocker Spaniel Grooming Tips for Ears and Coat](/blog/cocker-spaniel-grooming-tips-for-ears-and-coat)

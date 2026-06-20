@@ -102,3 +102,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [Yorkie Grooming Tips for Silky Hair](/blog/yorkie-grooming-tips-for-silky-hair)
+- [Best Haircuts for Yorkshire Terriers](/blog/best-haircuts-for-yorkshire-terriers)
+- [How Often Should a Yorkie Get Groomed?](/blog/how-often-should-a-yorkie-get-groomed)

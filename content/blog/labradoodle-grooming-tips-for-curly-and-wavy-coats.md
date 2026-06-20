@@ -102,3 +102,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Labradoodle at Home](/blog/how-to-groom-a-labradoodle-at-home)
+- [How Often Do Labradoodles Need Haircuts?](/blog/how-often-do-labradoodles-need-haircuts)
+- [Best Grooming Routine for a Labradoodle Puppy](/blog/best-grooming-routine-for-a-labradoodle-puppy)

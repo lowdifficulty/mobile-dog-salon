@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Bernese Mountain Dog at Home](/blog/how-to-groom-a-bernese-mountain-dog-at-home)
+- [Bernese Mountain Dog Grooming Tips for Thick Coats](/blog/bernese-mountain-dog-grooming-tips-for-thick-coats)
+- [Best Deshedding Tools for Bernese Mountain Dogs](/blog/best-deshedding-tools-for-bernese-mountain-dogs)

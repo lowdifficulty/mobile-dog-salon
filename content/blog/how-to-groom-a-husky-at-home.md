@@ -102,3 +102,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [Husky Grooming Tips for Blowing Coat Season](/blog/husky-grooming-tips-for-blowing-coat-season)
+- [How Often Should You Brush a Siberian Husky?](/blog/how-often-should-you-brush-a-siberian-husky)
+- [Why You Should Never Shave a Husky](/blog/why-you-should-never-shave-a-husky)

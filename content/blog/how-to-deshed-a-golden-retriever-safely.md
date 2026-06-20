@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Golden Retriever at Home](/blog/how-to-groom-a-golden-retriever-at-home)
+- [Golden Retriever Grooming Tips for Shedding Season](/blog/golden-retriever-grooming-tips-for-shedding-season)
+- [How Often Should You Bathe a Golden Retriever?](/blog/how-often-should-you-bathe-a-golden-retriever)

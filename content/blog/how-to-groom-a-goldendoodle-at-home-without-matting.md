@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [Goldendoodle Grooming Tips Every Owner Should Know](/blog/goldendoodle-grooming-tips-every-owner-should-know)
+- [How Often Should You Groom a Goldendoodle?](/blog/how-often-should-you-groom-a-goldendoodle)
+- [Best Brush for a Goldendoodle Coat](/blog/best-brush-for-a-goldendoodle-coat)

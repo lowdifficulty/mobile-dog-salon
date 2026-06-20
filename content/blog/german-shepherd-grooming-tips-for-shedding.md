@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a German Shepherd at Home](/blog/how-to-groom-a-german-shepherd-at-home)
+- [How Often Should You Brush a German Shepherd?](/blog/how-often-should-you-brush-a-german-shepherd)
+- [Best Deshedding Tools for German Shepherds](/blog/best-deshedding-tools-for-german-shepherds)

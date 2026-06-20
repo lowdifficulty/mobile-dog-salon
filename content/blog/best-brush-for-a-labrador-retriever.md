@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Labrador Retriever at Home](/blog/how-to-groom-a-labrador-retriever-at-home)
+- [Lab Grooming Tips for Heavy Shedding](/blog/lab-grooming-tips-for-heavy-shedding)
+- [How Often Should You Bathe a Labrador?](/blog/how-often-should-you-bathe-a-labrador)

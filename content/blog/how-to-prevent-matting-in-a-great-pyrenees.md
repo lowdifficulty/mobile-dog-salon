@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Great Pyrenees at Home](/blog/how-to-groom-a-great-pyrenees-at-home)
+- [Great Pyrenees Grooming Tips for Heavy Shedding](/blog/great-pyrenees-grooming-tips-for-heavy-shedding)
+- [Best Brush for a Great Pyrenees](/blog/best-brush-for-a-great-pyrenees)

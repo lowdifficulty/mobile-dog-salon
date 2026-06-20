@@ -9,7 +9,7 @@ export default function BookableBrandingHeroImage({ className = "" }: { classNam
       src={BRANDING_AD}
       alt="Licky the Chihuahua and Hattie the Chocolate Lab — Good Dogs Take Baths"
       bookable
-      className={`w-full max-w-lg mx-auto drop-shadow-xl ${className}`}
+      className={`aspect-[4/5] max-w-lg mx-auto drop-shadow-xl ${className}`}
     />
   );
 }

@@ -22,13 +22,13 @@ export default function Services() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {ALL_SERVICES.map((card, index) => (
             <article key={card.title} className="site-card group overflow-hidden">
-              <div className="aspect-[4/3] overflow-hidden">
+              <div className="overflow-hidden">
                 <BookableImage
                   src={card.image}
                   alt={card.title}
                   bookable={index % 2 === 0}
                   objectPosition={card.imagePosition}
-                  className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="aspect-[4/3]"
                 />
               </div>
               <div className="p-5 border-t-4 border-accent">

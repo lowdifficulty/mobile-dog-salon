@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useBooking } from "./BookingProvider";
 
 export default function BookableImage({
@@ -8,18 +9,34 @@ export default function BookableImage({
   className = "",
   bookable = true,
   objectPosition,
+  priority = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   bookable?: boolean;
   objectPosition?: string;
+  priority?: boolean;
 }) {
-  const imgStyle = objectPosition ? { objectPosition } : undefined;
   const { openBooking } = useBooking();
 
+  const image = (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
+      className={`object-cover ${bookable ? "group-hover:scale-[1.02] transition-transform duration-300" : ""}`}
+      style={objectPosition ? { objectPosition } : undefined}
+      priority={priority}
+      loading={priority ? undefined : "lazy"}
+    />
+  );
+
+  const wrapperClass = `relative block w-full overflow-hidden ${className}`;
+
   if (!bookable) {
-    return <img src={src} alt={alt} className={className} style={imgStyle} />;
+    return <div className={wrapperClass}>{image}</div>;
   }
 
   return (
@@ -30,15 +47,10 @@ export default function BookableImage({
         e.stopPropagation();
         window.requestAnimationFrame(() => openBooking());
       }}
-      className="block w-full cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      className={`${wrapperClass} cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2`}
       aria-label="Book an appointment"
     >
-      <img
-        src={src}
-        alt={alt}
-        className={`${className} group-hover:scale-[1.02] transition-transform duration-300`}
-        style={imgStyle}
-      />
+      {image}
     </button>
   );
 }

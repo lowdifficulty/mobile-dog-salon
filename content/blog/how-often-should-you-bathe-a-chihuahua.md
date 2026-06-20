@@ -102,3 +102,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom a Chihuahua at Home](/blog/how-to-groom-a-chihuahua-at-home)
+- [Chihuahua Grooming Tips for Short and Long Coats](/blog/chihuahua-grooming-tips-for-short-and-long-coats)
+- [Best Brush for a Long-Haired Chihuahua](/blog/best-brush-for-a-long-haired-chihuahua)

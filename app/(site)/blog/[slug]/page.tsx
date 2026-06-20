@@ -5,7 +5,8 @@ import MarkdownBody from "@/components/blog/MarkdownBody";
 import BlogPostHeroImage from "@/components/BlogPostHeroImage";
 import CareersCTA from "@/components/pages/PageCTAs";
 import { ROUTES } from "@/lib/routes";
-import { getAllBlogSlugs, getBlogPost } from "@/lib/blog-loader";
+import { getAllBlogSlugs, getBlogPost, getRelatedPosts } from "@/lib/blog-loader";
+import RelatedPosts from "@/components/blog/RelatedPosts";
 
 const SITE_URL = "https://mobiledog-salon.com";
 
@@ -68,6 +69,8 @@ export default async function BlogPostPage({ params }: PageProps) {
   const post = getBlogPost(slug);
   if (!post) notFound();
 
+  const relatedPosts = getRelatedPosts(slug, 3);
+
   return (
     <>
       <section className="site-section bg-section-hero">
@@ -91,6 +94,7 @@ export default async function BlogPostPage({ params }: PageProps) {
             <BlogPostHeroImage src={post.image} alt={post.imageAlt ?? post.title} bookable />
           </div>
           <MarkdownBody content={post.content} />
+          <RelatedPosts posts={relatedPosts} currentSlug={slug} />
         </div>
       </section>
 

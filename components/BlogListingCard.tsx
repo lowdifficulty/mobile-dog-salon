@@ -14,12 +14,12 @@ export default function BlogListingCard({
 }) {
   return (
     <article className="site-card overflow-hidden h-full flex flex-col">
-      <div className="h-[220px] overflow-hidden">
+      <div className="relative h-[220px] overflow-hidden">
         <BookableImage
           src={post.image}
           alt={post.imageAlt ?? post.title}
           bookable={bookableImage}
-          className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="img-blog w-full h-full"
         />
       </div>
       <Link href={blogPostPath(post.slug)} className="block p-5 border-t-4 border-accent flex-1">

@@ -102,3 +102,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [Cavalier Grooming Tips for Long, Silky Coats](/blog/cavalier-grooming-tips-for-long-silky-coats)
+- [How Often Should You Brush a Cavalier?](/blog/how-often-should-you-brush-a-cavalier)
+- [Best Grooming Routine for Cavaliers](/blog/best-grooming-routine-for-cavaliers)

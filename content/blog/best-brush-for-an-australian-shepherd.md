@@ -106,3 +106,9 @@ Yes. Mobile grooming can be a great option because your dog gets one-on-one atte
 ### Can I book grooming in Orange County?
 
 Yes. Mobile Dog Salon helps Orange County pet owners book convenient mobile grooming appointments at home.
+
+## Related Articles
+
+- [How to Groom an Australian Shepherd at Home](/blog/how-to-groom-an-australian-shepherd-at-home)
+- [Australian Shepherd Grooming Tips for Shedding](/blog/australian-shepherd-grooming-tips-for-shedding)
+- [How Often Should You Bathe an Australian Shepherd?](/blog/how-often-should-you-bathe-an-australian-shepherd)

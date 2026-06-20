@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 
 type BgVariant = "white" | "blue" | "gray" | "hero" | "tan" | "pattern-blue" | "pattern-white";
 
@@ -46,11 +47,15 @@ export default function PageHero({
             )}
           </div>
           {image && (
-            <img
-              src={image}
-              alt={imageAlt}
-              className="img-zoomin w-full aspect-[4/3] shadow-lg ring-4 ring-accent/15"
-            />
+            <div className="relative w-full aspect-[4/3] shadow-lg ring-4 ring-accent/15 overflow-hidden">
+              <Image
+                src={image}
+                alt={imageAlt}
+                fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
           )}
         </div>
       </div>

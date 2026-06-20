@@ -16,12 +16,12 @@ export default function BlogPostCard({
 }) {
   return (
     <article className="site-card group overflow-hidden h-full flex flex-col">
-      <div className={`aspect-[3/2] overflow-hidden ${imageHeightClass}`}>
+      <div className={`overflow-hidden ${imageHeightClass}`}>
         <BookableImage
           src={post.image}
           alt={post.imageAlt ?? post.title}
           bookable={bookableImage}
-          className="img-blog w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="aspect-[3/2]"
         />
       </div>
       <Link href={blogPostPath(post.slug)} className="block p-5 border-t-4 border-accent flex-1">

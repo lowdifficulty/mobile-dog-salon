@@ -16,6 +16,7 @@ export default function BlogPostHeroImage({
       src={src}
       alt={alt}
       bookable={bookable}
+      priority
       className="img-blog w-full aspect-[16/9] shadow-md ring-4 ring-accent/10"
     />
   );

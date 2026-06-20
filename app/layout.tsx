@@ -59,6 +59,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${quicksand.variable} ${caveat.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://connect.facebook.net" />
+        <link rel="dns-prefetch" href="https://connect.facebook.net" />
+      </head>
       <body className="font-sans">
         <GoogleTag />
         <MetaPixel />

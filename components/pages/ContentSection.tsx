@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import BulletList from "./BulletList";
 
 type Bg = "white" | "blue" | "gray" | "tan" | "pink";
@@ -64,19 +65,25 @@ export default function ContentSection({
     );
   }
 
+  const imageBlock = image ? (
+    <div className="relative w-full aspect-[4/3] shadow-md ring-4 ring-accent/10 overflow-hidden">
+      <Image src={image} alt={imageAlt} fill sizes="(max-width: 1024px) 100vw, 50vw" className="object-cover" />
+    </div>
+  ) : null;
+
   return (
     <section className={`site-section ${bgMap[bg]} ${className}`}>
       <div className="site-container">
         <div className={`grid lg:grid-cols-2 gap-10 lg:gap-14 items-center ${imageLeft ? "" : ""}`}>
           {imageLeft ? (
             <>
-              <img src={image} alt={imageAlt} className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-accent/10" />
+              {imageBlock}
               {textBlock}
             </>
           ) : (
             <>
               {textBlock}
-              <img src={image} alt={imageAlt} className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-accent/10" />
+              {imageBlock}
             </>
           )}
         </div>

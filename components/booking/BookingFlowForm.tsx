@@ -106,6 +106,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       ? getQuotedServicePrice(data.petSize, data.service, discountActive)
       : null;
 
+  const listPrice =
+    data.petSize && data.service ? getListServicePrice(data.petSize, data.service) : null;
+
   const selectSlot = (slot: AvailableSlot) => {
     setData((prev) => ({
       ...prev,
@@ -302,7 +305,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             <strong>{data.groomerName}</strong> on {data.preferredDate} at {data.preferredTime}.
           </p>
           {selectedPrice != null && (
-            <p className="text-sm font-semibold text-brand mb-2">
+            <p className="text-sm text-gray-700 font-normal mb-2">
               Your 50% discount is applied — {formatPrice(selectedPrice)} for this visit.
             </p>
           )}
@@ -460,92 +463,121 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         )}
 
         {step === 4 && (
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Your contact info</h3>
-              <p className="text-xs text-gray-500 mt-1">
+          <div className="space-y-4">
+            <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
+              <p className="text-xl font-bold text-green-700 tracking-tight">50% discount activated</p>
+            </div>
+
+            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your appointment</p>
+              <p className="text-sm text-gray-900">
                 {data.preferredDate} at {data.preferredTime} with {data.groomerName}
               </p>
+              <p className="text-sm text-gray-700 font-normal">
+                {getServiceLabel(data.service)}
+                {selectedPrice != null && (
+                  <>
+                    {" — "}
+                    {listPrice != null && listPrice !== selectedPrice ? (
+                      <>
+                        <span className="line-through text-gray-400">{formatPrice(listPrice)}</span>{" "}
+                        {formatPrice(selectedPrice)}
+                      </>
+                    ) : (
+                      formatPrice(selectedPrice)
+                    )}
+                  </>
+                )}
+              </p>
             </div>
-            <div>
-              <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                id="booking-name"
-                name="name"
-                type="text"
-                value={data.fullName}
-                onChange={(e) => update("fullName", e.target.value)}
-                placeholder="Your full name"
-                autoComplete="name"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                Phone Number *
-              </label>
-              <input
-                id="booking-phone"
-                name="tel"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={data.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                placeholder="(714) 555-0123"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
-                Street address *
-              </label>
-              <input
-                id="booking-address"
-                name="address"
-                type="text"
-                value={data.address}
-                onChange={(e) => update("address", e.target.value)}
-                placeholder="123 Main St"
-                autoComplete="street-address"
-                className={inputClass}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-gray-900">Address</h3>
               <div>
-                <label htmlFor="booking-city" className="block text-xs font-medium text-gray-700 mb-1">
-                  City *
+                <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
+                  Street address *
                 </label>
                 <input
-                  id="booking-city"
-                  name="city"
+                  id="booking-address"
+                  name="address"
                   type="text"
-                  value={data.city}
-                  onChange={(e) => update("city", e.target.value)}
-                  placeholder="Irvine"
-                  autoComplete="address-level2"
+                  value={data.address}
+                  onChange={(e) => update("address", e.target.value)}
+                  placeholder="123 Main St"
+                  autoComplete="street-address"
+                  className={inputClass}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="booking-city" className="block text-xs font-medium text-gray-700 mb-1">
+                    City *
+                  </label>
+                  <input
+                    id="booking-city"
+                    name="city"
+                    type="text"
+                    value={data.city}
+                    onChange={(e) => update("city", e.target.value)}
+                    placeholder="Irvine"
+                    autoComplete="address-level2"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="booking-zip" className="block text-xs font-medium text-gray-700 mb-1">
+                    ZIP code *
+                  </label>
+                  <input
+                    id="booking-zip"
+                    name="zip"
+                    type="text"
+                    inputMode="numeric"
+                    value={data.zipCode}
+                    onChange={(e) => update("zipCode", e.target.value)}
+                    placeholder="92618"
+                    autoComplete="postal-code"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-gray-900">Contact information</h3>
+              <div>
+                <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  id="booking-name"
+                  name="name"
+                  type="text"
+                  value={data.fullName}
+                  onChange={(e) => update("fullName", e.target.value)}
+                  placeholder="Your full name"
+                  autoComplete="name"
                   className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="booking-zip" className="block text-xs font-medium text-gray-700 mb-1">
-                  ZIP code *
+                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                  Phone Number *
                 </label>
                 <input
-                  id="booking-zip"
-                  name="zip"
-                  type="text"
-                  inputMode="numeric"
-                  value={data.zipCode}
-                  onChange={(e) => update("zipCode", e.target.value)}
-                  placeholder="92618"
-                  autoComplete="postal-code"
+                  id="booking-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={data.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="(714) 555-0123"
                   className={inputClass}
                 />
               </div>
             </div>
+
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
             <p className="text-[11px] leading-relaxed text-gray-500">
               By booking, you agree to our{" "}

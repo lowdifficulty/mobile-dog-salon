@@ -224,7 +224,7 @@ export default function Header() {
       </div>
 
       {menuOpen && (
-        <div className="lg:hidden border-t border-gray-100 bg-white">
+        <div className="lg:hidden border-t border-gray-100 bg-white max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain scrollbar-grey">
           <nav className="site-container py-4 flex flex-col gap-3">
             <MobileNavSection title="About" items={NAV_ABOUT} onNavigate={closeMobile} />
             <MobileNavSection title="Services" items={NAV_SERVICES} onNavigate={closeMobile} />

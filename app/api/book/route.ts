@@ -16,6 +16,7 @@ import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
+import { parseFullAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -39,31 +40,33 @@ export async function POST(request: Request) {
     notes,
   } = body;
 
-  if (
-    !slotKey ||
-    !petSize ||
-    !service ||
-    !firstName ||
-    !lastName ||
-    !email ||
-    !address ||
-    !city ||
-    !zipCode
-  ) {
+  const phoneTrimmed = phone?.trim() ?? "";
+  if (!phoneTrimmed) {
+    return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+  }
+
+  const parsedAddress = parseFullAddress(String(address ?? ""));
+  const street = parsedAddress.address.trim();
+  const cityName = String(city ?? "").trim() || parsedAddress.city.trim();
+  const zipTrimmed = String(zipCode ?? "").trim() || parsedAddress.zipCode.trim();
+
+  if (!slotKey || !petSize || !service || !firstName || !lastName || !street) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const zipTrimmed = String(zipCode).trim();
   if (!/^\d{5}(-\d{4})?$/.test(zipTrimmed)) {
-    return NextResponse.json({ error: "Invalid ZIP code" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Please include a valid ZIP code in your address." },
+      { status: 400 }
+    );
   }
 
-  const phoneTrimmed = phone?.trim() ?? "";
+  const emailTrimmed = String(email ?? "").trim();
+  const bookingEmail =
+    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+
   if (smsOptIn && !phoneTrimmed) {
     return NextResponse.json({ error: "Phone number required for SMS opt-in" }, { status: 400 });
-  }
-  if (!phoneTrimmed) {
-    return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
   }
 
   let groomerId, date, time;
@@ -108,11 +111,11 @@ export async function POST(request: Request) {
     service,
     firstName,
     lastName,
-    email,
-    phone: phone?.trim() ?? "",
+    email: bookingEmail,
+    phone: phoneTrimmed,
     smsOptIn: Boolean(smsOptIn),
-    address,
-    city,
+    address: street,
+    city: cityName || "Orange County",
     zipCode: zipTrimmed,
     notes: notes ?? "",
     createdAt: new Date().toISOString(),
@@ -122,7 +125,7 @@ export async function POST(request: Request) {
   consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
   await writeSchedulingData(data, {
     action: "booking",
-    actor: email,
+    actor: bookingEmail,
     groomerId,
   });
 

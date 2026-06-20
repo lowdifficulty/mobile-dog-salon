@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Caveat } from "next/font/google";
 import { Quicksand } from "next/font/google";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import GoogleTag from "@/components/analytics/GoogleTag";
 import "./globals.css";
 
 const quicksand = Quicksand({
@@ -59,6 +60,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${quicksand.variable} ${caveat.variable}`}>
       <body className="font-sans">
+        <GoogleTag />
         <MetaPixel />
         {children}
       </body>

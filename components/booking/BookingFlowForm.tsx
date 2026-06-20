@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PET_SIZES } from "@/lib/constants";
 import {
-  GROOMING_SERVICES,
   formatPrice,
   getListServicePrice,
   getQuotedServicePrice,
@@ -12,10 +11,17 @@ import {
 } from "@/lib/pricing";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import AddToCalendarButtons from "@/components/booking/AddToCalendarButtons";
+import BookingOptionButton, {
+  DogSizeIcon,
+  ServiceIcon,
+} from "@/components/booking/BookingOptionButton";
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
-import { formatAppointmentAddress, isValidZipCode } from "@/lib/scheduling/address";
+import {
+  isValidBookingAddress,
+  parseFullAddress,
+} from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
 import type { LeadFunnelStep } from "@/lib/leads/types";
@@ -24,20 +30,20 @@ import {
   draftToBookingPet,
   formatPetNames,
   formatPetsList,
-  getPetSizeLabel,
   type BookingPet,
-  type DraftPet,
 } from "@/lib/booking/pets";
+
+const SERVICE_OPTIONS = [
+  { value: "full-groom", label: "Bath & Haircut", icon: "full-groom" as const },
+  { value: "bath-brush", label: "Bath Only", icon: "bath-brush" as const },
+];
 
 interface BookingFormData {
   petSize: string;
   service: string;
   fullName: string;
-  email: string;
   phone: string;
-  address: string;
-  city: string;
-  zipCode: string;
+  addressLine: string;
   preferredDate: string;
   preferredTime: string;
   slotKey: string;
@@ -48,18 +54,15 @@ const initialData: BookingFormData = {
   petSize: "",
   service: "",
   fullName: "",
-  email: "",
   phone: "",
-  address: "",
-  city: "",
-  zipCode: "",
+  addressLine: "",
   preferredDate: "",
   preferredTime: "",
   slotKey: "",
   groomerName: "",
 };
 
-const STEP_COUNT = 5;
+const STEP_COUNT = 4;
 
 const inputClass =
   "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
@@ -78,13 +81,13 @@ interface BookingFlowFormProps {
 export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialData);
-  const [queuedPets, setQueuedPets] = useState<DraftPet[]>([]);
   const [bookingPets, setBookingPets] = useState<BookingPet[]>([]);
-  const [discountActive, setDiscountActive] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  const discountActive = true;
 
   useEffect(() => {
     void pingLeadActivity();
@@ -97,6 +100,8 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const update = (field: keyof BookingFormData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const parsedAddress = parseFullAddress(data.addressLine);
 
   const selectedPrice =
     data.petSize && data.service
@@ -111,126 +116,88 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       preferredTime: slot.displayTime,
       groomerName: slot.groomerName,
     }));
+    setStep(4);
   };
 
-  const clearSchedule = () => {
-    setData((prev) => ({
-      ...prev,
-      slotKey: "",
-      preferredDate: "",
-      preferredTime: "",
-      groomerName: "",
-    }));
+  const getDraftBookingPets = (): BookingPet[] => {
+    if (bookingPets.length) return bookingPets;
+    if (data.petSize) return [{ petName: "", petSize: data.petSize }];
+    return [];
   };
-
-  const collectDraftPets = (): DraftPet[] => {
-    const all = [...queuedPets];
-    if (data.petSize) {
-      all.push({ size: data.petSize });
-    }
-    return all;
-  };
-
-  const getDraftBookingPets = (): BookingPet[] => collectDraftPets().map(draftToBookingPet);
 
   const persistLead = (funnelStep: LeadFunnelStep, extra?: Partial<SaveLeadPayload>) => {
-    const activePets = bookingPets.length ? bookingPets : getDraftBookingPets();
+    const activePets = getDraftBookingPets();
+    const { address, city, zipCode } = parseFullAddress(data.addressLine);
     void saveLead({
       funnelStep,
       phone: data.phone,
-      email: data.email,
       fullName: data.fullName,
       petSize: activePets[0]?.petSize ?? data.petSize,
       pets: activePets.length ? activePets : undefined,
       service: data.service,
-      address: data.address,
-      city: data.city,
-      zipCode: data.zipCode,
+      address,
+      city,
+      zipCode,
       discountActive,
-      smsOptIn: discountActive,
+      smsOptIn: Boolean(data.phone.trim()),
       source: "booking",
       ...extra,
     });
   };
 
-  const advanceStep = () => {
-    if (!canProceed()) return;
-    if (step === 2) {
-      const allPets = collectDraftPets();
-      const finalized = allPets.map(draftToBookingPet);
-      setBookingPets(finalized);
-      setQueuedPets([]);
-      setData((prev) => ({
-        ...prev,
-        petSize: allPets[0]?.size ?? "",
-      }));
-      persistLead("pet_info", {
-        petSize: allPets[0]?.size,
-        pets: finalized,
-      });
-    }
-    if (step === 3) persistLead("package_selected");
-    if (step === 4) persistLead("contact_details");
-    setStep(step + 1);
+  const handleSelectSize = (size: string) => {
+    const pets = [{ size }].map(draftToBookingPet);
+    setBookingPets(pets);
+    setData((prev) => ({
+      ...prev,
+      petSize: size,
+      service: "",
+      slotKey: "",
+      preferredDate: "",
+      preferredTime: "",
+      groomerName: "",
+    }));
+    persistLead("pet_info", {
+      petSize: size,
+      pets,
+    });
+    setStep(2);
+  };
+
+  const handleSelectService = (service: string) => {
+    setData((prev) => ({
+      ...prev,
+      service,
+      slotKey: "",
+      preferredDate: "",
+      preferredTime: "",
+      groomerName: "",
+    }));
+    persistLead("package_selected", { service });
+    setStep(3);
+  };
+
+  const handleBack = () => {
+    setStep(step - 1);
   };
 
   const canProceed = () => {
     switch (step) {
       case 1:
-        return data.phone.trim().length >= 10;
+        return Boolean(data.petSize);
       case 2:
-        return collectDraftPets().length >= 1;
+        return Boolean(data.service);
       case 3:
-        return Boolean(data.service && data.petSize);
+        return Boolean(data.slotKey);
       case 4:
         return Boolean(
           data.fullName.trim() &&
-            data.email.trim() &&
-            data.address.trim() &&
-            data.city.trim() &&
-            isValidZipCode(data.zipCode)
+            data.phone.trim().length >= 10 &&
+            isValidBookingAddress(data.addressLine)
         );
-      case 5:
-        return Boolean(data.slotKey);
       default:
         return false;
     }
-  };
-
-  const handleApplyDiscount = () => {
-    if (data.phone.trim().length < 10) return;
-    setDiscountActive(true);
-    void saveLead({
-      funnelStep: "phone_entered",
-      phone: data.phone,
-      discountActive: true,
-      smsOptIn: true,
-      source: "booking",
-    });
-    setStep(2);
-  };
-
-  const handleAddAnotherPet = () => {
-    if (!data.petSize) return;
-    setQueuedPets((prev) => [...prev, { size: data.petSize }]);
-    setData((prev) => ({ ...prev, petSize: "" }));
-  };
-
-  const handleRemoveQueuedPet = (index: number) => {
-    setQueuedPets((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleBack = () => {
-    if (step === 3 && bookingPets.length > 0) {
-      const [primary, ...rest] = bookingPets;
-      setQueuedPets(rest.map((pet) => ({ size: pet.petSize })));
-      setData((prev) => ({
-        ...prev,
-        petSize: primary.petSize,
-      }));
-      setBookingPets([]);
-    }
-    setStep(step - 1);
   };
 
   const handleSubmit = async () => {
@@ -239,9 +206,8 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setSubmitError("");
 
     const { firstName, lastName } = splitName(data.fullName);
-
-    const finalizedPets =
-      bookingPets.length > 0 ? bookingPets : getDraftBookingPets();
+    const { address, city, zipCode } = parseFullAddress(data.addressLine);
+    const finalizedPets = getDraftBookingPets();
     const additionalPets = finalizedPets.slice(1);
 
     try {
@@ -257,12 +223,11 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           service: data.service,
           firstName,
           lastName,
-          email: data.email,
           phone: data.phone,
-          smsOptIn: discountActive,
-          address: data.address,
-          city: data.city,
-          zipCode: data.zipCode,
+          smsOptIn: true,
+          address,
+          city,
+          zipCode,
           notes: buildBookingNotes(discountActive, additionalPets),
         }),
       });
@@ -277,16 +242,15 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       void saveLead({
         funnelStep: "scheduled",
         phone: data.phone,
-        email: data.email,
         fullName: data.fullName,
         petSize: finalizedPets[0]?.petSize ?? data.petSize,
         pets: finalizedPets,
         service: data.service,
-        address: data.address,
-        city: data.city,
-        zipCode: data.zipCode,
+        address,
+        city,
+        zipCode,
         discountActive,
-        smsOptIn: discountActive,
+        smsOptIn: true,
         appointmentId: result.appointmentId,
         scheduledAt: new Date().toISOString(),
         appointmentStartAt: slotToISO(date, time),
@@ -304,18 +268,16 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const calendarDetails: CalendarEventDetails | null = submitted
     ? {
-        petName: formatPetNames(
-          bookingPets.length > 0 ? bookingPets : getDraftBookingPets()
-        ),
+        petName: formatPetNames(getDraftBookingPets()),
         petSize: data.petSize,
         service: data.service,
         firstName: splitName(data.fullName).firstName,
         lastName: splitName(data.fullName).lastName,
         phone: data.phone,
-        email: data.email,
-        address: data.address,
-        city: data.city,
-        zipCode: data.zipCode,
+        email: "",
+        address: parsedAddress.address,
+        city: parsedAddress.city,
+        zipCode: parsedAddress.zipCode,
         groomerName: data.groomerName,
         preferredDate: data.preferredDate,
         preferredTime: data.preferredTime,
@@ -325,8 +287,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     : null;
 
   if (submitted && calendarDetails) {
-    const bookedPets =
-      bookingPets.length > 0 ? bookingPets : getDraftBookingPets();
+    const bookedPets = getDraftBookingPets();
     const petLabel = formatPetNames(bookedPets);
 
     return (
@@ -343,13 +304,13 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             {bookedPets.length > 1 ? "are" : "is"} scheduled with{" "}
             <strong>{data.groomerName}</strong> on {data.preferredDate} at {data.preferredTime}.
           </p>
-          {discountActive && selectedPrice != null && (
+          {selectedPrice != null && (
             <p className="text-sm font-semibold text-brand mb-2">
               Your 50% discount is applied — {formatPrice(selectedPrice)} for this visit.
             </p>
           )}
           <p className="text-xs text-gray-500 mb-6">
-            You&apos;ll receive a confirmation email shortly.
+            You&apos;ll receive a confirmation text shortly.
           </p>
         </div>
         <div className="max-w-md mx-auto">
@@ -420,246 +381,70 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       <div className="px-4 py-3">
         {step === 1 && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-accent/20 bg-accent-light px-2.5 py-3 text-center">
-              <p className="text-2xl font-bold text-brand leading-tight">
-                50% OFF your Next Appointment
-              </p>
-              <p className="mt-2 text-sm font-semibold text-gray-800 leading-tight">
-                Enter your phone number and receive half off your next groom!
-              </p>
-            </div>
             <div>
-              <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                Phone Number *
-              </label>
-              <input
-                id="booking-phone"
-                name="tel"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                required
-                value={data.phone}
-                onChange={(e) => update("phone", e.target.value)}
-                placeholder="(714) 555-0123"
-                className={inputClass}
-              />
+              <h3 className="text-base font-bold text-gray-900">What size dog do you have?</h3>
+              <p className="text-xs text-gray-500 mt-1">Tap a size to continue.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleApplyDiscount}
-              disabled={data.phone.trim().length < 10}
-              className="w-full px-5 py-2.5 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Unlock 50% Off
-            </button>
+            <div className="space-y-2">
+              {PET_SIZES.map((size, index) => (
+                <BookingOptionButton
+                  key={size.value}
+                  index={index + 1}
+                  title={size.title}
+                  subtitle={size.weight}
+                  icon={<DogSizeIcon size={size.value as "small" | "medium" | "large"} />}
+                  selected={data.petSize === size.value}
+                  onClick={() => handleSelectSize(size.value)}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {step === 2 && (
           <div className="space-y-3">
-            {queuedPets.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-gray-700">Pets added</p>
-                <ul className="space-y-1.5">
-                  {queuedPets.map((pet, index) => (
-                    <li
-                      key={`${pet.size}-${index}`}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
-                    >
-                      <span className="text-gray-800">{getPetSizeLabel(pet.size)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveQueuedPet(index)}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-800"
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">
+              50% discount applied
+            </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Size *</label>
-              <div className="grid grid-cols-3 gap-2">
-                {PET_SIZES.map((size) => (
-                  <button
-                    key={size.value}
-                    type="button"
-                    onClick={() => {
-                      update("petSize", size.value);
-                      update("service", "");
-                      clearSchedule();
-                    }}
-                    className={`px-2 py-2 rounded-xl border text-xs font-medium transition-all text-center ${
-                      data.petSize === size.value
-                        ? "border-brand bg-brand/10 text-brand"
-                        : "border-gray-200 text-gray-700 hover:border-brand/40"
-                    }`}
-                  >
-                    <span className="block leading-tight">{size.title}</span>
-                    <span className="block mt-0.5 leading-tight opacity-80">{size.weight}</span>
-                  </button>
-                ))}
-              </div>
+              <h3 className="text-base font-bold text-gray-900">Select service</h3>
+              <p className="text-xs text-gray-500 mt-1">Tap a package to continue.</p>
+            </div>
+            <div className="space-y-2">
+              {SERVICE_OPTIONS.map((service, index) => {
+                const quoted = getQuotedServicePrice(data.petSize, service.value, discountActive);
+                const list = getListServicePrice(data.petSize, service.value);
+                const detail =
+                  list != null && quoted != null
+                    ? `${formatPrice(list)} (${formatPrice(quoted)} w/ discount)`
+                    : undefined;
+                return (
+                  <BookingOptionButton
+                    key={service.value}
+                    index={index + 1}
+                    title={service.label}
+                    detail={detail}
+                    icon={<ServiceIcon type={service.icon} />}
+                    selected={data.service === service.value}
+                    onClick={() => handleSelectService(service.value)}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
 
         {step === 3 && (
           <div className="space-y-3">
-            {discountActive && (
-              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">
-                50% discount activated!
-              </div>
-            )}
-            {!data.petSize ? (
-              <p className="text-xs text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2">
-                Go back and select your dog&apos;s size to see pricing.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {GROOMING_SERVICES.map((service) => {
-                  const quoted = getQuotedServicePrice(data.petSize, service.value, discountActive);
-                  const list = getListServicePrice(data.petSize, service.value);
-                  return (
-                    <button
-                      key={service.value}
-                      type="button"
-                      onClick={() => {
-                        update("service", service.value);
-                        clearSchedule();
-                      }}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-                        data.service === service.value
-                          ? "border-brand bg-brand/5"
-                          : "border-gray-200 hover:border-brand/40"
-                      }`}
-                    >
-                      <span className="text-sm font-medium text-gray-900 text-left">{service.label}</span>
-                      <span className="text-right shrink-0 ml-3">
-                        {discountActive && list != null && quoted != null ? (
-                          <span className="flex flex-col items-end gap-0.5">
-                            <span className="text-xs text-gray-400 line-through">{formatPrice(list)}</span>
-                            <span className="text-sm font-bold text-brand">{formatPrice(quoted)}</span>
-                          </span>
-                        ) : (
-                          <span className="text-sm font-bold text-brand">
-                            {quoted != null ? formatPrice(quoted) : "—"}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="space-y-3">
             <div>
-              <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                id="booking-name"
-                name="name"
-                type="text"
-                value={data.fullName}
-                onChange={(e) => update("fullName", e.target.value)}
-                placeholder="Your full name"
-                autoComplete="shipping name"
-                className={inputClass}
-              />
+              <h3 className="text-base font-bold text-gray-900">Pick a time</h3>
+              <p className="text-xs text-gray-500 mt-1">Tap a day and time to continue.</p>
             </div>
-            <div>
-              <label htmlFor="booking-email" className="block text-xs font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <input
-                id="booking-email"
-                name="email"
-                type="email"
-                value={data.email}
-                onChange={(e) => update("email", e.target.value)}
-                placeholder="you@email.com"
-                autoComplete="shipping email"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
-                Street Address *
-              </label>
-              <input
-                id="booking-address"
-                name="address-line1"
-                type="text"
-                value={data.address}
-                onChange={(e) => update("address", e.target.value)}
-                placeholder="123 Main St"
-                autoComplete="shipping street-address"
-                className={inputClass}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="booking-city" className="block text-xs font-medium text-gray-700 mb-1">
-                  City *
-                </label>
-                <input
-                  id="booking-city"
-                  name="address-level2"
-                  type="text"
-                  value={data.city}
-                  onChange={(e) => update("city", e.target.value)}
-                  placeholder="Irvine"
-                  autoComplete="shipping address-level2"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="booking-zip" className="block text-xs font-medium text-gray-700 mb-1">
-                  ZIP *
-                </label>
-                <input
-                  id="booking-zip"
-                  name="postal-code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="shipping postal-code"
-                  value={data.zipCode}
-                  onChange={(e) => update("zipCode", e.target.value)}
-                  placeholder="92618"
-                  maxLength={10}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-3">
             <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-600 space-y-0.5">
               <p>
-                <span className="text-gray-400">Pets:</span>{" "}
-                {formatPetsList(
-                  bookingPets.length > 0 ? bookingPets : getDraftBookingPets()
-                )}{" "}
-                — {getServiceLabel(data.service)}
+                <span className="text-gray-400">Pets:</span> {formatPetsList(getDraftBookingPets())} —{" "}
+                {getServiceLabel(data.service)}
                 {selectedPrice != null && ` (${formatPrice(selectedPrice)})`}
-              </p>
-              <p>
-                <span className="text-gray-400">Where:</span>{" "}
-                {formatAppointmentAddress({
-                  address: data.address,
-                  city: data.city,
-                  zipCode: data.zipCode,
-                })}
               </p>
             </div>
             <WeekAvailabilityPicker
@@ -674,6 +459,64 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               }}
               onSelectSlot={selectSlot}
             />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Your contact info</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {data.preferredDate} at {data.preferredTime} with {data.groomerName}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
+                Name *
+              </label>
+              <input
+                id="booking-name"
+                name="name"
+                type="text"
+                value={data.fullName}
+                onChange={(e) => update("fullName", e.target.value)}
+                placeholder="Your full name"
+                autoComplete="name"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                Phone Number *
+              </label>
+              <input
+                id="booking-phone"
+                name="tel"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={data.phone}
+                onChange={(e) => update("phone", e.target.value)}
+                placeholder="(714) 555-0123"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
+                Address *
+              </label>
+              <input
+                id="booking-address"
+                name="address"
+                type="text"
+                value={data.addressLine}
+                onChange={(e) => update("addressLine", e.target.value)}
+                placeholder="123 Main St, Irvine, CA 92618"
+                autoComplete="street-address"
+                className={inputClass}
+              />
+              <p className="mt-1 text-[11px] text-gray-500">Include city and ZIP so we know where to come.</p>
+            </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
             <p className="text-[11px] leading-relaxed text-gray-500">
               By booking, you agree to our{" "}
@@ -700,38 +543,19 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             Back
           </button>
 
-          <div className="flex items-center gap-2">
-            {step === 2 && (
-              <button
-                type="button"
-                onClick={handleAddAnotherPet}
-                disabled={!data.petSize}
-                className="px-4 py-2 text-sm font-medium text-gray-600 rounded-full hover:text-brand hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Another Pet
-              </button>
-            )}
-
-            {step < STEP_COUNT ? (
-              <button
-                type="button"
-                onClick={advanceStep}
-                disabled={!canProceed()}
-                className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Continue
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canProceed() || isSubmitting}
-                className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Booking…" : "Book Appointment"}
-              </button>
-            )}
-          </div>
+          {step === 4 && (
+            <button
+              type="button"
+              onClick={() => {
+                persistLead("contact_details");
+                void handleSubmit();
+              }}
+              disabled={!canProceed() || isSubmitting}
+              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Booking…" : "Book Appointment"}
+            </button>
+          )}
         </div>
       )}
     </form>

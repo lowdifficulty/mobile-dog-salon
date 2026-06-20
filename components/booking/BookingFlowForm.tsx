@@ -17,7 +17,10 @@ import BookingOptionButton, {
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
-import { isValidBookingContact } from "@/lib/scheduling/address";
+import {
+  isValidBookingContact,
+  isValidBookingContactInfo,
+} from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
 import type { LeadFunnelStep } from "@/lib/leads/types";
@@ -62,7 +65,7 @@ const initialData: BookingFormData = {
   groomerName: "",
 };
 
-const STEP_COUNT = 4;
+const STEP_COUNT = 5;
 
 const inputClass =
   "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
@@ -181,6 +184,12 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setStep(step - 1);
   };
 
+  const handleContinueFromAddress = () => {
+    if (!isValidBookingContact(data.address, data.city, data.zipCode)) return;
+    persistLead("contact_details");
+    setStep(5);
+  };
+
   const canProceed = () => {
     switch (step) {
       case 1:
@@ -190,11 +199,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       case 3:
         return Boolean(data.slotKey);
       case 4:
-        return Boolean(
-          data.fullName.trim() &&
-            data.phone.trim().length >= 10 &&
-            isValidBookingContact(data.address, data.city, data.zipCode)
-        );
+        return isValidBookingContact(data.address, data.city, data.zipCode);
+      case 5:
+        return isValidBookingContactInfo(data.fullName, data.phone);
       default:
         return false;
     }
@@ -285,6 +292,36 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         appointmentId,
       }
     : null;
+
+  const appointmentSummary = (
+    <>
+      <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
+        <p className="text-xl font-bold text-green-700 tracking-tight">50% discount activated</p>
+      </div>
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your appointment</p>
+        <p className="text-sm text-gray-900">
+          {data.preferredDate} at {data.preferredTime} with {data.groomerName}
+        </p>
+        <p className="text-sm text-gray-700 font-normal">
+          {getServiceLabel(data.service)}
+          {selectedPrice != null && (
+            <>
+              {" — "}
+              {listPrice != null && listPrice !== selectedPrice ? (
+                <>
+                  <span className="line-through text-gray-400">{formatPrice(listPrice)}</span>{" "}
+                  {formatPrice(selectedPrice)}
+                </>
+              ) : (
+                formatPrice(selectedPrice)
+              )}
+            </>
+          )}
+        </p>
+      </div>
+    </>
+  );
 
   if (submitted && calendarDetails) {
     const bookedPets = getDraftBookingPets();
@@ -464,33 +501,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
         {step === 4 && (
           <div className="space-y-4">
-            <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
-              <p className="text-xl font-bold text-green-700 tracking-tight">50% discount activated</p>
-            </div>
-
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your appointment</p>
-              <p className="text-sm text-gray-900">
-                {data.preferredDate} at {data.preferredTime} with {data.groomerName}
-              </p>
-              <p className="text-sm text-gray-700 font-normal">
-                {getServiceLabel(data.service)}
-                {selectedPrice != null && (
-                  <>
-                    {" — "}
-                    {listPrice != null && listPrice !== selectedPrice ? (
-                      <>
-                        <span className="line-through text-gray-400">{formatPrice(listPrice)}</span>{" "}
-                        {formatPrice(selectedPrice)}
-                      </>
-                    ) : (
-                      formatPrice(selectedPrice)
-                    )}
-                  </>
-                )}
-              </p>
-            </div>
-
+            {appointmentSummary}
             <div className="space-y-3">
               <h3 className="text-base font-bold text-gray-900">Address</h3>
               <div>
@@ -542,7 +553,12 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
+        {step === 5 && (
+          <div className="space-y-4">
+            {appointmentSummary}
             <div className="space-y-3">
               <h3 className="text-base font-bold text-gray-900">Contact information</h3>
               <div>
@@ -577,7 +593,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 />
               </div>
             </div>
-
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
             <p className="text-[11px] leading-relaxed text-gray-500">
               By booking, you agree to our{" "}
@@ -605,6 +620,17 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           </button>
 
           {step === 4 && (
+            <button
+              type="button"
+              onClick={handleContinueFromAddress}
+              disabled={!canProceed()}
+              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continue
+            </button>
+          )}
+
+          {step === 5 && (
             <button
               type="button"
               onClick={() => {

@@ -59,3 +59,7 @@ export function isValidBookingContact(
     isValidZipCode(zipCode)
   );
 }
+
+export function isValidBookingContactInfo(fullName: string, phone: string): boolean {
+  return fullName.trim().length > 0 && phone.trim().replace(/\D/g, "").length >= 10;
+}

@@ -4,9 +4,13 @@ import type { LeadFunnelStep, LeadUpsertInput } from "@/lib/leads/types";
 
 const VALID_STEPS: LeadFunnelStep[] = [
   "phone_entered",
+  "view_form",
   "pet_info",
   "package_selected",
+  "schedule_appointment",
+  "address",
   "contact_details",
+  "contact_info",
   "scheduled",
   "appointment_completed",
 ];

@@ -1,26 +1,55 @@
 export type LeadFunnelStep =
   | "phone_entered"
+  | "view_form"
   | "pet_info"
   | "package_selected"
+  | "schedule_appointment"
+  | "address"
   | "contact_details"
+  | "contact_info"
   | "scheduled"
   | "appointment_completed";
 
+/** Booking form steps shown in analytics (matches live form flow). */
+export const BOOKING_FUNNEL_STEPS: {
+  id: LeadFunnelStep;
+  label: string;
+  order: number;
+}[] = [
+  { id: "view_form", label: "View Form", order: 1 },
+  { id: "pet_info", label: "Select Size", order: 2 },
+  { id: "package_selected", label: "Select Service", order: 3 },
+  { id: "schedule_appointment", label: "Schedule Appointment", order: 4 },
+  { id: "address", label: "Address", order: 5 },
+  { id: "contact_info", label: "Contact Info", order: 6 },
+];
+
+/** Full CRM funnel including post-booking milestones. */
 export const LEAD_FUNNEL_STEPS: {
   id: LeadFunnelStep;
   label: string;
   order: number;
 }[] = [
-  { id: "phone_entered", label: "Phone / Offer", order: 1 },
-  { id: "pet_info", label: "Pet Info", order: 2 },
-  { id: "package_selected", label: "Package", order: 3 },
-  { id: "contact_details", label: "Contact Details", order: 4 },
-  { id: "scheduled", label: "Scheduled", order: 5 },
-  { id: "appointment_completed", label: "Appointment Completed", order: 6 },
+  ...BOOKING_FUNNEL_STEPS,
+  { id: "scheduled", label: "Scheduled", order: 7 },
+  { id: "appointment_completed", label: "Completed", order: 8 },
 ];
 
+const FUNNEL_STEP_ORDERS: Record<LeadFunnelStep, number> = {
+  phone_entered: 1,
+  view_form: 1,
+  pet_info: 2,
+  package_selected: 3,
+  schedule_appointment: 4,
+  address: 5,
+  contact_details: 6,
+  contact_info: 6,
+  scheduled: 7,
+  appointment_completed: 8,
+};
+
 export function funnelStepOrder(step: LeadFunnelStep): number {
-  return LEAD_FUNNEL_STEPS.find((s) => s.id === step)?.order ?? 0;
+  return FUNNEL_STEP_ORDERS[step] ?? 0;
 }
 
 export interface LeadNote {

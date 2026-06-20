@@ -28,7 +28,7 @@ export default function ContactForm() {
               setSubmitting(true);
               const form = new FormData(e.currentTarget);
               await saveLead({
-                funnelStep: "contact_details",
+                funnelStep: "contact_info",
                 fullName: String(form.get("name") ?? ""),
                 email: String(form.get("email") ?? ""),
                 phone,

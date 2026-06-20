@@ -88,7 +88,7 @@ function rowStyle(lead: LeadRow) {
 }
 
 function FunnelProgress({ step }: { step: LeadFunnelStep }) {
-  const currentOrder = LEAD_FUNNEL_STEPS.find((s) => s.id === step)?.order ?? 0;
+  const currentOrder = funnelStepOrder(step);
 
   return (
     <div className="flex flex-wrap gap-1">

@@ -3,7 +3,7 @@ import { readSchedulingData } from "@/lib/scheduling/store";
 import { readLeadsData, writeLeadsData } from "./store";
 import { normalizePhone } from "./normalize";
 import { leadFieldsFromAppointment } from "./appointment-fields";
-import type { Lead } from "./types";
+import { funnelStepOrder, type Lead } from "./types";
 
 const FOLLOW_UP_DAYS = 14;
 
@@ -93,10 +93,5 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
 }
 
 function funnelIsBeforeScheduled(step: Lead["funnelStep"]): boolean {
-  return (
-    step === "phone_entered" ||
-    step === "pet_info" ||
-    step === "package_selected" ||
-    step === "contact_details"
-  );
+  return funnelStepOrder(step) < funnelStepOrder("scheduled");
 }

@@ -1,6 +1,6 @@
 import {
+  BOOKING_FUNNEL_STEPS,
   funnelStepOrder,
-  LEAD_FUNNEL_STEPS,
   type Lead,
   type LeadFunnelStep,
 } from "./types";
@@ -70,7 +70,7 @@ export function computeFunnelAnalytics(
   const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range));
   const totalLeads = filtered.length;
 
-  const counts = LEAD_FUNNEL_STEPS.map((step) => ({
+  const counts = BOOKING_FUNNEL_STEPS.map((step) => ({
     ...step,
     count: filtered.filter(
       (lead) => funnelStepOrder(lead.funnelStep) >= step.order
@@ -93,10 +93,12 @@ export function computeFunnelAnalytics(
     };
   });
 
-  const scheduledCount =
-    counts.find((s) => s.id === "scheduled")?.count ?? 0;
-  const completedCount =
-    counts.find((s) => s.id === "appointment_completed")?.count ?? 0;
+  const scheduledCount = filtered.filter(
+    (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
+  ).length;
+  const completedCount = filtered.filter(
+    (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
+  ).length;
 
   return {
     range,

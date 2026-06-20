@@ -93,6 +93,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const discountActive = true;
 
   useEffect(() => {
+    void saveLead({ funnelStep: "view_form", source: "booking" });
     void pingLeadActivity();
     const interval = window.setInterval(() => {
       void pingLeadActivity();
@@ -120,6 +121,12 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       preferredTime: slot.displayTime,
       groomerName: slot.groomerName,
     }));
+    const { groomerId, date, time } = parseSlotKey(slot.slotKey);
+    persistLead("schedule_appointment", {
+      groomerId,
+      groomerName: slot.groomerName,
+      appointmentStartAt: slotToISO(date, time),
+    });
     setStep(4);
   };
 
@@ -186,7 +193,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const handleContinueFromAddress = () => {
     if (!isValidBookingContact(data.address, data.city, data.zipCode)) return;
-    persistLead("contact_details");
+    persistLead("address");
     setStep(5);
   };
 
@@ -634,7 +641,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             <button
               type="button"
               onClick={() => {
-                persistLead("contact_details");
+                persistLead("contact_info");
                 void handleSubmit();
               }}
               disabled={!canProceed() || isSubmitting}

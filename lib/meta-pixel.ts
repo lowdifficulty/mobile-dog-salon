@@ -45,7 +45,7 @@ export function trackMetaLeadIfConversion(
   source: "booking" | "contact" = "booking"
 ) {
   trackMetaFunnelStep(step, source);
-  if (step === "scheduled" || (step === "contact_details" && source === "contact")) {
+  if (step === "scheduled" || (step === "contact_info" && source === "contact") || (step === "contact_details" && source === "contact")) {
     trackMetaLead(step, source);
   }
 }

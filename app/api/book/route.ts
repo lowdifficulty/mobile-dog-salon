@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   if (
     !slotKey ||
-    !petName ||
+    !petSize ||
     !service ||
     !firstName ||
     !lastName ||
@@ -99,11 +99,11 @@ export async function POST(request: Request) {
     startAt: slotToISO(date, time),
     durationMinutes: BOOKING_DURATION_MINUTES,
     status: "confirmed",
-    petName,
+    petName: petName?.trim() ?? "",
     petBreed: petBreed ?? "",
     petSize: petSize ?? "",
     additionalPets: Array.isArray(additionalPets)
-      ? additionalPets.filter((pet) => pet?.petName?.trim())
+      ? additionalPets.filter((pet) => pet?.petSize)
       : undefined,
     service,
     firstName,

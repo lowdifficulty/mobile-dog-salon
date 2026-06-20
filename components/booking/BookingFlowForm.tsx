@@ -30,7 +30,6 @@ import {
 } from "@/lib/booking/pets";
 
 interface BookingFormData {
-  petName: string;
   petSize: string;
   service: string;
   fullName: string;
@@ -46,7 +45,6 @@ interface BookingFormData {
 }
 
 const initialData: BookingFormData = {
-  petName: "",
   petSize: "",
   service: "",
   fullName: "",
@@ -127,8 +125,8 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const collectDraftPets = (): DraftPet[] => {
     const all = [...queuedPets];
-    if (data.petName.trim() && data.petSize) {
-      all.push({ name: data.petName.trim(), size: data.petSize });
+    if (data.petSize) {
+      all.push({ size: data.petSize });
     }
     return all;
   };
@@ -142,7 +140,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       phone: data.phone,
       email: data.email,
       fullName: data.fullName,
-      petName: activePets[0]?.petName ?? data.petName,
       petSize: activePets[0]?.petSize ?? data.petSize,
       pets: activePets.length ? activePets : undefined,
       service: data.service,
@@ -165,11 +162,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       setQueuedPets([]);
       setData((prev) => ({
         ...prev,
-        petName: allPets[0]?.name ?? "",
         petSize: allPets[0]?.size ?? "",
       }));
       persistLead("pet_info", {
-        petName: allPets[0]?.name,
         petSize: allPets[0]?.size,
         pets: finalized,
       });
@@ -216,9 +211,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   };
 
   const handleAddAnotherPet = () => {
-    if (!data.petName.trim() || !data.petSize) return;
-    setQueuedPets((prev) => [...prev, { name: data.petName.trim(), size: data.petSize }]);
-    setData((prev) => ({ ...prev, petName: "", petSize: "" }));
+    if (!data.petSize) return;
+    setQueuedPets((prev) => [...prev, { size: data.petSize }]);
+    setData((prev) => ({ ...prev, petSize: "" }));
   };
 
   const handleRemoveQueuedPet = (index: number) => {
@@ -228,10 +223,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const handleBack = () => {
     if (step === 3 && bookingPets.length > 0) {
       const [primary, ...rest] = bookingPets;
-      setQueuedPets(rest.map((pet) => ({ name: pet.petName, size: pet.petSize })));
+      setQueuedPets(rest.map((pet) => ({ size: pet.petSize })));
       setData((prev) => ({
         ...prev,
-        petName: primary.petName,
         petSize: primary.petSize,
       }));
       setBookingPets([]);
@@ -256,7 +250,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slotKey: data.slotKey,
-          petName: finalizedPets[0]?.petName ?? data.petName,
+          petName: "",
           petBreed: "",
           petSize: finalizedPets[0]?.petSize ?? data.petSize,
           additionalPets: additionalPets.length ? additionalPets : undefined,
@@ -285,7 +279,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         phone: data.phone,
         email: data.email,
         fullName: data.fullName,
-        petName: finalizedPets[0]?.petName ?? data.petName,
         petSize: finalizedPets[0]?.petSize ?? data.petSize,
         pets: finalizedPets,
         service: data.service,
@@ -311,7 +304,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
   const calendarDetails: CalendarEventDetails | null = submitted
     ? {
-        petName: data.petName,
+        petName: formatPetNames(
+          bookingPets.length > 0 ? bookingPets : getDraftBookingPets()
+        ),
         petSize: data.petSize,
         service: data.service,
         firstName: splitName(data.fullName).firstName,
@@ -469,12 +464,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 <ul className="space-y-1.5">
                   {queuedPets.map((pet, index) => (
                     <li
-                      key={`${pet.name}-${index}`}
+                      key={`${pet.size}-${index}`}
                       className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
                     >
-                      <span className="text-gray-800">
-                        {pet.name} ({getPetSizeLabel(pet.size)})
-                      </span>
+                      <span className="text-gray-800">{getPetSizeLabel(pet.size)}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveQueuedPet(index)}
@@ -487,16 +480,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 </ul>
               </div>
             )}
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Pet&apos;s Name *</label>
-              <input
-                type="text"
-                value={data.petName}
-                onChange={(e) => update("petName", e.target.value)}
-                placeholder="e.g. Bella"
-                className={inputClass}
-              />
-            </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Size *</label>
               <div className="grid grid-cols-3 gap-2">
@@ -722,7 +705,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               <button
                 type="button"
                 onClick={handleAddAnotherPet}
-                disabled={!data.petName.trim() || !data.petSize}
+                disabled={!data.petSize}
                 className="px-4 py-2 text-sm font-medium text-gray-600 rounded-full hover:text-brand hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Add Another Pet

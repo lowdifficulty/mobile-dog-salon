@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
+import { formatPetsList, getAppointmentPetLabel, getAppointmentPets } from "@/lib/booking/pets";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
 import { sendBookingSms } from "./twilio";
@@ -19,6 +20,8 @@ export async function sendCustomerConfirmationEmail(
   }
 
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
+  const petLabel = getAppointmentPetLabel(appointment);
+  const petSummary = formatPetsList(getAppointmentPets(appointment));
   const ics = buildIcsEvent(appointment);
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -28,7 +31,7 @@ export async function sendCustomerConfirmationEmail(
   await resend.emails.send({
     from,
     to: appointment.email,
-    subject: `Booking confirmed — ${appointment.petName} on ${when.dateLine}`,
+    subject: `Booking confirmed — ${petLabel} on ${when.dateLine}`,
     html: `
       <p>Hi ${appointment.firstName},</p>
       <p>Your Mobile Dog Salon appointment is confirmed.</p>
@@ -36,12 +39,12 @@ export async function sendCustomerConfirmationEmail(
         <strong>When:</strong> ${when.dateLine}<br/>
         <strong>Time:</strong> ${when.timeRange}<br/>
         <strong>Groomer:</strong> ${groomerName}<br/>
-        <strong>Pet:</strong> ${appointment.petName} (${appointment.petBreed || "—"})<br/>
+        <strong>Pet:</strong> ${petSummary}<br/>
         <strong>Service:</strong> ${serviceLabel}<br/>
         <strong>Location:</strong> ${formatAppointmentAddress(appointment)}
       </p>
-      <p>We look forward to seeing you and ${appointment.petName}!</p>
-      <p>Questions? Reply to this email or call us at {companyLegal.businessPhoneDisplay}.</p>
+      <p>We look forward to seeing you and ${petLabel}!</p>
+      <p>Questions? Reply to this email or call us at ${companyLegal.businessPhoneDisplay}.</p>
       <p>— Mobile Dog Salon</p>
     `,
     attachments: [
@@ -64,10 +67,11 @@ export async function sendCustomerConfirmationSms(
   }
 
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
+  const petLabel = getAppointmentPetLabel(appointment);
 
   const body = [
     `Mobile Dog Salon: You're booked!`,
-    `${appointment.petName} — ${serviceLabel}`,
+    `${petLabel} — ${serviceLabel}`,
     `${when.smsWhen}`,
     `Groomer: ${groomerName}`,
     formatAppointmentAddress(appointment),

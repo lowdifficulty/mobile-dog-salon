@@ -6,12 +6,11 @@ export interface BookingPet {
 }
 
 export interface DraftPet {
-  name: string;
   size: string;
 }
 
 export function draftToBookingPet(pet: DraftPet): BookingPet {
-  return { petName: pet.name, petSize: pet.size };
+  return { petName: "", petSize: pet.size };
 }
 
 export function getPetSizeLabel(size: string): string {
@@ -19,9 +18,11 @@ export function getPetSizeLabel(size: string): string {
 }
 
 export function formatPetEntry(pet: BookingPet): string {
-  if (!pet.petName) return "";
   const sizeLabel = pet.petSize ? getPetSizeLabel(pet.petSize) : "";
-  return sizeLabel ? `${pet.petName} (${sizeLabel})` : pet.petName;
+  if (pet.petName?.trim()) {
+    return sizeLabel ? `${pet.petName} (${sizeLabel})` : pet.petName;
+  }
+  return sizeLabel;
 }
 
 export function formatPetsList(pets: BookingPet[]): string {
@@ -29,10 +30,11 @@ export function formatPetsList(pets: BookingPet[]): string {
 }
 
 export function formatPetNames(pets: BookingPet[]): string {
-  const names = pets.map((pet) => pet.petName).filter(Boolean);
-  if (names.length <= 1) return names[0] ?? "";
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+  const entries = pets.map(formatPetEntry).filter(Boolean);
+  if (entries.length === 0) return "your pet";
+  if (entries.length <= 1) return entries[0];
+  if (entries.length === 2) return `${entries[0]} and ${entries[1]}`;
+  return `${entries.slice(0, -1).join(", ")}, and ${entries[entries.length - 1]}`;
 }
 
 export function getAppointmentPets(appointment: {
@@ -41,12 +43,20 @@ export function getAppointmentPets(appointment: {
   additionalPets?: BookingPet[];
 }): BookingPet[] {
   const pets: BookingPet[] = [
-    { petName: appointment.petName, petSize: appointment.petSize },
+    { petName: appointment.petName ?? "", petSize: appointment.petSize },
   ];
   if (appointment.additionalPets?.length) {
     pets.push(...appointment.additionalPets);
   }
-  return pets.filter((pet) => pet.petName);
+  return pets.filter((pet) => pet.petSize);
+}
+
+export function getAppointmentPetLabel(appointment: {
+  petName: string;
+  petSize: string;
+  additionalPets?: BookingPet[];
+}): string {
+  return formatPetNames(getAppointmentPets(appointment));
 }
 
 export function buildBookingNotes(
@@ -67,6 +77,9 @@ export function formatLeadPets(lead: {
   pets?: BookingPet[];
 }): string {
   if (lead.pets?.length) return formatPetsList(lead.pets);
+  if (lead.petSize) {
+    return formatPetEntry({ petName: lead.petName ?? "", petSize: lead.petSize });
+  }
   if (lead.petName) {
     return formatPetEntry({ petName: lead.petName, petSize: lead.petSize ?? "" });
   }

@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import type { Appointment } from "@/lib/scheduling/types";
+import { formatPetsList, getAppointmentPetLabel, getAppointmentPets } from "@/lib/booking/pets";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentSummaryLines } from "./appointment-format";
 import { companyLegal } from "@/lib/company-legal";
@@ -14,18 +15,21 @@ export type ReminderKind = "24h" | "2h";
 
 function reminderSubject(appointment: Appointment, kind: ReminderKind): string {
   const { when } = appointmentSummaryLines(appointment);
+  const petLabel = getAppointmentPetLabel(appointment);
   if (kind === "24h") {
-    return `Reminder: ${appointment.petName}'s grooming appointment is tomorrow — ${when.dateLine}`;
+    return `Reminder: ${petLabel}'s grooming appointment is tomorrow — ${when.dateLine}`;
   }
-  return `Reminder: ${appointment.petName}'s grooming appointment is today at ${when.startTime} PT`;
+  return `Reminder: ${petLabel}'s grooming appointment is today at ${when.startTime} PT`;
 }
 
 function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
+  const petLabel = getAppointmentPetLabel(appointment);
+  const petSummary = formatPetsList(getAppointmentPets(appointment));
   const lead =
     kind === "24h"
-      ? `This is a friendly reminder that ${appointment.petName}'s Mobile Dog Salon appointment is coming up tomorrow.`
-      : `This is a friendly reminder that ${appointment.petName}'s Mobile Dog Salon appointment is in about 2 hours.`;
+      ? `This is a friendly reminder that ${petLabel}'s Mobile Dog Salon appointment is coming up tomorrow.`
+      : `This is a friendly reminder that ${petLabel}'s Mobile Dog Salon appointment is in about 2 hours.`;
 
   return `
     <p>Hi ${appointment.firstName},</p>
@@ -34,7 +38,7 @@ function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string
       <strong>When:</strong> ${when.dateLine}<br/>
       <strong>Time:</strong> ${when.timeRange}<br/>
       <strong>Groomer:</strong> ${groomerName}<br/>
-      <strong>Pet:</strong> ${appointment.petName} (${appointment.petBreed || "—"})<br/>
+      <strong>Pet:</strong> ${petSummary}<br/>
       <strong>Service:</strong> ${serviceLabel}<br/>
       <strong>Location:</strong> ${formatAppointmentAddress(appointment)}
     </p>
@@ -46,10 +50,11 @@ function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string
 
 function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
+  const petLabel = getAppointmentPetLabel(appointment);
   const lead =
     kind === "24h"
-      ? `Reminder: ${appointment.petName}'s grooming is tomorrow.`
-      : `Reminder: ${appointment.petName}'s grooming is in ~2 hours.`;
+      ? `Reminder: ${petLabel}'s grooming is tomorrow.`
+      : `Reminder: ${petLabel}'s grooming is in ~2 hours.`;
 
   return [
     `Mobile Dog Salon: ${lead}`,

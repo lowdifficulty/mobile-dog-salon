@@ -1,5 +1,6 @@
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
+import { formatPetsList, getAppointmentPetLabel, getAppointmentPets } from "@/lib/booking/pets";
 import { getServiceLabel, getServicePrice, normalizePetSize } from "@/lib/pricing";
 import { GROOMERS, formatDisplayTime } from "@/lib/scheduling/groomers";
 
@@ -73,7 +74,7 @@ function buildCustomFields(appointment: Appointment): Record<string, string> {
   const end = new Date(start.getTime() + appointment.durationMinutes * 60 * 1000);
 
   return {
-    pet_name: appointment.petName,
+    pet_name: getAppointmentPetLabel(appointment),
     pet_breed: appointment.petBreed,
     pet_size: normalizePetSize(appointment.petSize),
     service: serviceLabel,
@@ -104,7 +105,7 @@ function buildAppointmentNote(appointment: Appointment): string {
   return [
     "Mobile Dog Salon — Website Booking",
     "",
-    `Pet: ${appointment.petName} (${appointment.petBreed})`,
+    `Pet: ${formatPetsList(getAppointmentPets(appointment))}`,
     `Size: ${normalizePetSize(appointment.petSize)}`,
     `Service: ${serviceLabel} (${priceLine})`,
     `Date: ${formatAppointmentDate(appointment.startAt)}`,
@@ -135,7 +136,7 @@ function buildWebhookPayload(appointment: Appointment): Record<string, unknown> 
     address: appointment.address,
     city: appointment.city,
     zipCode: appointment.zipCode ?? "",
-    petName: appointment.petName,
+    petName: getAppointmentPetLabel(appointment),
     petBreed: appointment.petBreed,
     petSize: normalizePetSize(appointment.petSize),
     service: appointment.service,
@@ -216,7 +217,7 @@ async function createGhlAppointment(
       locationId,
       calendarId,
       contactId,
-      title: `Mobile Dog Groom — ${appointment.petName}`,
+      title: `Mobile Dog Groom — ${getAppointmentPetLabel(appointment)}`,
       appointmentStatus: "confirmed",
       address: `${formatAppointmentAddress(appointment)}, CA`,
       description: buildAppointmentNote(appointment),

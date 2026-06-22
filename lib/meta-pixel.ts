@@ -34,7 +34,7 @@ export function trackMetaFunnelStep(
   });
 }
 
-/** Standard Meta Lead event — booking completed or contact form submitted. */
+/** Standard Meta Lead event — address entered, booking completed, or contact form submitted. */
 export function trackMetaLead(
   step: LeadFunnelStep,
   source: "booking" | "contact" = "booking"
@@ -51,7 +51,13 @@ export function trackMetaLeadIfConversion(
   source: "booking" | "contact" = "booking"
 ) {
   trackMetaFunnelStep(step, source);
-  if (step === "scheduled" || (step === "contact_info" && source === "contact") || (step === "contact_details" && source === "contact")) {
+  const isBookingLead =
+    source === "booking" &&
+    (step === "address" || step === "scheduled");
+  const isContactLead =
+    source === "contact" &&
+    (step === "contact_info" || step === "contact_details");
+  if (isBookingLead || isContactLead) {
     trackMetaLead(step, source);
   }
 }

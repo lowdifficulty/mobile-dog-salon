@@ -15,6 +15,7 @@ export default function LovedByPets() {
               src={IMAGE_SLOTS.lovedByPets}
               alt="Happy dog after grooming"
               bookable={false}
+              sizes="(max-width: 1024px) 90vw, 384px"
               className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-accent/15"
             />
           </div>

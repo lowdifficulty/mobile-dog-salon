@@ -47,6 +47,7 @@ export default function SitStay() {
               src={IMAGE_SLOTS.sitStay}
               alt="Mobile grooming van at a customer's home"
               bookable
+              sizes="(max-width: 1024px) 90vw, 384px"
               className="img-zoomin w-full aspect-[4/3] shadow-md ring-4 ring-white"
             />
           </div>

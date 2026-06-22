@@ -27,7 +27,7 @@ export default function BookableImage({
       src={src}
       alt={alt}
       fill
-      sizes={sizes ?? "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"}
+      sizes={sizes ?? "(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 384px"}
       quality={priority ? 70 : 75}
       className={`object-cover ${bookable ? "group-hover:scale-[1.02] transition-transform duration-300" : ""}`}
       style={objectPosition ? { objectPosition } : undefined}

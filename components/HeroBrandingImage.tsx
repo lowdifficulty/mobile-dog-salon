@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BRANDING_AD } from "@/lib/images";
+import { HERO_IMAGE_QUALITY, HERO_IMAGE_SIZES } from "@/lib/hero-image";
 import { ROUTES } from "@/lib/routes";
 
 /** Server-rendered LCP image — avoids client hydration on the hero graphic. */
@@ -16,8 +17,9 @@ export default function HeroBrandingImage({ className = "" }: { className?: stri
         alt="Licky the Chihuahua and Hattie the Chocolate Lab — Good Dogs Take Baths"
         fill
         priority
-        quality={70}
-        sizes="(max-width: 1024px) 90vw, 400px"
+        fetchPriority="high"
+        quality={HERO_IMAGE_QUALITY}
+        sizes={HERO_IMAGE_SIZES}
         className="object-cover"
       />
     </Link>

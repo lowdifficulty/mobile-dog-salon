@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "@/components/Hero";
+import HeroLcpPreload from "@/components/HeroLcpPreload";
 import { OG_SHARE_IMAGE } from "@/lib/images";
 
 const SitStay = dynamic(() => import("@/components/SitStay"));
@@ -59,6 +60,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <>
+      <HeroLcpPreload />
       <Hero />
       <SitStay />
       <Services />

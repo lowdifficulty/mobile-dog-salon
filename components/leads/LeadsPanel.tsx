@@ -154,6 +154,35 @@ function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
   return sorted;
 }
 
+function sortAbandonedLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
+  const sorted = [...leads];
+  sorted.sort((a, b) => {
+    const phoneDiff =
+      (hasValidLeadPhone(a) ? 0 : 1) - (hasValidLeadPhone(b) ? 0 : 1);
+    if (phoneDiff !== 0) return phoneDiff;
+
+    if (sort === "funnel_desc" || sort === "funnel_asc") {
+      const stepDiff = funnelStepOrder(a.funnelStep) - funnelStepOrder(b.funnelStep);
+      if (stepDiff !== 0) return sort === "funnel_desc" ? -stepDiff : stepDiff;
+      return new Date(b.contactMadeAt).getTime() - new Date(a.contactMadeAt).getTime();
+    }
+    const timeDiff =
+      new Date(a.contactMadeAt).getTime() - new Date(b.contactMadeAt).getTime();
+    return sort === "contact_desc" ? -timeDiff : timeDiff;
+  });
+  return sorted;
+}
+
+function sortScheduledLeads(leads: LeadRow[]): LeadRow[] {
+  const sorted = [...leads];
+  sorted.sort((a, b) => {
+    const aTime = a.appointmentStartAt ? new Date(a.appointmentStartAt).getTime() : Infinity;
+    const bTime = b.appointmentStartAt ? new Date(b.appointmentStartAt).getTime() : Infinity;
+    return aTime - bTime;
+  });
+  return sorted;
+}
+
 function sortCompletedLeads(leads: LeadRow[]): LeadRow[] {
   const sorted = [...leads];
   sorted.sort((a, b) => {
@@ -262,10 +291,12 @@ export default function LeadsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<LeadSort>("funnel_desc");
 
-  const sortedLeads = useMemo(
-    () => (view === "complete" ? sortCompletedLeads(leads) : sortLeads(leads, sort)),
-    [leads, sort, view]
-  );
+  const sortedLeads = useMemo(() => {
+    if (view === "complete") return sortCompletedLeads(leads);
+    if (view === "scheduled") return sortScheduledLeads(leads);
+    if (view === "abandoned") return sortAbandonedLeads(leads, sort);
+    return sortLeads(leads, sort);
+  }, [leads, sort, view]);
 
   const loadLeads = useCallback(() => {
     setLoading(true);
@@ -447,11 +478,15 @@ export default function LeadsPanel() {
               {leads.length} lead{leads.length === 1 ? "" : "s"}
               {view === "complete"
                 ? " · Green = complete, red = incomplete · most recent visit first"
-                : " · Green = scheduled, yellow = FU, blue = Chill"}
-              {view === "abandoned" ? " · incomplete bookings and in-funnel leads" : ""}
+                : view === "scheduled"
+                  ? " · soonest appointment first"
+                  : " · Green = scheduled, yellow = FU, blue = Chill"}
+              {view === "abandoned"
+                ? " · with phone first, no phone below"
+                : ""}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              {view !== "complete" && (
+              {view !== "complete" && view !== "scheduled" && (
                 <label className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium text-gray-700">Sort</span>
                   <select
@@ -541,6 +576,11 @@ export default function LeadsPanel() {
                           <span className="text-brand font-semibold"> (currently active)</span>
                         )}
                       </p>
+                      {view === "scheduled" && lead.appointmentStartAt && (
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">
+                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                        </p>
+                      )}
                       {lead.appointmentStartAt && isAbandonedLead(lead) && (
                         <p className="text-sm font-medium text-gray-800 mt-0.5">
                           {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}

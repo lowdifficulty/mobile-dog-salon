@@ -9,6 +9,14 @@ import {
   type LeadCrmView,
 } from "@/lib/leads/filters";
 import {
+  countUnseenByView,
+  initializeSeenIfNeeded,
+  isLeadBadgeView,
+  LEAD_BADGE_VIEWS,
+  markViewSeen,
+  type LeadBadgeEntry,
+} from "@/lib/leads/crm-tab-seen";
+import {
   funnelStepOrder,
   LEAD_FUNNEL_STEPS,
   type LeadFollowUpMode,
@@ -134,6 +142,48 @@ function FunnelProgress({ step }: { step: LeadFunnelStep }) {
 }
 
 type LeadSort = "funnel_desc" | "funnel_asc" | "contact_desc" | "contact_asc";
+
+type BadgeViewsState = Record<LeadCrmView, LeadBadgeEntry[]>;
+
+const EMPTY_BADGE_VIEWS: BadgeViewsState = {
+  scheduled: [],
+  complete: [],
+  abandoned: [],
+  cold_storage: [],
+};
+
+function LeadTabButton({
+  label,
+  active,
+  badgeCount,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  badgeCount: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+        active ? "bg-brand text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+      }`}
+    >
+      {label}
+      {badgeCount > 0 && (
+        <span
+          className={`absolute -top-1.5 -right-1.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full text-[10px] font-bold leading-none flex items-center justify-center ${
+            active ? "bg-white text-brand" : "bg-accent text-white"
+          }`}
+        >
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      )}
+    </button>
+  );
+}
 
 const SORT_OPTIONS: { value: LeadSort; label: string }[] = [
   { value: "funnel_desc", label: "Funnel: furthest along" },
@@ -293,6 +343,60 @@ export default function LeadsPanel() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<LeadSort>("funnel_desc");
+  const [badgeViews, setBadgeViews] = useState<BadgeViewsState>(EMPTY_BADGE_VIEWS);
+  const [badgeCounts, setBadgeCounts] = useState({
+    scheduled: 0,
+    complete: 0,
+    abandoned: 0,
+  });
+
+  const loadBadges = useCallback(() => {
+    return fetch("/api/admin/leads?badges=1")
+      .then((r) => {
+        if (!r.ok) throw new Error("Unauthorized");
+        return r.json();
+      })
+      .then((data) => {
+        const views: BadgeViewsState = {
+          ...EMPTY_BADGE_VIEWS,
+          ...(data.views ?? {}),
+        };
+        initializeSeenIfNeeded(views);
+        setBadgeViews(views);
+        setBadgeCounts(countUnseenByView(views));
+        return views;
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const switchToView = useCallback(
+    (next: LeadsPanelView) => {
+      setView(next);
+      setExpandedId(null);
+      if (isLeadBadgeView(next)) {
+        const entries = badgeViews[next] ?? [];
+        markViewSeen(next, entries);
+        setBadgeCounts((prev) => ({ ...prev, [next]: 0 }));
+      }
+    },
+    [badgeViews]
+  );
+
+  useEffect(() => {
+    void loadBadges();
+    const interval = window.setInterval(() => {
+      void loadBadges();
+    }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadBadges]);
+
+  useEffect(() => {
+    if (!isLeadBadgeView(view)) return;
+    const entries = badgeViews[view];
+    if (!entries?.length) return;
+    markViewSeen(view, entries);
+    setBadgeCounts(countUnseenByView(badgeViews));
+  }, [view, badgeViews]);
 
   const sortedLeads = useMemo(() => {
     if (view === "complete") return sortCompletedLeads(leads);
@@ -353,6 +457,7 @@ export default function LeadsPanel() {
         setExpandedId(null);
       }
       await loadLeads();
+      await loadBadges();
     } catch {
       setError("Could not update lead.");
     } finally {
@@ -376,6 +481,7 @@ export default function LeadsPanel() {
       if (!res.ok) throw new Error("Failed");
       setExpandedId(null);
       await loadLeads();
+      await loadBadges();
     } catch {
       setError("Could not delete lead.");
     } finally {
@@ -398,6 +504,7 @@ export default function LeadsPanel() {
       if (!res.ok) throw new Error("Failed");
       setNoteDrafts((prev) => ({ ...prev, [leadId]: "" }));
       await loadLeads();
+      await loadBadges();
       setExpandedId(leadId);
     } catch {
       setError("Could not save note.");
@@ -418,54 +525,27 @@ export default function LeadsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+        <LeadTabButton
+          label="Scheduled"
+          active={view === "scheduled"}
+          badgeCount={view === "scheduled" ? 0 : badgeCounts.scheduled}
+          onClick={() => switchToView("scheduled")}
+        />
+        <LeadTabButton
+          label="Complete"
+          active={view === "complete"}
+          badgeCount={view === "complete" ? 0 : badgeCounts.complete}
+          onClick={() => switchToView("complete")}
+        />
+        <LeadTabButton
+          label="Abandoned"
+          active={view === "abandoned"}
+          badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
+          onClick={() => switchToView("abandoned")}
+        />
         <button
           type="button"
-          onClick={() => {
-            setView("scheduled");
-            setExpandedId(null);
-          }}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "scheduled"
-              ? "bg-brand text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Scheduled
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setView("complete");
-            setExpandedId(null);
-          }}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "complete"
-              ? "bg-brand text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Complete
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setView("abandoned");
-            setExpandedId(null);
-          }}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "abandoned"
-              ? "bg-brand text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Abandoned
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setView("cold_storage");
-            setExpandedId(null);
-          }}
+          onClick={() => switchToView("cold_storage")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             view === "cold_storage"
               ? "bg-brand text-white"
@@ -476,10 +556,7 @@ export default function LeadsPanel() {
         </button>
         <button
           type="button"
-          onClick={() => {
-            setView("job_applicants");
-            setExpandedId(null);
-          }}
+          onClick={() => switchToView("job_applicants")}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             view === "job_applicants"
               ? "bg-brand text-white"

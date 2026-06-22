@@ -70,6 +70,7 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
         next = {
           ...next,
           funnelStep: "scheduled",
+          followUpMode: "fu",
           appointmentId: appointment.id,
           scheduledAt: next.scheduledAt ?? appointment.createdAt,
           ...bookingFields,

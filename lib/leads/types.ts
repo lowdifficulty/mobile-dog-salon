@@ -58,7 +58,7 @@ export interface LeadNote {
   createdAt: string;
 }
 
-/** FU = follow up (yellow). Chill = on hold (blue). Scheduled leads show green in CRM. */
+/** FU = follow up (purple when scheduled, yellow when abandoned). Chill = on hold (blue). */
 export type LeadFollowUpMode = "fu" | "chill";
 
 /** Post-visit follow-up status on the Complete leads tab. */

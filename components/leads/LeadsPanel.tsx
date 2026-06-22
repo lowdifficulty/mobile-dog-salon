@@ -105,7 +105,9 @@ function rowStyle(lead: LeadRow, view: LeadCrmView) {
       : "border-red-400 bg-red-50";
   }
   if (isScheduledLead(lead)) {
-    return "border-green-400 bg-green-50";
+    return lead.followUpMode === "chill"
+      ? "border-blue-300 bg-blue-50"
+      : "border-purple-400 bg-purple-50";
   }
   if (lead.followUpMode === "chill") {
     return "border-blue-300 bg-blue-50";
@@ -270,8 +272,8 @@ function FollowUpToggle({
         onClick={() => onChange("fu")}
         className={`px-2.5 py-1 transition-colors ${
           mode === "fu"
-            ? "bg-amber-400 text-amber-950"
-            : "bg-white text-gray-500 hover:bg-amber-50"
+            ? "bg-purple-500 text-white"
+            : "bg-white text-gray-500 hover:bg-purple-50"
         } disabled:opacity-50`}
       >
         FU
@@ -583,8 +585,8 @@ export default function LeadsPanel() {
               {view === "complete"
                 ? " · Green = complete, red = incomplete · most recent visit first"
                 : view === "scheduled"
-                  ? " · soonest appointment first"
-                  : " · Green = scheduled, yellow = FU, blue = Chill"}
+                  ? " · Purple = FU, blue = Chill · soonest appointment first"
+                  : " · Yellow = FU, blue = Chill"}
               {view === "abandoned"
                 ? " · with phone first, no phone below"
                 : ""}

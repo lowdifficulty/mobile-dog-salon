@@ -117,11 +117,17 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
 
   if (idx >= 0) {
     const existing = data.leads[idx];
+    const funnelStep = mergeFunnelStep(existing.funnelStep, input.funnelStep);
+    const isNewBooking =
+      input.funnelStep === "scheduled" && Boolean(input.appointmentId);
     const updated: Lead = {
       ...existing,
       leadSessionId: input.leadSessionId ?? existing.leadSessionId,
       phone: phone || existing.phone,
-      funnelStep: mergeFunnelStep(existing.funnelStep, input.funnelStep),
+      funnelStep,
+      followUpMode: isNewBooking
+        ? "fu"
+        : (input.followUpMode ?? existing.followUpMode ?? "fu"),
       firstName: input.firstName ?? nameParts.firstName ?? existing.firstName,
       lastName: input.lastName ?? nameParts.lastName ?? existing.lastName,
       fullName: input.fullName ?? existing.fullName,

@@ -19,6 +19,14 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [...SECURITY_HEADERS],
       },
+      {
+        source: "/admin/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        source: "/groomer/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
     ];
   },
   async redirects() {

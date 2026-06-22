@@ -61,6 +61,9 @@ export interface LeadNote {
 /** FU = follow up (yellow). Chill = on hold (blue). Scheduled leads show green in CRM. */
 export type LeadFollowUpMode = "fu" | "chill";
 
+/** Post-visit follow-up status on the Complete leads tab. */
+export type VisitOutcome = "complete" | "incomplete";
+
 /** active = main leads list. cold_storage = archived subtab (still in analytics). */
 export type LeadListStatus = "active" | "cold_storage";
 
@@ -91,6 +94,7 @@ export interface Lead {
   groomerName?: string;
   lastAppointmentAt?: string;
   followUpMode?: LeadFollowUpMode;
+  visitOutcome?: VisitOutcome;
   listStatus?: LeadListStatus;
   lastActiveAt?: string;
   notes: LeadNote[];
@@ -127,6 +131,7 @@ export interface LeadUpsertInput {
   groomerId?: string;
   groomerName?: string;
   followUpMode?: LeadFollowUpMode;
+  visitOutcome?: VisitOutcome;
   listStatus?: LeadListStatus;
   message?: string;
   source?: "booking" | "contact";

@@ -4,16 +4,16 @@ import { isLeadCurrentlyActive } from "@/lib/leads/activity";
 import { leadMatchesCrmView, withLeadDefaults, type LeadCrmView } from "@/lib/leads/filters";
 import { isFollowUpDue, syncLeadsWithAppointments } from "@/lib/leads/sync";
 
-const VALID_VIEWS: LeadCrmView[] = ["active", "abandoned", "scheduled", "cold_storage"];
+const VALID_VIEWS: LeadCrmView[] = ["scheduled", "abandoned", "complete", "cold_storage"];
 
 export async function GET(request: Request) {
   try {
     await requireAdmin();
     const { searchParams } = new URL(request.url);
-    const viewParam = searchParams.get("view") ?? "active";
+    const viewParam = searchParams.get("view") ?? "scheduled";
     const view = VALID_VIEWS.includes(viewParam as LeadCrmView)
       ? (viewParam as LeadCrmView)
-      : "active";
+      : "scheduled";
 
     const leads = await syncLeadsWithAppointments();
     const filtered = leads

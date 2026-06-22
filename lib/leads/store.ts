@@ -193,7 +193,7 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
 
 export async function updateLeadFields(
   leadId: string,
-  patch: Partial<Pick<Lead, "followUpMode" | "listStatus">>
+  patch: Partial<Pick<Lead, "followUpMode" | "visitOutcome" | "listStatus">>
 ): Promise<Lead | null> {
   const data = await readLeadsData();
   const index = data.leads.findIndex((l) => l.id === leadId);
@@ -202,6 +202,9 @@ export async function updateLeadFields(
   const lead = data.leads[index];
   if (patch.followUpMode !== undefined) {
     lead.followUpMode = patch.followUpMode;
+  }
+  if (patch.visitOutcome !== undefined) {
+    lead.visitOutcome = patch.visitOutcome;
   }
   if (patch.listStatus !== undefined) {
     lead.listStatus = patch.listStatus;

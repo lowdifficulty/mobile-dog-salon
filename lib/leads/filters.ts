@@ -1,7 +1,7 @@
 import { normalizePhone } from "./normalize";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
 
-export type LeadCrmView = "active" | "abandoned" | "scheduled" | "cold_storage";
+export type LeadCrmView = "abandoned" | "scheduled" | "complete" | "cold_storage";
 
 export function hasValidLeadPhone(lead: Pick<Lead, "phone">): boolean {
   return normalizePhone(lead.phone ?? "").length >= 10;
@@ -28,22 +28,41 @@ export function isScheduledLead(lead: {
 export function isAbandonedLead(lead: {
   funnelStep: LeadFunnelStep;
   appointmentStartAt?: string;
+  lastAppointmentAt?: string;
 }): boolean {
   if (isScheduledLead(lead)) return false;
+  if (isCompletedVisitLead(lead)) return false;
   return hasSelectedAppointmentTime(lead);
+}
+
+export function isCompletedVisitLead(lead: {
+  funnelStep: LeadFunnelStep;
+  lastAppointmentAt?: string;
+}): boolean {
+  return lead.funnelStep === "appointment_completed" && Boolean(lead.lastAppointmentAt);
 }
 
 export function withLeadDefaults(lead: Lead): Lead {
   return {
     ...lead,
     followUpMode: lead.followUpMode ?? "fu",
+    visitOutcome: lead.visitOutcome ?? "incomplete",
     listStatus: lead.listStatus ?? "active",
   };
 }
 
+/** Non-scheduled, non-completed leads — former Active + Abandoned lists combined. */
+export function isInAbandonedCrmView(lead: Lead): boolean {
+  const normalized = withLeadDefaults(lead);
+  if (normalized.listStatus !== "active") return false;
+  if (isScheduledLead(normalized)) return false;
+  if (isCompletedVisitLead(normalized)) return false;
+  if (hasValidLeadPhone(normalized)) return true;
+  return hasSelectedAppointmentTime(normalized);
+}
+
 export function leadMatchesCrmView(lead: Lead, view: LeadCrmView): boolean {
   const normalized = withLeadDefaults(lead);
-  if (!hasValidLeadPhone(normalized)) return false;
 
   if (view === "cold_storage") {
     return normalized.listStatus === "cold_storage";
@@ -51,12 +70,16 @@ export function leadMatchesCrmView(lead: Lead, view: LeadCrmView): boolean {
 
   if (normalized.listStatus !== "active") return false;
 
-  const scheduled = isScheduledLead(normalized);
-  const abandoned = isAbandonedLead(normalized);
-
-  if (view === "scheduled") return scheduled;
-  if (view === "abandoned") return abandoned;
-  return hasValidLeadPhone(normalized) && !scheduled && !abandoned;
+  if (view === "scheduled") {
+    return isScheduledLead(normalized) && hasValidLeadPhone(normalized);
+  }
+  if (view === "complete") {
+    return hasValidLeadPhone(normalized) && isCompletedVisitLead(normalized);
+  }
+  if (view === "abandoned") {
+    return isInAbandonedCrmView(normalized);
+  }
+  return false;
 }
 
 export function leadsForAnalytics(leads: Lead[]): Lead[] {

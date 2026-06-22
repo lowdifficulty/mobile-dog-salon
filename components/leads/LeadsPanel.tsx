@@ -14,9 +14,13 @@ import {
   type LeadFollowUpMode,
   type LeadFunnelStep,
   type LeadListStatus,
+  type VisitOutcome,
 } from "@/lib/leads/types";
 import { formatLeadPets } from "@/lib/booking/pets";
-import { formatLeadAppointmentWhen } from "@/lib/leads/appointment-fields";
+import {
+  formatDaysSinceLastAppointment,
+  formatLeadAppointmentWhen,
+} from "@/lib/leads/appointment-fields";
 import { getServiceLabel } from "@/lib/pricing";
 
 interface LeadNote {
@@ -47,6 +51,7 @@ interface LeadRow {
   appointmentStartAt?: string;
   groomerName?: string;
   followUpMode: LeadFollowUpMode;
+  visitOutcome: VisitOutcome;
   listStatus: LeadListStatus;
   notes: LeadNote[];
   source: "booking" | "contact";
@@ -82,7 +87,12 @@ function displayName(lead: LeadRow) {
   return "—";
 }
 
-function rowStyle(lead: LeadRow) {
+function rowStyle(lead: LeadRow, view: LeadCrmView) {
+  if (view === "complete") {
+    return lead.visitOutcome === "complete"
+      ? "border-green-400 bg-green-50"
+      : "border-red-400 bg-red-50";
+  }
   if (isScheduledLead(lead)) {
     return "border-green-400 bg-green-50";
   }
@@ -144,6 +154,20 @@ function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
   return sorted;
 }
 
+function sortCompletedLeads(leads: LeadRow[]): LeadRow[] {
+  const sorted = [...leads];
+  sorted.sort((a, b) => {
+    const aComplete = a.visitOutcome === "complete" ? 0 : 1;
+    const bComplete = b.visitOutcome === "complete" ? 0 : 1;
+    if (aComplete !== bComplete) return aComplete - bComplete;
+
+    const aTime = a.lastAppointmentAt ? new Date(a.lastAppointmentAt).getTime() : 0;
+    const bTime = b.lastAppointmentAt ? new Date(b.lastAppointmentAt).getTime() : 0;
+    return bTime - aTime;
+  });
+  return sorted;
+}
+
 function FollowUpToggle({
   mode,
   disabled,
@@ -186,8 +210,50 @@ function FollowUpToggle({
   );
 }
 
+function VisitOutcomeToggle({
+  outcome,
+  disabled,
+  onChange,
+}: {
+  outcome: VisitOutcome;
+  disabled?: boolean;
+  onChange: (outcome: VisitOutcome) => void;
+}) {
+  return (
+    <div
+      className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-bold"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("complete")}
+        className={`px-2.5 py-1 transition-colors ${
+          outcome === "complete"
+            ? "bg-green-500 text-white"
+            : "bg-white text-gray-500 hover:bg-green-50"
+        } disabled:opacity-50`}
+      >
+        Complete
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("incomplete")}
+        className={`px-2.5 py-1 transition-colors ${
+          outcome === "incomplete"
+            ? "bg-red-500 text-white"
+            : "bg-white text-gray-500 hover:bg-red-50"
+        } disabled:opacity-50`}
+      >
+        Incomplete
+      </button>
+    </div>
+  );
+}
+
 export default function LeadsPanel() {
-  const [view, setView] = useState<LeadCrmView>("active");
+  const [view, setView] = useState<LeadCrmView>("scheduled");
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -196,7 +262,10 @@ export default function LeadsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<LeadSort>("funnel_desc");
 
-  const sortedLeads = useMemo(() => sortLeads(leads, sort), [leads, sort]);
+  const sortedLeads = useMemo(
+    () => (view === "complete" ? sortCompletedLeads(leads) : sortLeads(leads, sort)),
+    [leads, sort, view]
+  );
 
   const loadLeads = useCallback(() => {
     setLoading(true);
@@ -217,7 +286,11 @@ export default function LeadsPanel() {
 
   async function patchLead(
     leadId: string,
-    body: { followUpMode?: LeadFollowUpMode; listStatus?: LeadListStatus }
+    body: {
+      followUpMode?: LeadFollowUpMode;
+      visitOutcome?: VisitOutcome;
+      listStatus?: LeadListStatus;
+    }
   ) {
     setSavingId(leadId);
     setError(null);
@@ -228,7 +301,10 @@ export default function LeadsPanel() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed");
-      if (body.listStatus === "cold_storage" && (view === "active" || view === "abandoned" || view === "scheduled")) {
+      if (
+        body.listStatus === "cold_storage" &&
+        (view === "abandoned" || view === "scheduled" || view === "complete")
+      ) {
         setExpandedId(null);
       }
       if (body.listStatus === "active" && view === "cold_storage") {
@@ -289,12 +365,12 @@ export default function LeadsPanel() {
   }
 
   const emptyMessage =
-    view === "active"
-      ? "No active leads with a phone number yet. Leads without a phone still count in Analytics."
-      : view === "abandoned"
-        ? "No abandoned bookings. Leads appear here after they pick a time but do not finish booking."
-        : view === "scheduled"
-          ? "No upcoming scheduled appointments."
+    view === "abandoned"
+      ? "No abandoned leads yet. Incomplete bookings and leads still in the funnel appear here."
+      : view === "scheduled"
+        ? "No upcoming scheduled appointments."
+        : view === "complete"
+          ? "No completed visits yet. Past appointments appear here after their scheduled time."
           : "No leads in cold storage.";
 
   return (
@@ -303,16 +379,16 @@ export default function LeadsPanel() {
         <button
           type="button"
           onClick={() => {
-            setView("active");
+            setView("scheduled");
             setExpandedId(null);
           }}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "active"
+            view === "scheduled"
               ? "bg-brand text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
-          Active
+          Scheduled
         </button>
         <button
           type="button"
@@ -331,16 +407,16 @@ export default function LeadsPanel() {
         <button
           type="button"
           onClick={() => {
-            setView("scheduled");
+            setView("complete");
             setExpandedId(null);
           }}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "scheduled"
+            view === "complete"
               ? "bg-brand text-white"
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
         >
-          Scheduled
+          Complete
         </button>
         <button
           type="button"
@@ -368,25 +444,29 @@ export default function LeadsPanel() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
-              {leads.length} lead{leads.length === 1 ? "" : "s"} · Green = scheduled,
-              yellow = FU, blue = Chill
-              {view === "abandoned" ? " · picked a time, booking not finished" : ""}
+              {leads.length} lead{leads.length === 1 ? "" : "s"}
+              {view === "complete"
+                ? " · Green = complete, red = incomplete · most recent visit first"
+                : " · Green = scheduled, yellow = FU, blue = Chill"}
+              {view === "abandoned" ? " · incomplete bookings and in-funnel leads" : ""}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium text-gray-700">Sort</span>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as LeadSort)}
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {view !== "complete" && (
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="font-medium text-gray-700">Sort</span>
+                  <select
+                    value={sort}
+                    onChange={(e) => setSort(e.target.value as LeadSort)}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <button
                 type="button"
                 onClick={() => loadLeads()}
@@ -407,7 +487,7 @@ export default function LeadsPanel() {
               return (
                 <article
                   key={lead.id}
-                  className={`rounded-xl border overflow-hidden ${rowStyle(lead)}`}
+                  className={`rounded-xl border overflow-hidden ${rowStyle(lead, view)}`}
                 >
                   <button
                     type="button"
@@ -431,16 +511,29 @@ export default function LeadsPanel() {
                             Picked time
                           </span>
                         )}
-                        {lead.followUpDue && lead.followUpMode === "fu" && !isScheduledLead(lead) && (
+                        {lead.followUpDue &&
+                          lead.followUpMode === "fu" &&
+                          !isScheduledLead(lead) &&
+                          view !== "complete" && (
                           <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
                             Due
                           </span>
                         )}
-                        <FollowUpToggle
-                          mode={lead.followUpMode}
-                          disabled={busy}
-                          onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
-                        />
+                        {view === "complete" ? (
+                          <VisitOutcomeToggle
+                            outcome={lead.visitOutcome}
+                            disabled={busy}
+                            onChange={(visitOutcome) =>
+                              patchLead(lead.id, { visitOutcome })
+                            }
+                          />
+                        ) : (
+                          <FollowUpToggle
+                            mode={lead.followUpMode}
+                            disabled={busy}
+                            onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
+                          />
+                        )}
                       </div>
                       <p className="text-sm text-gray-600 mt-0.5">
                         {displayName(lead)}
@@ -451,6 +544,17 @@ export default function LeadsPanel() {
                       {lead.appointmentStartAt && isAbandonedLead(lead) && (
                         <p className="text-sm font-medium text-gray-800 mt-0.5">
                           {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                        </p>
+                      )}
+                      {view === "complete" && lead.lastAppointmentAt && (
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">
+                          Last visit: {formatShortDate(lead.lastAppointmentAt)}
+                          {lead.visitOutcome === "complete" && (
+                            <span className="text-green-800 font-semibold">
+                              {" "}
+                              · {formatDaysSinceLastAppointment(lead.lastAppointmentAt)}
+                            </span>
+                          )}
                         </p>
                       )}
                       <p className="text-xs text-gray-500 mt-1">
@@ -561,7 +665,9 @@ export default function LeadsPanel() {
                         className="flex flex-wrap gap-2 pt-2 border-t border-gray-200"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {view === "active" || view === "abandoned" || view === "scheduled" ? (
+                        {view === "abandoned" ||
+                        view === "scheduled" ||
+                        view === "complete" ? (
                           <button
                             type="button"
                             disabled={busy}

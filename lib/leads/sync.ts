@@ -55,6 +55,7 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
             funnelStep: "appointment_completed",
             appointmentId: appointment.id,
             lastAppointmentAt: appointment.startAt,
+            visitOutcome: next.visitOutcome ?? "incomplete",
             ...bookingFields,
           };
           changed = true;

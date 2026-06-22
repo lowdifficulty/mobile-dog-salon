@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/scheduling/auth";
 import { cancelAppointment } from "@/lib/scheduling/appointment-actions";
 import { deleteLeadById, updateLeadFields } from "@/lib/leads/store";
-import type { LeadFollowUpMode, LeadListStatus } from "@/lib/leads/types";
+import type { LeadFollowUpMode, LeadListStatus, VisitOutcome } from "@/lib/leads/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,6 +12,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const body = (await request.json()) as {
       followUpMode?: LeadFollowUpMode;
+      visitOutcome?: VisitOutcome;
       listStatus?: LeadListStatus;
     };
 
@@ -24,6 +25,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (
+      body.visitOutcome !== undefined &&
+      body.visitOutcome !== "complete" &&
+      body.visitOutcome !== "incomplete"
+    ) {
+      return NextResponse.json({ error: "Invalid visitOutcome" }, { status: 400 });
+    }
+
+    if (
       body.listStatus !== undefined &&
       body.listStatus !== "active" &&
       body.listStatus !== "cold_storage"
@@ -33,6 +42,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const lead = await updateLeadFields(id, {
       followUpMode: body.followUpMode,
+      visitOutcome: body.visitOutcome,
       listStatus: body.listStatus,
     });
 

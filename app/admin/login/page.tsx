@@ -2,6 +2,7 @@ import SchedulingLoginForm from "@/components/scheduling/SchedulingLoginForm";
 
 export const metadata = {
   title: "Admin Login | Mobile Dog Salon",
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
 };
 
 export default function AdminLoginPage() {

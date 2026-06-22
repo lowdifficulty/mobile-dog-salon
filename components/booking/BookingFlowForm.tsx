@@ -23,6 +23,7 @@ import {
 } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
+import { warmMetaPixel } from "@/lib/meta-pixel";
 import type { LeadFunnelStep } from "@/lib/leads/types";
 import {
   buildBookingNotes,
@@ -93,6 +94,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const discountActive = true;
 
   useEffect(() => {
+    warmMetaPixel();
     void saveLead({ funnelStep: "view_form", source: "booking" });
     void pingLeadActivity();
     const interval = window.setInterval(() => {

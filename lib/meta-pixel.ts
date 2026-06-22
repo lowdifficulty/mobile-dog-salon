@@ -16,6 +16,12 @@ function fbq(...args: unknown[]) {
   window.fbq(...args);
 }
 
+/** Start loading Meta Pixel early (booking form open, etc.). */
+export function warmMetaPixel(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("mds:warm-meta-pixel"));
+}
+
 /** Custom event for each CRM funnel step (build audiences & funnels in Meta). */
 export function trackMetaFunnelStep(
   step: LeadFunnelStep,

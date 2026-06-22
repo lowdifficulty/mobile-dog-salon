@@ -19,7 +19,9 @@ export default function GroomersVans() {
                 Our talented groomers bring salon-level experience to your front door — building real
                 relationships with your pet that make visits feel more like play dates.
               </p>
-              <Link href={ROUTES.ourGroomers} className="site-link">Learn More</Link>
+              <Link href={ROUTES.ourGroomers} className="site-link">
+                Meet our groomers
+              </Link>
             </div>
             <div>
               <BookableImage
@@ -44,7 +46,9 @@ export default function GroomersVans() {
                 Our mobile spas offer quiet, one-on-one grooming sessions without the chaos — no
                 cages, no barking rooms, just clean, calming care that pets actually enjoy.
               </p>
-              <Link href={ROUTES.ourVans} className="site-link">Learn More</Link>
+              <Link href={ROUTES.ourVans} className="site-link">
+                See our mobile grooming vans
+              </Link>
             </div>
             <div className="lg:order-1">
               <BookableImage

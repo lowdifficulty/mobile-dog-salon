@@ -43,11 +43,12 @@ export default function CareersPage() {
         <div className="site-container max-w-3xl mx-auto text-center">
           <h2 className="site-heading-section mb-6">Ready to Apply?</h2>
           <p className="text-gray-600 leading-relaxed mb-6">
-            Email your resume and a short introduction to{" "}
+            Click <strong>Apply for This Role</strong> on any open position above to submit your
+            information and resume online. You can also email{" "}
             <a href="mailto:careers@mobiledog-salon.com" className="site-link font-semibold">
               careers@mobiledog-salon.com
-            </a>
-            . Tell us which role you&apos;re interested in and why you&apos;d be a great fit for our team.
+            </a>{" "}
+            if you prefer.
           </p>
         </div>
       </section>

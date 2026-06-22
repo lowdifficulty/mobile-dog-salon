@@ -176,6 +176,8 @@ export const JOB_OPENINGS = [
   },
 ];
 
+export type JobOpening = (typeof JOB_OPENINGS)[number];
+
 export const CAREER_PERKS = [
   "Flexible scheduling for part-time groomers",
   "One-on-one grooming — no chaotic salon floor",

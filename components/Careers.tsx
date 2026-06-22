@@ -17,7 +17,7 @@ export default function Careers() {
           href={ROUTES.careers}
           className="site-btn inline-flex"
         >
-          Learn more
+          View open positions
         </Link>
       </div>
     </section>

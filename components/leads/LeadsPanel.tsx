@@ -22,6 +22,9 @@ import {
   formatLeadAppointmentWhen,
 } from "@/lib/leads/appointment-fields";
 import { getServiceLabel } from "@/lib/pricing";
+import JobApplicantsPanel from "@/components/leads/JobApplicantsPanel";
+
+type LeadsPanelView = LeadCrmView | "job_applicants";
 
 interface LeadNote {
   id: string;
@@ -282,7 +285,7 @@ function VisitOutcomeToggle({
 }
 
 export default function LeadsPanel() {
-  const [view, setView] = useState<LeadCrmView>("scheduled");
+  const [view, setView] = useState<LeadsPanelView>("scheduled");
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -299,6 +302,10 @@ export default function LeadsPanel() {
   }, [leads, sort, view]);
 
   const loadLeads = useCallback(() => {
+    if (view === "job_applicants") {
+      setLoading(false);
+      return Promise.resolve();
+    }
     setLoading(true);
     setError(null);
     return fetch(`/api/admin/leads?view=${view}`)
@@ -312,8 +319,12 @@ export default function LeadsPanel() {
   }, [view]);
 
   useEffect(() => {
+    if (view === "job_applicants") {
+      setLoading(false);
+      return;
+    }
     loadLeads();
-  }, [loadLeads]);
+  }, [loadLeads, view]);
 
   async function patchLead(
     leadId: string,
@@ -463,9 +474,25 @@ export default function LeadsPanel() {
         >
           Cold storage
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setView("job_applicants");
+            setExpandedId(null);
+          }}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+            view === "job_applicants"
+              ? "bg-brand text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Job applicants
+        </button>
       </div>
 
-      {loading ? (
+      {view === "job_applicants" ? (
+        <JobApplicantsPanel />
+      ) : loading ? (
         <p className="text-sm text-gray-500">Loading leads…</p>
       ) : leads.length === 0 ? (
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-6">

@@ -14,7 +14,7 @@ export default function CareersCTA() {
           compassionate groomers across Orange County.
         </p>
         <Link href={ROUTES.careers} className="site-btn inline-flex">
-          Learn more
+          View open positions
         </Link>
       </div>
     </section>

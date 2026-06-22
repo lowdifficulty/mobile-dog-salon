@@ -189,10 +189,10 @@ function LeadTabButton({
 }
 
 const SORT_OPTIONS: { value: LeadSort; label: string }[] = [
-  { value: "funnel_desc", label: "Funnel: furthest along" },
-  { value: "funnel_asc", label: "Funnel: earliest step" },
   { value: "contact_desc", label: "Contact date: newest" },
   { value: "contact_asc", label: "Contact date: oldest" },
+  { value: "funnel_desc", label: "Funnel: furthest along" },
+  { value: "funnel_asc", label: "Funnel: earliest step" },
 ];
 
 function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
@@ -210,21 +210,8 @@ function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
   return sorted;
 }
 
-function abandonedSortTime(lead: LeadRow): number {
-  return Math.max(
-    new Date(lead.contactMadeAt).getTime(),
-    new Date(lead.updatedAt).getTime()
-  );
-}
-
-function sortAbandonedLeads(leads: LeadRow[]): LeadRow[] {
-  const sorted = [...leads];
-  sorted.sort((a, b) => {
-    const timeDiff = abandonedSortTime(b) - abandonedSortTime(a);
-    if (timeDiff !== 0) return timeDiff;
-    return new Date(b.contactMadeAt).getTime() - new Date(a.contactMadeAt).getTime();
-  });
-  return sorted;
+function sortAbandonedLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
+  return sortLeads(leads, sort);
 }
 
 function sortScheduledLeads(leads: LeadRow[]): LeadRow[] {
@@ -343,7 +330,7 @@ export default function LeadsPanel() {
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sort, setSort] = useState<LeadSort>("funnel_desc");
+  const [sort, setSort] = useState<LeadSort>("contact_desc");
   const [badgeViews, setBadgeViews] = useState<BadgeViewsState>(EMPTY_BADGE_VIEWS);
   const [badgeCounts, setBadgeCounts] = useState({
     scheduled: 0,
@@ -402,7 +389,7 @@ export default function LeadsPanel() {
   const sortedLeads = useMemo(() => {
     if (view === "complete") return sortCompletedLeads(leads);
     if (view === "scheduled") return sortScheduledLeads(leads);
-    if (view === "abandoned") return sortAbandonedLeads(leads);
+    if (view === "abandoned") return sortAbandonedLeads(leads, sort);
     return sortLeads(leads, sort);
   }, [leads, sort, view]);
 
@@ -586,12 +573,9 @@ export default function LeadsPanel() {
                 : view === "scheduled"
                   ? " · Purple = FU, blue = Chill · soonest appointment first"
                   : " · Yellow = FU, blue = Chill"}
-              {view === "abandoned"
-                ? " · newest contact date first"
-                : ""}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              {view !== "complete" && view !== "scheduled" && view !== "abandoned" && (
+              {view !== "complete" && view !== "scheduled" && (
                 <label className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium text-gray-700">Sort</span>
                   <select

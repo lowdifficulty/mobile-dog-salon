@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/scheduling/auth";
-import { loadQaReport, runQaDiagnostics } from "@/lib/qa/diagnostics";
+import { loadQaReport, runQaDiagnostics, sortQaChecks } from "@/lib/qa/diagnostics";
+
+function withSortedChecks(
+  report: Awaited<ReturnType<typeof loadQaReport>>
+): NonNullable<Awaited<ReturnType<typeof loadQaReport>>> | null {
+  if (!report) return null;
+  return { ...report, checks: sortQaChecks(report.checks) };
+}
 
 export async function GET() {
   try {
     await requireAdmin();
-    const report = await loadQaReport();
+    const report = withSortedChecks(await loadQaReport());
     return NextResponse.json({ report });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unauthorized";
@@ -17,7 +24,7 @@ export async function GET() {
 export async function POST() {
   try {
     await requireAdmin();
-    const report = await runQaDiagnostics("manual");
+    const report = withSortedChecks(await runQaDiagnostics("manual"));
     return NextResponse.json({ report });
   } catch (err) {
     const message = err instanceof Error ? err.message : "QA run failed";

@@ -42,6 +42,15 @@ function formatWhen(iso: string): string {
   });
 }
 
+function sortChecks(checks: QaCheckResult[]): QaCheckResult[] {
+  const order: Record<QaCheckResult["status"], number> = {
+    not_working: 0,
+    warning: 1,
+    working: 2,
+  };
+  return [...checks].sort((a, b) => order[a.status] - order[b.status]);
+}
+
 export default function QaDiagnosticsPanel() {
   const [report, setReport] = useState<QaDiagnosticReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -127,7 +136,7 @@ export default function QaDiagnosticsPanel() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {report.checks.map((check) => (
+            {sortChecks(report.checks).map((check) => (
               <div
                 key={check.id}
                 className="site-card p-5 border border-gray-100 flex flex-col gap-3"

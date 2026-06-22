@@ -7,6 +7,10 @@ import {
   type FunnelAnalyticsResult,
 } from "@/lib/leads/analytics";
 
+function todayPacificDate(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+}
+
 function barTone(percent: number): string {
   if (percent >= 75) return "bg-brand";
   if (percent >= 50) return "bg-brand-bright";
@@ -16,6 +20,7 @@ function barTone(percent: number): string {
 
 export default function FunnelAnalyticsPanel() {
   const [range, setRange] = useState<AnalyticsRange>("week");
+  const [customDate, setCustomDate] = useState(todayPacificDate);
   const [data, setData] = useState<FunnelAnalyticsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -23,7 +28,11 @@ export default function FunnelAnalyticsPanel() {
   const loadAnalytics = useCallback(() => {
     setLoading(true);
     setError("");
-    fetch(`/api/admin/analytics?range=${range}`)
+    const params = new URLSearchParams({ range });
+    if (range === "custom") {
+      params.set("date", customDate);
+    }
+    fetch(`/api/admin/analytics?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Could not load analytics");
         return res.json() as Promise<FunnelAnalyticsResult>;
@@ -31,7 +40,7 @@ export default function FunnelAnalyticsPanel() {
       .then(setData)
       .catch(() => setError("Could not load funnel analytics."))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [range, customDate]);
 
   useEffect(() => {
     loadAnalytics();
@@ -46,12 +55,17 @@ export default function FunnelAnalyticsPanel() {
             Share of leads who reached each step in the booking flow.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {ANALYTICS_RANGES.map((option) => (
             <button
               key={option.id}
               type="button"
-              onClick={() => setRange(option.id)}
+              onClick={() => {
+                setRange(option.id);
+                if (option.id === "custom" && !customDate) {
+                  setCustomDate(todayPacificDate());
+                }
+              }}
               className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
                 range === option.id
                   ? "bg-brand text-white border-brand"
@@ -61,6 +75,17 @@ export default function FunnelAnalyticsPanel() {
               {option.label}
             </button>
           ))}
+          {range === "custom" && (
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-medium text-gray-700">Day</span>
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900"
+              />
+            </label>
+          )}
         </div>
       </div>
 

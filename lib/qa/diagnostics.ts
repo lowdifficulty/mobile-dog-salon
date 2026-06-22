@@ -6,6 +6,7 @@ import { persistenceStatus } from "@/lib/scheduling/persistence";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
+import { getSquareClientConfig, isSquareConfigured } from "@/lib/payments/square";
 
 export type QaCheckStatus = "working" | "not_working" | "warning";
 
@@ -44,6 +45,18 @@ function overallStatus(checks: QaCheckResult[]): QaCheckStatus {
   if (checks.some((c) => c.status === "not_working")) return "not_working";
   if (checks.some((c) => c.status === "warning")) return "warning";
   return "working";
+}
+
+const CHECK_STATUS_ORDER: Record<QaCheckStatus, number> = {
+  not_working: 0,
+  warning: 1,
+  working: 2,
+};
+
+export function sortQaChecks(checks: QaCheckResult[]): QaCheckResult[] {
+  return [...checks].sort(
+    (a, b) => CHECK_STATUS_ORDER[a.status] - CHECK_STATUS_ORDER[b.status]
+  );
 }
 
 async function checkWebsite(): Promise<QaCheckResult> {
@@ -184,6 +197,60 @@ async function checkSms(): Promise<QaCheckResult> {
       label,
       status: "not_working",
       message: err instanceof Error ? err.message : "Twilio connection failed",
+    };
+  }
+}
+
+async function checkPayments(): Promise<QaCheckResult> {
+  const id = "payments";
+  const label = "Payment System Working";
+
+  if (!isSquareConfigured()) {
+    return {
+      id,
+      label,
+      status: "not_working",
+      message:
+        "Square is not configured yet (SQUARE_ACCESS_TOKEN / SQUARE_APPLICATION_ID).",
+      details: { configured: false },
+    };
+  }
+
+  try {
+    const config = await getSquareClientConfig();
+    if (!config.locationConfigured || !config.locationId) {
+      return {
+        id,
+        label,
+        status: "not_working",
+        message:
+          "Square credentials are set but no active location is ready — client portal and staff charges are unavailable.",
+        details: {
+          configured: true,
+          locationConfigured: false,
+          environment: config.environment,
+        },
+      };
+    }
+
+    return {
+      id,
+      label,
+      status: "working",
+      message: `Square ${config.environment} is connected with an active location.`,
+      details: {
+        configured: true,
+        locationConfigured: true,
+        environment: config.environment,
+      },
+    };
+  } catch (err) {
+    return {
+      id,
+      label,
+      status: "not_working",
+      message: err instanceof Error ? err.message : "Payment system check failed",
+      details: { configured: true },
     };
   }
 }
@@ -330,14 +397,15 @@ async function checkScheduling(): Promise<QaCheckResult[]> {
 export async function runQaDiagnostics(
   trigger: "cron" | "manual" = "manual"
 ): Promise<QaDiagnosticReport> {
-  const [website, email, sms, schedulingChecks] = await Promise.all([
+  const [website, email, sms, payments, schedulingChecks] = await Promise.all([
     checkWebsite(),
     checkEmail(),
     checkSms(),
+    checkPayments(),
     checkScheduling(),
   ]);
 
-  const checks = [website, email, sms, ...schedulingChecks];
+  const checks = sortQaChecks([website, email, sms, payments, ...schedulingChecks]);
   const report: QaDiagnosticReport = {
     ranAt: new Date().toISOString(),
     trigger,

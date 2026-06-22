@@ -3,11 +3,13 @@ import { requireAdmin } from "@/lib/scheduling/auth";
 import {
   type AnalyticsRange,
   computeFunnelAnalytics,
+  isValidAnalyticsDate,
 } from "@/lib/leads/analytics";
 import { leadsForAnalytics } from "@/lib/leads/filters";
 import { syncLeadsWithAppointments } from "@/lib/leads/sync";
+import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
-const VALID_RANGES: AnalyticsRange[] = ["today", "week", "month", "all"];
+const VALID_RANGES: AnalyticsRange[] = ["today", "week", "month", "all", "custom"];
 
 export async function GET(request: Request) {
   try {
@@ -18,8 +20,16 @@ export async function GET(request: Request) {
       ? (rangeParam as AnalyticsRange)
       : "week";
 
+    const dateParam = searchParams.get("date") ?? "";
+    const customDate =
+      range === "custom"
+        ? isValidAnalyticsDate(dateParam)
+          ? dateParam
+          : getTodayPacificDate()
+        : undefined;
+
     const leads = leadsForAnalytics(await syncLeadsWithAppointments());
-    const analytics = computeFunnelAnalytics(leads, range);
+    const analytics = computeFunnelAnalytics(leads, range, customDate);
 
     return NextResponse.json(analytics);
   } catch {

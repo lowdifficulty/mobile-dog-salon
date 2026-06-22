@@ -8,13 +8,14 @@ import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
 
-export type AnalyticsRange = "today" | "week" | "month" | "all";
+export type AnalyticsRange = "today" | "week" | "month" | "all" | "custom";
 
 export const ANALYTICS_RANGES: { id: AnalyticsRange; label: string }[] = [
   { id: "today", label: "Today" },
   { id: "week", label: "Past week" },
   { id: "month", label: "Past month" },
   { id: "all", label: "All time" },
+  { id: "custom", label: "Custom day" },
 ];
 
 export interface FunnelStepStat {
@@ -29,6 +30,7 @@ export interface FunnelStepStat {
 export interface FunnelAnalyticsResult {
   range: AnalyticsRange;
   rangeLabel: string;
+  customDate?: string;
   totalLeads: number;
   steps: FunnelStepStat[];
   scheduledCount: number;
@@ -41,7 +43,34 @@ function contactDatePacific(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: PACIFIC_TZ });
 }
 
-export function leadInAnalyticsRange(lead: Lead, range: AnalyticsRange): boolean {
+function formatCustomDayLabel(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const labelDate = new Date(Date.UTC(year, month - 1, day, 12));
+  return labelDate.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export function isValidAnalyticsDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const [year, month, day] = date.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+export function leadInAnalyticsRange(
+  lead: Lead,
+  range: AnalyticsRange,
+  customDate?: string
+): boolean {
   const contactMs = new Date(lead.contactMadeAt).getTime();
   if (Number.isNaN(contactMs)) return false;
 
@@ -49,6 +78,11 @@ export function leadInAnalyticsRange(lead: Lead, range: AnalyticsRange): boolean
 
   if (range === "today") {
     return contactDatePacific(lead.contactMadeAt) === getTodayPacificDate();
+  }
+
+  if (range === "custom") {
+    if (!customDate || !isValidAnalyticsDate(customDate)) return false;
+    return contactDatePacific(lead.contactMadeAt) === customDate;
   }
 
   const dayMs = 24 * 60 * 60 * 1000;
@@ -65,9 +99,10 @@ function percentOf(count: number, total: number): number {
 
 export function computeFunnelAnalytics(
   leads: Lead[],
-  range: AnalyticsRange
+  range: AnalyticsRange,
+  customDate?: string
 ): FunnelAnalyticsResult {
-  const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range));
+  const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range, customDate));
   const totalLeads = filtered.length;
 
   const counts = BOOKING_FUNNEL_STEPS.map((step) => ({
@@ -102,7 +137,11 @@ export function computeFunnelAnalytics(
 
   return {
     range,
-    rangeLabel: ANALYTICS_RANGES.find((r) => r.id === range)?.label ?? range,
+    rangeLabel:
+      range === "custom" && customDate
+        ? formatCustomDayLabel(customDate)
+        : (ANALYTICS_RANGES.find((r) => r.id === range)?.label ?? range),
+    customDate: range === "custom" ? customDate : undefined,
     totalLeads,
     steps,
     scheduledCount,

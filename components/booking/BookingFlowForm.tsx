@@ -67,7 +67,7 @@ const initialData: BookingFormData = {
   groomerName: "",
 };
 
-const STEP_COUNT = 5;
+const STEP_COUNT = 4;
 
 const inputClass =
   "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
@@ -194,10 +194,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setStep(step - 1);
   };
 
-  const handleContinueFromAddress = () => {
-    if (!isValidBookingContact(data.address, data.city, data.zipCode)) return;
-    persistLead("address");
-    setStep(5);
+  const handleBookFromAddress = () => {
+    if (!canProceed()) return;
+    persistLead("contact_info");
+    void handleSubmit();
   };
 
   const canProceed = () => {
@@ -209,9 +209,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       case 3:
         return Boolean(data.slotKey);
       case 4:
-        return isValidBookingContact(data.address, data.city, data.zipCode);
-      case 5:
-        return isValidBookingContactInfo(data.fullName, data.phone);
+        return (
+          isValidBookingContact(data.address, data.city, data.zipCode) &&
+          isValidBookingContactInfo(data.fullName, data.phone)
+        );
       default:
         return false;
     }
@@ -303,10 +304,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       }
     : null;
 
-  const appointmentSummary = (
+  const appointmentSummary = (discountHeading = "50% discount activated") => (
     <>
       <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
-        <p className="text-xl font-bold text-green-700 tracking-tight">50% discount activated</p>
+        <p className="text-xl font-bold text-green-700 tracking-tight">{discountHeading}</p>
       </div>
       <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your appointment</p>
@@ -511,9 +512,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
         {step === 4 && (
           <div className="space-y-4">
-            {appointmentSummary}
+            {appointmentSummary("50% Discount Activated — Last Step!")}
             <div className="space-y-3">
-              <h3 className="text-base font-bold text-gray-900">Address</h3>
+              <h3 className="text-base font-bold text-gray-900">Address &amp; contact</h3>
               <div>
                 <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
                   Street address *
@@ -562,15 +563,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                   />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-4">
-            {appointmentSummary}
-            <div className="space-y-3">
-              <h3 className="text-base font-bold text-gray-900">Contact information</h3>
               <div>
                 <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
                   Name *
@@ -588,7 +580,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               </div>
               <div>
                 <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                  Phone Number *
+                  Phone number *
                 </label>
                 <input
                   id="booking-phone"
@@ -624,21 +616,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           {step === 4 && (
             <button
               type="button"
-              onClick={handleContinueFromAddress}
-              disabled={!canProceed()}
-              className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Continue
-            </button>
-          )}
-
-          {step === 5 && (
-            <button
-              type="button"
-              onClick={() => {
-                persistLead("contact_info");
-                void handleSubmit();
-              }}
+              onClick={handleBookFromAddress}
               disabled={!canProceed() || isSubmitting}
               className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >

@@ -68,9 +68,16 @@ const initialData: BookingFormData = {
 };
 
 const STEP_COUNT = 4;
+const SLOT_HOLD_SECONDS = 10 * 60;
 
 const inputClass =
   "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
+
+function formatHoldCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 function splitName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -91,8 +98,33 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [holdSecondsLeft, setHoldSecondsLeft] = useState(SLOT_HOLD_SECONDS);
 
   const discountActive = true;
+
+  useEffect(() => {
+    if (step !== 4 || submitted || isSubmitting) return;
+
+    setHoldSecondsLeft(SLOT_HOLD_SECONDS);
+    const interval = window.setInterval(() => {
+      setHoldSecondsLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [step, data.slotKey, submitted, isSubmitting]);
+
+  useEffect(() => {
+    if (step !== 4 || holdSecondsLeft > 0 || submitted || isSubmitting) return;
+
+    setData((prev) => ({
+      ...prev,
+      slotKey: "",
+      preferredDate: "",
+      preferredTime: "",
+      groomerName: "",
+    }));
+    setStep(3);
+  }, [step, holdSecondsLeft, submitted, isSubmitting]);
 
   useEffect(() => {
     warmMetaPixel();
@@ -513,8 +545,51 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         {step === 4 && (
           <div className="space-y-4">
             {appointmentSummary("50% Discount Activated — Last Step!")}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
+              <p className="text-xs font-medium text-amber-900">
+                Your appointment will be held for 10 minutes
+              </p>
+              <p
+                className="text-2xl font-bold tabular-nums text-amber-950 mt-1"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {formatHoldCountdown(holdSecondsLeft)}
+              </p>
+            </div>
             <div className="space-y-3">
-              <h3 className="text-base font-bold text-gray-900">Address &amp; contact</h3>
+              <h3 className="text-base font-bold text-gray-900">Contact &amp; address</h3>
+              <div>
+                <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  id="booking-name"
+                  name="name"
+                  type="text"
+                  value={data.fullName}
+                  onChange={(e) => update("fullName", e.target.value)}
+                  placeholder="Your full name"
+                  autoComplete="name"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                  Phone number *
+                </label>
+                <input
+                  id="booking-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={data.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="(714) 555-0123"
+                  className={inputClass}
+                />
+              </div>
               <div>
                 <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
                   Street address *
@@ -562,37 +637,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                     className={inputClass}
                   />
                 </div>
-              </div>
-              <div>
-                <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
-                  Name *
-                </label>
-                <input
-                  id="booking-name"
-                  name="name"
-                  type="text"
-                  value={data.fullName}
-                  onChange={(e) => update("fullName", e.target.value)}
-                  placeholder="Your full name"
-                  autoComplete="name"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                  Phone number *
-                </label>
-                <input
-                  id="booking-phone"
-                  name="tel"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={data.phone}
-                  onChange={(e) => update("phone", e.target.value)}
-                  placeholder="(714) 555-0123"
-                  className={inputClass}
-                />
               </div>
             </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}

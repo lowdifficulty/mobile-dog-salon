@@ -44,6 +44,7 @@ interface LeadRow {
   id: string;
   phone: string;
   contactMadeAt: string;
+  updatedAt: string;
   funnelStep: LeadFunnelStep;
   firstName?: string;
   lastName?: string;
@@ -209,21 +210,19 @@ function sortLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
   return sorted;
 }
 
-function sortAbandonedLeads(leads: LeadRow[], sort: LeadSort): LeadRow[] {
+function abandonedSortTime(lead: LeadRow): number {
+  return Math.max(
+    new Date(lead.contactMadeAt).getTime(),
+    new Date(lead.updatedAt).getTime()
+  );
+}
+
+function sortAbandonedLeads(leads: LeadRow[]): LeadRow[] {
   const sorted = [...leads];
   sorted.sort((a, b) => {
-    const phoneDiff =
-      (hasValidLeadPhone(a) ? 0 : 1) - (hasValidLeadPhone(b) ? 0 : 1);
-    if (phoneDiff !== 0) return phoneDiff;
-
-    if (sort === "funnel_desc" || sort === "funnel_asc") {
-      const stepDiff = funnelStepOrder(a.funnelStep) - funnelStepOrder(b.funnelStep);
-      if (stepDiff !== 0) return sort === "funnel_desc" ? -stepDiff : stepDiff;
-      return new Date(b.contactMadeAt).getTime() - new Date(a.contactMadeAt).getTime();
-    }
-    const timeDiff =
-      new Date(a.contactMadeAt).getTime() - new Date(b.contactMadeAt).getTime();
-    return sort === "contact_desc" ? -timeDiff : timeDiff;
+    const timeDiff = abandonedSortTime(b) - abandonedSortTime(a);
+    if (timeDiff !== 0) return timeDiff;
+    return new Date(b.contactMadeAt).getTime() - new Date(a.contactMadeAt).getTime();
   });
   return sorted;
 }
@@ -403,7 +402,7 @@ export default function LeadsPanel() {
   const sortedLeads = useMemo(() => {
     if (view === "complete") return sortCompletedLeads(leads);
     if (view === "scheduled") return sortScheduledLeads(leads);
-    if (view === "abandoned") return sortAbandonedLeads(leads, sort);
+    if (view === "abandoned") return sortAbandonedLeads(leads);
     return sortLeads(leads, sort);
   }, [leads, sort, view]);
 
@@ -588,11 +587,11 @@ export default function LeadsPanel() {
                   ? " · Purple = FU, blue = Chill · soonest appointment first"
                   : " · Yellow = FU, blue = Chill"}
               {view === "abandoned"
-                ? " · with phone first, no phone below"
+                ? " · newest contact date first"
                 : ""}
             </p>
             <div className="flex flex-wrap items-center gap-3">
-              {view !== "complete" && view !== "scheduled" && (
+              {view !== "complete" && view !== "scheduled" && view !== "abandoned" && (
                 <label className="flex items-center gap-2 text-sm text-gray-600">
                   <span className="font-medium text-gray-700">Sort</span>
                   <select

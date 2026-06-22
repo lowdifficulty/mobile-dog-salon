@@ -111,6 +111,56 @@ body {
     z-index: 2;
   }
 
+  /* Homepage hero — dark top-left (text column), light bottom-right (image) */
+  .bg-hero-spa {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background-color: #1a6fb8;
+    background-image:
+      radial-gradient(ellipse 95% 75% at 100% 100%, rgba(255, 255, 255, 0.38) 0%, transparent 62%),
+      radial-gradient(ellipse 85% 70% at 0% 0%, rgba(15, 36, 71, 0.55) 0%, transparent 68%),
+      radial-gradient(ellipse 50% 40% at 92% 88%, rgba(120, 210, 255, 0.2) 0%, transparent 58%),
+      linear-gradient(145deg, #0f4a82 0%, #1a6fb8 32%, #2d8fd4 58%, #5ec4f5 100%);
+  }
+
+  .bg-hero-spa::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.22;
+    background-image:
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      repeating-linear-gradient(
+        298deg,
+        rgba(255, 255, 255, 0.07) 0 1px,
+        transparent 1px 9px
+      ),
+      repeating-linear-gradient(
+        208deg,
+        rgba(255, 255, 255, 0.05) 0 1px,
+        transparent 1px 11px
+      );
+    background-size: 180px 180px, auto, auto;
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bg-hero-spa::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 36, 71, 0.1);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .bg-hero-spa > * {
+    position: relative;
+    z-index: 2;
+  }
+
   /* Good Dogs Take Baths — ad branding */
   .tagline-sticker {
     display: inline-block;
@@ -256,6 +306,69 @@ body {
 
   .site-btn:hover {
     background-color: #002D75;
+  }
+
+  .site-btn.site-btn-hero {
+    background-color: white;
+    color: var(--brand);
+    box-shadow:
+      0 4px 18px rgba(15, 36, 71, 0.22),
+      0 0 0 1px rgba(255, 255, 255, 0.65),
+      0 0 0 4px rgba(255, 255, 255, 0.18);
+  }
+
+  .site-btn.site-btn-hero:hover {
+    background-color: #ffffff;
+    color: var(--brand-dark);
+    box-shadow:
+      0 8px 28px rgba(15, 36, 71, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.8),
+      0 0 0 5px rgba(255, 255, 255, 0.28);
+  }
+
+  .site-btn.site-btn-hero-attention {
+    animation: hero-btn-attention 30s ease-in-out infinite;
+  }
+
+  @keyframes hero-btn-attention {
+    0%,
+    96% {
+      transform: translateY(0) scale(1);
+      box-shadow:
+        0 4px 18px rgba(15, 36, 71, 0.22),
+        0 0 0 1px rgba(255, 255, 255, 0.65),
+        0 0 0 4px rgba(255, 255, 255, 0.18);
+    }
+
+    97% {
+      transform: translateY(-3px) scale(1.04);
+      box-shadow:
+        0 12px 32px rgba(15, 36, 71, 0.32),
+        0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 0 0 8px rgba(255, 255, 255, 0.35);
+    }
+
+    98% {
+      transform: translateY(0) scale(1.01) rotate(-1.5deg);
+    }
+
+    99% {
+      transform: translateY(0) scale(1.01) rotate(1.5deg);
+    }
+
+    100% {
+      transform: translateY(0) scale(1);
+      box-shadow:
+        0 4px 18px rgba(15, 36, 71, 0.22),
+        0 0 0 1px rgba(255, 255, 255, 0.65),
+        0 0 0 4px rgba(255, 255, 255, 0.18);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .site-btn.site-btn-hero-attention {
+      animation: none;
+    }
   }
 
   .site-btn-outline {

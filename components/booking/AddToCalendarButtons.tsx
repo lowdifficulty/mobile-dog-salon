@@ -12,13 +12,13 @@ interface AddToCalendarButtonsProps {
 }
 
 const buttonClass =
-  "inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand transition-all hover:border-brand hover:bg-brand/5";
+  "w-full flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand transition-all hover:border-brand hover:bg-brand/5";
 
 export default function AddToCalendarButtons({ details }: AddToCalendarButtonsProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium text-gray-700">Add to your calendar</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex flex-col gap-2">
         <a
           href={buildGoogleCalendarUrl(details)}
           target="_blank"

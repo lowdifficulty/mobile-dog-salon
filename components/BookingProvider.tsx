@@ -16,6 +16,7 @@ function clearBookHash() {
 interface BookingContextValue {
   openBooking: () => void;
   closeBooking: () => void;
+  isBookingOpen: boolean;
 }
 
 const BookingContext = createContext<BookingContextValue | null>(null);
@@ -48,7 +49,7 @@ export default function BookingProvider({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <BookingContext.Provider value={{ openBooking, closeBooking }}>
+    <BookingContext.Provider value={{ openBooking, closeBooking, isBookingOpen: isOpen }}>
       {children}
       <BookingModal isOpen={isOpen} onClose={closeBooking} />
     </BookingContext.Provider>

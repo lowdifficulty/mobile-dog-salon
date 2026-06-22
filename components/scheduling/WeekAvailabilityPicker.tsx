@@ -167,30 +167,41 @@ export default function WeekAvailabilityPicker({
                 <p className="text-xs font-bold text-gray-900 mb-1.5">
                   {day.weekday}, {day.monthShort} {day.dayNumber}
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
-                  {day.slots.map((slot) => (
-                    <button
-                      key={slot.slotKey}
-                      type="button"
-                      onClick={() => handleSelectSlot(slot)}
-                      className={`px-2 py-2 rounded-lg border text-left transition-all ${
-                        selectedSlotKey === slot.slotKey
-                          ? "border-brand bg-brand text-white"
-                          : "border-gray-200 hover:border-brand bg-white text-gray-800"
-                      }`}
-                    >
-                      <span className="block text-xs font-semibold leading-tight">
-                        {slot.displayTime}
-                      </span>
-                      <span
-                        className={`block text-[10px] mt-0.5 leading-tight truncate ${
-                          selectedSlotKey === slot.slotKey ? "text-white/85" : "text-gray-500"
-                        }`}
+                <div className="overflow-hidden rounded-lg border border-[#eaeaeb] bg-[#fafafb]">
+                  {day.slots.map((slot, slotIndex) => {
+                    const selected = selectedSlotKey === slot.slotKey;
+                    const isFirst = slotIndex === 0;
+                    const isLast = slotIndex === day.slots.length - 1;
+                    const radiusClass = [
+                      isFirst ? "rounded-t-lg" : "",
+                      isLast ? "rounded-b-lg" : "border-b border-[#eaeaeb]",
+                    ].join(" ");
+                    const stateClass = selected
+                      ? "bg-[#878787] text-white"
+                      : "bg-[#fafafb] text-[#0a0908] hover:bg-[#878787]/10";
+
+                    return (
+                      <button
+                        key={slot.slotKey}
+                        type="button"
+                        onClick={() => handleSelectSlot(slot)}
+                        className={`w-full px-4 py-4 text-left transition-colors active:scale-[0.995] ${radiusClass} ${stateClass}`}
                       >
-                        {slot.groomerName.split(" ")[0]}
-                      </span>
-                    </button>
-                  ))}
+                        <span className="block">
+                          <span className="block text-base font-bold leading-snug">
+                            {slot.displayTime}
+                          </span>
+                          <span
+                            className={`block text-sm mt-1 leading-snug ${
+                              selected ? "text-white/90" : "text-[#505051]"
+                            }`}
+                          >
+                            with {slot.groomerName}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}

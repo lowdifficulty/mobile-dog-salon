@@ -14,6 +14,7 @@ import AddToCalendarButtons from "@/components/booking/AddToCalendarButtons";
 import BookingOptionButton, {
   DogSizeIcon,
 } from "@/components/booking/BookingOptionButton";
+import BookingOptionList from "@/components/booking/BookingOptionList";
 import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
@@ -34,8 +35,8 @@ import {
 } from "@/lib/booking/pets";
 
 const SERVICE_OPTIONS = [
-  { value: "full-groom", label: "Bath & Haircut" },
   { value: "bath-brush", label: "Bath Only" },
+  { value: "full-groom", label: "Bath & Haircut" },
 ];
 
 interface BookingFormData {
@@ -431,20 +432,21 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               <h3 className="text-base font-bold text-gray-900">What size dog do you have?</h3>
               <p className="text-xs text-gray-500 mt-1">Tap a size to continue.</p>
             </div>
-            <div className="space-y-2">
+            <BookingOptionList>
               {PET_SIZES.map((size, index) => (
                 <BookingOptionButton
                   key={size.value}
-                  index={index + 1}
-                  title={size.title}
-                  subtitle={size.weight}
+                  title={size.title.replace(" Dog", "")}
+                  subtitle={`(${size.weight})`}
                   icon={<DogSizeIcon size={size.value as "small" | "medium" | "large"} />}
-                  iconSurface="image"
+                  variant="picture"
+                  isFirst={index === 0}
+                  isLast={index === PET_SIZES.length - 1}
                   selected={data.petSize === size.value}
                   onClick={() => handleSelectSize(size.value)}
                 />
               ))}
-            </div>
+            </BookingOptionList>
           </div>
         )}
 
@@ -457,26 +459,25 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               <h3 className="text-base font-bold text-gray-900">Select service</h3>
               <p className="text-xs text-gray-500 mt-1">Tap a package to continue.</p>
             </div>
-            <div className="space-y-2">
+            <BookingOptionList>
               {SERVICE_OPTIONS.map((service, index) => {
                 const quoted = getQuotedServicePrice(data.petSize, service.value, discountActive);
-                const list = getListServicePrice(data.petSize, service.value);
-                const detail =
-                  list != null && quoted != null
-                    ? `${formatPrice(list)} (${formatPrice(quoted)} w/ discount)`
-                    : undefined;
+                const subtitle =
+                  quoted != null ? `${formatPrice(quoted)} with discount applied` : undefined;
                 return (
                   <BookingOptionButton
                     key={service.value}
-                    index={index + 1}
                     title={service.label}
-                    detail={detail}
+                    subtitle={subtitle}
+                    variant="text"
+                    isFirst={index === 0}
+                    isLast={index === SERVICE_OPTIONS.length - 1}
                     selected={data.service === service.value}
                     onClick={() => handleSelectService(service.value)}
                   />
                 );
               })}
-            </div>
+            </BookingOptionList>
           </div>
         )}
 
@@ -619,21 +620,13 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       </div>
 
       {step > 1 && (
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
-          >
-            Back
-          </button>
-
+        <div className="px-4 py-3 border-t border-gray-100 flex flex-col gap-2 shrink-0">
           {step === 4 && (
             <button
               type="button"
               onClick={handleContinueFromAddress}
               disabled={!canProceed()}
-              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Continue
             </button>
@@ -647,11 +640,19 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 void handleSubmit();
               }}
               disabled={!canProceed() || isSubmitting}
-              className="px-5 py-2 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Booking…" : "Book Appointment"}
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleBack}
+            className="w-full px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            Back
+          </button>
         </div>
       )}
     </form>

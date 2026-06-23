@@ -18,24 +18,11 @@ const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading team calendar…</p>,
 });
 
-const StaffPaymentsPanel = dynamic(
-  () => import("@/components/payments/StaffPaymentsPanel"),
-  {
-    loading: () => <p className="text-sm text-gray-500">Loading payments…</p>,
-  }
-);
-
-type Tab =
-  | "leads"
-  | "team-calendar"
-  | "availability"
-  | "upcoming"
-  | "past"
-  | "payments";
+type Tab = "upcoming" | "past" | "leads" | "team-calendar" | "availability";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("leads");
+  const [tab, setTab] = useState<Tab>("upcoming");
   const groomerId = user.groomerId;
 
   async function logout() {
@@ -53,12 +40,11 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   }
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: "upcoming", label: "Upcoming" },
+    { id: "past", label: "Past" },
     { id: "leads", label: "Leads" },
     { id: "team-calendar", label: "Team calendar" },
     { id: "availability", label: "My availability" },
-    { id: "upcoming", label: "Upcoming" },
-    { id: "past", label: "Past" },
-    { id: "payments", label: "Payments" },
   ];
 
   return (
@@ -66,7 +52,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Leads, team calendar, your availability, and appointments."
+        subtitle="Upcoming appointments, leads, and team calendar."
         onLogout={logout}
       >
         <div className="flex flex-wrap gap-2 mb-8">
@@ -87,6 +73,20 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         </div>
 
         <DashboardErrorBoundary>
+          {tab === "upcoming" && (
+            <AppointmentList
+              apiUrl="/api/groomer/appointments"
+              filter="upcoming"
+              currentGroomerId={groomerId}
+            />
+          )}
+          {tab === "past" && (
+            <AppointmentList
+              apiUrl="/api/groomer/appointments"
+              filter="past"
+              currentGroomerId={groomerId}
+            />
+          )}
           {tab === "leads" && (
             <LeadsPanel
               hideJobApplicants
@@ -107,21 +107,6 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
               groomerId={groomerId}
             />
           )}
-          {tab === "upcoming" && (
-            <AppointmentList
-              apiUrl="/api/groomer/appointments"
-              filter="upcoming"
-              currentGroomerId={groomerId}
-            />
-          )}
-          {tab === "past" && (
-            <AppointmentList
-              apiUrl="/api/groomer/appointments"
-              filter="past"
-              currentGroomerId={groomerId}
-            />
-          )}
-          {tab === "payments" && <StaffPaymentsPanel />}
         </DashboardErrorBoundary>
       </SchedulingShell>
     </>

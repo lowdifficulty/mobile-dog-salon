@@ -118,9 +118,6 @@ export default function SchedulingLoginForm({
               </Link>
             </p>
           )}
-          <p className="text-xs text-gray-500">
-            After sign-in, open the <strong>Payments</strong> tab to charge client cards via Square.
-          </p>
         </div>
       </div>
     </SchedulingShell>

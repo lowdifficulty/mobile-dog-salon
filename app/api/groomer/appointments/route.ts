@@ -10,7 +10,10 @@ export async function GET(request: Request) {
     const now = new Date();
 
     const data = await readSchedulingData();
-    let list = data.appointments.filter((a) => a.groomerId === user.groomerId);
+    let list =
+      filter === "upcoming"
+        ? data.appointments
+        : data.appointments.filter((a) => a.groomerId === user.groomerId);
 
     if (filter === "upcoming") {
       list = list.filter((a) => new Date(a.startAt) >= now && a.status === "confirmed");

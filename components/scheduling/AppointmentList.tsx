@@ -136,8 +136,22 @@ export default function AppointmentList({
     );
   }
 
+  const colorByGroomer = filter === "upcoming" && currentGroomerId;
+
   return (
     <div className="space-y-3">
+      {colorByGroomer && (
+        <p className="text-sm text-gray-600 mb-4 flex flex-wrap gap-4">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" aria-hidden />
+            My appointments
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-accent shrink-0" aria-hidden />
+            Other groomers
+          </span>
+        </p>
+      )}
       {actionError && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
           {actionError}
@@ -150,14 +164,18 @@ export default function AppointmentList({
         const petSummary = formatPetsList(appointmentPets);
         const isRescheduling = rescheduleId === ap.id;
         const isBusy = busyId === ap.id;
+        const isOwnAppointment = currentGroomerId && ap.groomerId === currentGroomerId;
+        const cardAccentClass =
+          ap.status === "cancelled"
+            ? "border-gray-300 opacity-80"
+            : colorByGroomer
+              ? isOwnAppointment
+                ? "border-green-500 bg-green-50"
+                : "border-accent bg-accent-light/50"
+              : "border-accent";
 
         return (
-          <div
-            key={ap.id}
-            className={`site-card p-4 border-l-4 ${
-              ap.status === "cancelled" ? "border-gray-300 opacity-80" : "border-accent"
-            }`}
-          >
+          <div key={ap.id} className={`site-card p-4 border-l-4 ${cardAccentClass}`}>
             <div className="flex flex-wrap justify-between gap-2 mb-2">
               <p className="font-bold text-brand">{formatWhen(ap.startAt)}</p>
               <div className="flex items-center gap-2">
@@ -179,7 +197,9 @@ export default function AppointmentList({
             <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
 
-            {filter === "upcoming" && ap.status === "confirmed" && (
+            {filter === "upcoming" &&
+              ap.status === "confirmed" &&
+              (!currentGroomerId || ap.groomerId === currentGroomerId) && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 {!isRescheduling ? (
                   <div className="flex flex-wrap gap-3 items-center">

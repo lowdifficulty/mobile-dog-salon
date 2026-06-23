@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/scheduling/auth";
+import { requireAdmin, requireStaff } from "@/lib/scheduling/auth";
 import { isLeadCurrentlyActive } from "@/lib/leads/activity";
 import { leadMatchesCrmView, withLeadDefaults, type LeadCrmView } from "@/lib/leads/filters";
 import { isFollowUpDue, syncLeadsWithAppointments } from "@/lib/leads/sync";
@@ -9,7 +9,7 @@ const BADGE_VIEWS: LeadCrmView[] = ["scheduled", "complete", "abandoned"];
 
 export async function GET(request: Request) {
   try {
-    await requireAdmin();
+    await requireStaff();
     const { searchParams } = new URL(request.url);
 
     if (searchParams.get("badges") === "1") {

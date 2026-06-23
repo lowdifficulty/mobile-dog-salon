@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import {
+  getAbandonedLeadSubtab,
   hasValidLeadPhone,
   isAbandonedLead,
   isScheduledLead,
+  matchesAbandonedSubtab,
+  type AbandonedLeadSubtab,
   type LeadCrmView,
 } from "@/lib/leads/filters";
 import {
@@ -188,6 +191,13 @@ function LeadTabButton({
   );
 }
 
+const ABANDONED_SUBTABS: { id: AbandonedLeadSubtab; label: string }[] = [
+  { id: "phone", label: "Phone" },
+  { id: "address", label: "Address" },
+  { id: "no_info", label: "No Info" },
+  { id: "all", label: "All" },
+];
+
 const SORT_OPTIONS: { value: LeadSort; label: string }[] = [
   { value: "contact_desc", label: "Contact date: newest" },
   { value: "contact_asc", label: "Contact date: oldest" },
@@ -322,8 +332,15 @@ function VisitOutcomeToggle({
   );
 }
 
-export default function LeadsPanel() {
+export default function LeadsPanel({
+  hideJobApplicants = false,
+  allowDelete = true,
+}: {
+  hideJobApplicants?: boolean;
+  allowDelete?: boolean;
+}) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
+  const [abandonedSubtab, setAbandonedSubtab] = useState<AbandonedLeadSubtab>("all");
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -361,6 +378,9 @@ export default function LeadsPanel() {
     (next: LeadsPanelView) => {
       setView(next);
       setExpandedId(null);
+      if (next === "abandoned") {
+        setAbandonedSubtab("all");
+      }
       if (isLeadBadgeView(next)) {
         const entries = badgeViews[next] ?? [];
         markViewSeen(next, entries);
@@ -392,6 +412,25 @@ export default function LeadsPanel() {
     if (view === "abandoned") return sortAbandonedLeads(leads, sort);
     return sortLeads(leads, sort);
   }, [leads, sort, view]);
+
+  const abandonedSubtabCounts = useMemo(() => {
+    if (view !== "abandoned") return null;
+    const counts: Record<AbandonedLeadSubtab, number> = {
+      phone: 0,
+      address: 0,
+      no_info: 0,
+      all: sortedLeads.length,
+    };
+    for (const lead of sortedLeads) {
+      counts[getAbandonedLeadSubtab(lead)]++;
+    }
+    return counts;
+  }, [sortedLeads, view]);
+
+  const displayedLeads = useMemo(() => {
+    if (view !== "abandoned" || abandonedSubtab === "all") return sortedLeads;
+    return sortedLeads.filter((lead) => matchesAbandonedSubtab(lead, abandonedSubtab));
+  }, [sortedLeads, view, abandonedSubtab]);
 
   const loadLeads = useCallback(() => {
     if (view === "job_applicants") {
@@ -542,18 +581,47 @@ export default function LeadsPanel() {
         >
           Cold storage
         </button>
-        <button
-          type="button"
-          onClick={() => switchToView("job_applicants")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "job_applicants"
-              ? "bg-brand text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Job applicants
-        </button>
+        {!hideJobApplicants && (
+          <button
+            type="button"
+            onClick={() => switchToView("job_applicants")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              view === "job_applicants"
+                ? "bg-brand text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Job applicants
+          </button>
+        )}
       </div>
+
+      {view === "abandoned" && (
+        <div className="flex flex-wrap gap-2">
+          {ABANDONED_SUBTABS.map((subtab) => (
+            <button
+              key={subtab.id}
+              type="button"
+              onClick={() => {
+                setAbandonedSubtab(subtab.id);
+                setExpandedId(null);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                abandonedSubtab === subtab.id
+                  ? "bg-accent text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {subtab.label}
+              {abandonedSubtabCounts && (
+                <span className="ml-1.5 tabular-nums opacity-90">
+                  ({abandonedSubtabCounts[subtab.id]})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {view === "job_applicants" ? (
         <JobApplicantsPanel />
@@ -563,11 +631,18 @@ export default function LeadsPanel() {
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-6">
           {error ?? emptyMessage}
         </p>
+      ) : displayedLeads.length === 0 ? (
+        <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-6">
+          No abandoned leads in this category.
+        </p>
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-gray-600">
-              {leads.length} lead{leads.length === 1 ? "" : "s"}
+              {displayedLeads.length} lead{displayedLeads.length === 1 ? "" : "s"}
+              {view === "abandoned" && abandonedSubtab !== "all" && (
+                <span className="text-gray-500"> · {leads.length} total abandoned</span>
+              )}
               {view === "complete"
                 ? " · Green = complete, red = incomplete · most recent visit first"
                 : view === "scheduled"
@@ -604,7 +679,7 @@ export default function LeadsPanel() {
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="space-y-3">
-            {sortedLeads.map((lead) => {
+            {displayedLeads.map((lead) => {
               const expanded = expandedId === lead.id;
               const busy = savingId === lead.id;
 
@@ -815,14 +890,16 @@ export default function LeadsPanel() {
                             Restore to active
                           </button>
                         )}
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => deleteLead(lead.id)}
-                          className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:opacity-50"
-                        >
-                          Delete permanently
-                        </button>
+                        {allowDelete && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => deleteLead(lead.id)}
+                            className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Delete permanently
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}

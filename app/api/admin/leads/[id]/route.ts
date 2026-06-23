@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/scheduling/auth";
+import { requireAdmin, requireStaff } from "@/lib/scheduling/auth";
 import { cancelAppointment } from "@/lib/scheduling/appointment-actions";
 import { deleteLeadById, updateLeadFields } from "@/lib/leads/store";
 import type { LeadFollowUpMode, LeadListStatus, VisitOutcome } from "@/lib/leads/types";
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await context.params;
     const body = (await request.json()) as {
       followUpMode?: LeadFollowUpMode;

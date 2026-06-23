@@ -1,10 +1,39 @@
 import { normalizePhone } from "./normalize";
+import { isValidBookingContact } from "@/lib/scheduling/address";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
 
 export type LeadCrmView = "abandoned" | "scheduled" | "complete" | "cold_storage";
 
+export type AbandonedLeadSubtab = "phone" | "address" | "no_info" | "all";
+
 export function hasValidLeadPhone(lead: Pick<Lead, "phone">): boolean {
   return normalizePhone(lead.phone ?? "").length >= 10;
+}
+
+export function hasValidLeadAddress(
+  lead: Pick<Lead, "address" | "city" | "zipCode">
+): boolean {
+  return isValidBookingContact(
+    lead.address ?? "",
+    lead.city ?? "",
+    lead.zipCode ?? ""
+  );
+}
+
+export function getAbandonedLeadSubtab(
+  lead: Pick<Lead, "phone" | "address" | "city" | "zipCode">
+): Exclude<AbandonedLeadSubtab, "all"> {
+  if (hasValidLeadPhone(lead)) return "phone";
+  if (hasValidLeadAddress(lead)) return "address";
+  return "no_info";
+}
+
+export function matchesAbandonedSubtab(
+  lead: Pick<Lead, "phone" | "address" | "city" | "zipCode">,
+  subtab: AbandonedLeadSubtab
+): boolean {
+  if (subtab === "all") return true;
+  return getAbandonedLeadSubtab(lead) === subtab;
 }
 
 export function hasSelectedAppointmentTime(lead: {

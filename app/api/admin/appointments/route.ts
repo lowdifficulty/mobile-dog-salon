@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/scheduling/auth";
+import { requireStaff } from "@/lib/scheduling/auth";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 export async function GET(request: Request) {
   try {
-    await requireAdmin();
+    await requireStaff();
     const { searchParams } = new URL(request.url);
     const groomerId = searchParams.get("groomerId") as GroomerId | null;
     const filter = searchParams.get("filter") ?? "upcoming";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/scheduling/auth";
+import { requireStaff } from "@/lib/scheduling/auth";
 import { addLeadNote } from "@/lib/leads/store";
 
 export async function POST(
@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdmin();
+    await requireStaff();
     const { id } = await params;
     const body = await request.json();
     const text = String(body.text ?? "").trim();

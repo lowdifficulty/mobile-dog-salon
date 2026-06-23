@@ -5,10 +5,18 @@ import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
 import AppointmentList from "./AppointmentList";
+import TeamCalendarPanel from "./TeamCalendarPanel";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
+import LeadsPanel from "@/components/leads/LeadsPanel";
 import type { SessionUser } from "@/lib/scheduling/types";
 
-type Tab = "availability" | "upcoming" | "past" | "payments";
+type Tab =
+  | "availability"
+  | "upcoming"
+  | "past"
+  | "leads"
+  | "team-calendar"
+  | "payments";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -24,13 +32,15 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     { id: "availability", label: "My availability" },
     { id: "upcoming", label: "Upcoming" },
     { id: "past", label: "Past" },
+    { id: "leads", label: "Leads" },
+    { id: "team-calendar", label: "Team calendar" },
     { id: "payments", label: "Payments" },
   ];
 
   return (
     <SchedulingShell
       title={`${user.name}'s schedule`}
-      subtitle="Click days on the calendar to set your hours. Customers only see open slots you've marked."
+      subtitle="Manage your schedule, leads, and team availability."
       onLogout={logout}
     >
       <div className="flex flex-wrap gap-2 mb-8">
@@ -62,6 +72,10 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       {tab === "past" && (
         <AppointmentList apiUrl="/api/groomer/appointments" filter="past" />
       )}
+      {tab === "leads" && (
+        <LeadsPanel hideJobApplicants allowDelete={false} />
+      )}
+      {tab === "team-calendar" && <TeamCalendarPanel availabilityOnly />}
       {tab === "payments" && <StaffPaymentsPanel />}
     </SchedulingShell>
   );

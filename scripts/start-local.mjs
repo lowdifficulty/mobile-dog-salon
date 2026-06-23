@@ -35,10 +35,24 @@ async function waitForServer(port, maxAttempts = 120) {
 function killPort(port) {
   try {
     if (isWin) {
-      execSync(
-        `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
-        { stdio: "ignore" }
-      );
+      const out = execSync(`netstat -ano | findstr :${port}`, {
+        encoding: "utf8",
+        shell: true,
+      });
+      const pids = new Set();
+      for (const line of out.split("\n")) {
+        if (!line.includes("LISTENING")) continue;
+        const parts = line.trim().split(/\s+/);
+        const pid = Number.parseInt(parts[parts.length - 1], 10);
+        if (pid > 0) pids.add(pid);
+      }
+      for (const pid of pids) {
+        try {
+          execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore", shell: true });
+        } catch {
+          // process already exited
+        }
+      }
     } else {
       execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
         shell: true,
@@ -88,6 +102,7 @@ async function main() {
     const ready = await waitForServer(PORT);
     if (ready) {
       console.log(`Opening ${localUrl} in your browser...`);
+      console.log("If groomer tabs look outdated, hard-refresh (Ctrl+Shift+R) or clear site data for localhost.");
       openBrowser(localUrl);
     } else {
       console.log(`Server did not respond. Open ${localUrl} manually if it is running.`);

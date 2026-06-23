@@ -55,7 +55,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         subtitle="Upcoming appointments, leads, and team calendar."
         onLogout={logout}
       >
-        <div className="flex flex-wrap gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-8" data-groomer-tabs="v2">
           {tabs.map((t) => (
             <button
               key={t.id}

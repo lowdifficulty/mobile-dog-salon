@@ -25,7 +25,10 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/groomer/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+        ],
       },
     ];
   },

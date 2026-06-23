@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { PET_SIZES } from "@/lib/constants";
 import {
   formatPrice,
@@ -15,9 +14,9 @@ import BookingOptionButton, {
   DogSizeIcon,
 } from "@/components/booking/BookingOptionButton";
 import BookingOptionList from "@/components/booking/BookingOptionList";
-import { legalRoutes } from "@/lib/company-legal";
 import type { AvailableSlot } from "@/lib/scheduling/types";
-import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
+import { parseSlotKey, slotToISO, getTodayPacificDate, isBookableDate } from "@/lib/scheduling/slots";
+import { GROOMERS, formatBookingBlockDisplay } from "@/lib/scheduling/groomers";
 import {
   isValidBookingContact,
 } from "@/lib/scheduling/address";
@@ -82,6 +81,19 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
+function isLocalhostHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function getDevSkipBookableDate(): string {
+  const today = getTodayPacificDate();
+  const [year, month, day] = today.split("-").map(Number);
+  const probe = new Date(Date.UTC(year, month - 1, day + 1, 12));
+  const next = probe.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  return isBookableDate(next) ? next : today;
+}
+
 interface BookingFlowFormProps {
   onClose?: () => void;
 }
@@ -94,10 +106,12 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [isLocalhost, setIsLocalhost] = useState(false);
 
   const discountActive = true;
 
   useEffect(() => {
+    setIsLocalhost(isLocalhostHost());
     warmMetaPixel();
     void saveLead({ funnelStep: "view_form", source: "booking" });
     void pingLeadActivity();
@@ -131,6 +145,26 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     persistLead("schedule_appointment", {
       groomerId,
       groomerName: slot.groomerName,
+      appointmentStartAt: slotToISO(date, time),
+    });
+    setStep(4);
+  };
+
+  const handleSkipAppointmentStep = () => {
+    const groomerId = "melanie";
+    const date = getDevSkipBookableDate();
+    const time = "10:00";
+    const slotKey = `${groomerId}|${date}|${time}`;
+    setData((prev) => ({
+      ...prev,
+      slotKey,
+      preferredDate: date,
+      preferredTime: formatBookingBlockDisplay(time),
+      groomerName: GROOMERS[groomerId].name,
+    }));
+    persistLead("schedule_appointment", {
+      groomerId,
+      groomerName: GROOMERS[groomerId].name,
       appointmentStartAt: slotToISO(date, time),
     });
     setStep(4);
@@ -507,6 +541,15 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               }}
               onSelectSlot={selectSlot}
             />
+            {isLocalhost && (
+              <button
+                type="button"
+                onClick={handleSkipAppointmentStep}
+                className="w-full px-4 py-2.5 text-sm font-medium text-gray-500 border border-dashed border-gray-300 rounded-xl hover:text-gray-700 hover:border-gray-400"
+              >
+                Skip (localhost only)
+              </button>
+            )}
           </div>
         )}
 
@@ -563,38 +606,24 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                   />
                 </div>
               </div>
-              <div className="pt-3 border-t border-gray-100 space-y-3">
-                <h3 className="text-base font-bold text-gray-900">Send Text Confirmation To*</h3>
-                <div>
-                  <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                    Phone Number for Text Confirmation
-                  </label>
-                  <input
-                    id="booking-phone"
-                    name="tel"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    value={data.phone}
-                    onChange={(e) => update("phone", e.target.value)}
-                    placeholder="(714) 555-0123"
-                    className={inputClass}
-                  />
-                </div>
+              <div>
+                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                  Phone Number for Text Confirmation *
+                </label>
+                <input
+                  id="booking-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={data.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="(714) 555-0123"
+                  className={inputClass}
+                />
               </div>
             </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
-            <p className="text-[11px] leading-relaxed text-gray-500">
-              By booking, you agree to our{" "}
-              <Link href={legalRoutes.privacy} className="font-medium text-brand hover:text-accent">
-                Privacy Policy
-              </Link>{" "}
-              and{" "}
-              <Link href={legalRoutes.terms} className="font-medium text-brand hover:text-accent">
-                Terms &amp; Conditions
-              </Link>
-              .
-            </p>
           </div>
         )}
       </div>

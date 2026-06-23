@@ -68,16 +68,9 @@ const initialData: BookingFormData = {
 };
 
 const STEP_COUNT = 5;
-const SLOT_HOLD_SECONDS = 10 * 60;
 
 const inputClass =
   "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
-
-function formatHoldCountdown(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 function splitName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -98,37 +91,8 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [holdSecondsLeft, setHoldSecondsLeft] = useState(SLOT_HOLD_SECONDS);
 
   const discountActive = true;
-
-  useEffect(() => {
-    if (submitted || isSubmitting) return;
-    setHoldSecondsLeft(SLOT_HOLD_SECONDS);
-  }, [data.slotKey, submitted, isSubmitting]);
-
-  useEffect(() => {
-    if (step < 4 || step > 5 || submitted || isSubmitting) return;
-
-    const interval = window.setInterval(() => {
-      setHoldSecondsLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-
-    return () => window.clearInterval(interval);
-  }, [step, submitted, isSubmitting]);
-
-  useEffect(() => {
-    if (step < 4 || step > 5 || holdSecondsLeft > 0 || submitted || isSubmitting) return;
-
-    setData((prev) => ({
-      ...prev,
-      slotKey: "",
-      preferredDate: "",
-      preferredTime: "",
-      groomerName: "",
-    }));
-    setStep(3);
-  }, [step, holdSecondsLeft, submitted, isSubmitting]);
 
   useEffect(() => {
     warmMetaPixel();
@@ -548,18 +512,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         {step === 4 && (
           <div className="space-y-4">
             {appointmentSummary()}
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
-              <p className="text-xs font-medium text-amber-900">
-                Your appointment will be held for 10 minutes
-              </p>
-              <p
-                className="text-2xl font-bold tabular-nums text-amber-950 mt-1"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {formatHoldCountdown(holdSecondsLeft)}
-              </p>
-            </div>
             <div className="space-y-3">
               <h3 className="text-base font-bold text-gray-900">Address</h3>
               <div>
@@ -617,18 +569,6 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         {step === 5 && (
           <div className="space-y-4">
             {appointmentSummary("50% Discount Activated — Last Step!")}
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
-              <p className="text-xs font-medium text-amber-900">
-                Your appointment will be held for 10 minutes
-              </p>
-              <p
-                className="text-2xl font-bold tabular-nums text-amber-950 mt-1"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {formatHoldCountdown(holdSecondsLeft)}
-              </p>
-            </div>
             <div className="space-y-3">
               <h3 className="text-base font-bold text-gray-900">Contact information</h3>
               <div>

@@ -14,6 +14,7 @@ export function draftToBookingPet(pet: DraftPet): BookingPet {
 }
 
 export function getPetSizeLabel(size: string): string {
+  if (size === "cat") return "Cat";
   return PET_SIZES.find((entry) => entry.value === size)?.title ?? size;
 }
 

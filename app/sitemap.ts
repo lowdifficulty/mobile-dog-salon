@@ -8,6 +8,7 @@ const PER_PAGE = 12;
 const STATIC_ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
   { path: ROUTES.home, priority: 1, changeFrequency: "weekly" },
   { path: ROUTES.book, priority: 0.9, changeFrequency: "weekly" },
+  { path: ROUTES.bookCats, priority: 0.85, changeFrequency: "weekly" },
   { path: ROUTES.services, priority: 0.85, changeFrequency: "monthly" },
   { path: ROUTES.mobileSpa, priority: 0.8, changeFrequency: "monthly" },
   { path: ROUTES.bathing, priority: 0.8, changeFrequency: "monthly" },

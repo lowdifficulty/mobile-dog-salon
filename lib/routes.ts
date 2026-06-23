@@ -3,6 +3,7 @@ import { IMAGE_SLOTS } from "@/lib/images";
 export const ROUTES = {
   home: "/",
   book: "/book",
+  bookCats: "/book-cats",
   about: "/about",
   ourGroomers: "/about/our-groomers",
   ourVans: "/about/our-vans",

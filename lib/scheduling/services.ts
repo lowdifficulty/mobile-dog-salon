@@ -6,6 +6,8 @@ export const SERVICE_DURATION_MINUTES: Record<string, number> = {
   signature: 120,
   "bath-brush": 90,
   "full-groom": 120,
+  "cat-bath": 90,
+  "cat-groom": 120,
   "nail-only": 30,
   "teeth-only": 30,
 };

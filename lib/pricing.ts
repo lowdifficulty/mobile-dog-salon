@@ -13,6 +13,46 @@ export const GROOMING_SERVICES = [
 
 export type GroomingServiceId = (typeof GROOMING_SERVICES)[number]["value"];
 
+export type CatServiceId = "cat-bath" | "cat-groom";
+
+export const CAT_PET_SIZE = "cat";
+
+export const CAT_GROOMING_SERVICES = [
+  {
+    value: "cat-bath" as const,
+    label: "Cat Bath",
+    description: "Bath, brush, nails, clean ears",
+  },
+  {
+    value: "cat-groom" as const,
+    label: "Cat Haircut",
+    description: "Haircut includes a bath",
+  },
+];
+
+/** List prices before the 50% discount */
+export const CAT_SERVICE_LIST_PRICING: Record<CatServiceId, number> = {
+  "cat-bath": 200,
+  "cat-groom": 260,
+};
+
+export function isCatService(service: string): boolean {
+  return service === "cat-bath" || service === "cat-groom";
+}
+
+export function getCatServiceListPrice(service: string): number | null {
+  if (service in CAT_SERVICE_LIST_PRICING) {
+    return CAT_SERVICE_LIST_PRICING[service as CatServiceId];
+  }
+  return null;
+}
+
+export function getCatQuotedServicePrice(service: string, discountActive: boolean): number | null {
+  const list = getCatServiceListPrice(service);
+  if (list == null) return null;
+  return discountActive ? list / 2 : list;
+}
+
 /** Prices in USD by size tier and service */
 export const SERVICE_PRICING: Record<
   PetSizeTier,
@@ -42,6 +82,9 @@ export function getServicePrice(
   petSize: string,
   service: string
 ): number | null {
+  if (petSize === CAT_PET_SIZE || isCatService(service)) {
+    return getCatQuotedServicePrice(service, true);
+  }
   const tier = normalizePetSize(petSize);
   const prices = SERVICE_PRICING[tier];
   if (service in prices) {
@@ -63,6 +106,9 @@ export function getListServicePrice(
   petSize: string,
   service: string
 ): number | null {
+  if (petSize === CAT_PET_SIZE || isCatService(service)) {
+    return getCatServiceListPrice(service);
+  }
   const discounted = getDiscountedServicePrice(petSize, service);
   return discounted != null ? discounted * 2 : null;
 }
@@ -82,7 +128,13 @@ export function formatPrice(amount: number): string {
 }
 
 export function getServiceLabel(service: string): string {
+  const cat = CAT_GROOMING_SERVICES.find((s) => s.value === service);
+  if (cat) return cat.label;
   return (
     GROOMING_SERVICES.find((s) => s.value === service)?.label ?? service
   );
+}
+
+export function getCatServiceDescription(service: string): string | undefined {
+  return CAT_GROOMING_SERVICES.find((s) => s.value === service)?.description;
 }

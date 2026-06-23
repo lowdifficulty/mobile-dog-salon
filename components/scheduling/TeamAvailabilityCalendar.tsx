@@ -51,7 +51,11 @@ function emptyRows(): RowsByGroomer {
   return { melanie: {}, diamond: {} };
 }
 
-export default function TeamAvailabilityCalendar() {
+export default function TeamAvailabilityCalendar({
+  availabilityApi = "/api/admin/availability",
+}: {
+  availabilityApi?: string;
+}) {
   const today = getTodayPacificDate();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
@@ -68,7 +72,7 @@ export default function TeamAvailabilityCalendar() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/admin/availability");
+    const res = await fetch(availabilityApi);
     if (!res.ok) {
       setError("Could not load team availability. Try signing in again.");
       setLoading(false);
@@ -83,7 +87,7 @@ export default function TeamAvailabilityCalendar() {
     }
     setRows(next);
     setLoading(false);
-  }, []);
+  }, [availabilityApi]);
 
   useEffect(() => {
     load();

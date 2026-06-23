@@ -34,6 +34,8 @@ import {
 } from "@/lib/leads/appointment-fields";
 import { getServiceLabel } from "@/lib/pricing";
 import JobApplicantsPanel from "@/components/leads/JobApplicantsPanel";
+import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
+import type { GroomerId } from "@/lib/scheduling/types";
 
 type LeadsPanelView = LeadCrmView | "job_applicants";
 
@@ -335,9 +337,13 @@ function VisitOutcomeToggle({
 export default function LeadsPanel({
   hideJobApplicants = false,
   allowDelete = true,
+  apiBase = "/api/admin/leads",
+  currentGroomerId,
 }: {
   hideJobApplicants?: boolean;
   allowDelete?: boolean;
+  apiBase?: string;
+  currentGroomerId?: GroomerId;
 }) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
   const [abandonedSubtab, setAbandonedSubtab] = useState<AbandonedLeadSubtab>("all");
@@ -356,7 +362,7 @@ export default function LeadsPanel({
   });
 
   const loadBadges = useCallback(() => {
-    return fetch("/api/admin/leads?badges=1")
+    return fetch(`${apiBase}?badges=1`)
       .then((r) => {
         if (!r.ok) throw new Error("Unauthorized");
         return r.json();
@@ -372,7 +378,7 @@ export default function LeadsPanel({
         return views;
       })
       .catch(() => undefined);
-  }, []);
+  }, [apiBase]);
 
   const switchToView = useCallback(
     (next: LeadsPanelView) => {
@@ -439,15 +445,25 @@ export default function LeadsPanel({
     }
     setLoading(true);
     setError(null);
-    return fetch(`/api/admin/leads?view=${view}`)
+    return fetch(`${apiBase}?view=${view}`)
       .then((r) => {
         if (!r.ok) throw new Error("Unauthorized");
         return r.json();
       })
-      .then((d) => setLeads(d.leads ?? []))
+      .then((d) =>
+        setLeads(
+          (d.leads ?? []).map((lead: LeadRow) => ({
+            ...lead,
+            notes: lead.notes ?? [],
+            followUpMode: lead.followUpMode ?? "fu",
+            visitOutcome: lead.visitOutcome ?? "incomplete",
+            listStatus: lead.listStatus ?? "active",
+          }))
+        )
+      )
       .catch(() => setError("Could not load leads."))
       .finally(() => setLoading(false));
-  }, [view]);
+  }, [view, apiBase]);
 
   useEffect(() => {
     if (view === "job_applicants") {
@@ -468,7 +484,7 @@ export default function LeadsPanel({
     setSavingId(leadId);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/leads/${leadId}`, {
+      const res = await fetch(`${apiBase}/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -504,7 +520,7 @@ export default function LeadsPanel({
     setSavingId(leadId);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/leads/${leadId}`, { method: "DELETE" });
+      const res = await fetch(`${apiBase}/${leadId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed");
       setExpandedId(null);
       await loadLeads();
@@ -523,7 +539,7 @@ export default function LeadsPanel({
     setSavingId(leadId);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/leads/${leadId}/notes`, {
+      const res = await fetch(`${apiBase}/${leadId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -686,7 +702,7 @@ export default function LeadsPanel({
               return (
                 <article
                   key={lead.id}
-                  className={`rounded-xl border overflow-hidden ${rowStyle(lead, view)}`}
+                  className={`rounded-xl border overflow-hidden ${rowStyle(lead, view as LeadCrmView)}`}
                 >
                   <button
                     type="button"
@@ -890,6 +906,13 @@ export default function LeadsPanel({
                             Restore to active
                           </button>
                         )}
+                        <SendToGroomerButton
+                          type="lead"
+                          leadId={lead.id}
+                          currentGroomerId={currentGroomerId}
+                          disabled={busy}
+                          onSent={() => loadLeads()}
+                        />
                         {allowDelete && (
                           <button
                             type="button"

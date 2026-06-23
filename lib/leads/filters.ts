@@ -1,5 +1,4 @@
 import { normalizePhone } from "./normalize";
-import { isValidBookingContact } from "@/lib/scheduling/address";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
 
 export type LeadCrmView = "abandoned" | "scheduled" | "complete" | "cold_storage";
@@ -13,11 +12,10 @@ export function hasValidLeadPhone(lead: Pick<Lead, "phone">): boolean {
 export function hasValidLeadAddress(
   lead: Pick<Lead, "address" | "city" | "zipCode">
 ): boolean {
-  return isValidBookingContact(
-    lead.address ?? "",
-    lead.city ?? "",
-    lead.zipCode ?? ""
-  );
+  const address = (lead.address ?? "").trim();
+  const city = (lead.city ?? "").trim();
+  const zip = (lead.zipCode ?? "").trim();
+  return address.length >= 3 && city.length >= 2 && /^\d{5}(-\d{4})?$/.test(zip);
 }
 
 export function getAbandonedLeadSubtab(
@@ -74,6 +72,7 @@ export function isCompletedVisitLead(lead: {
 export function withLeadDefaults(lead: Lead): Lead {
   return {
     ...lead,
+    notes: lead.notes ?? [],
     followUpMode: lead.followUpMode ?? "fu",
     visitOutcome: lead.visitOutcome ?? "incomplete",
     listStatus: lead.listStatus ?? "active",

@@ -6,7 +6,8 @@ import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/bookin
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
-import type { Appointment, AvailableSlot } from "@/lib/scheduling/types";
+import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
+import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 
 function formatWhen(startAt: string) {
   return new Date(startAt).toLocaleString("en-US", {
@@ -22,9 +23,11 @@ function formatWhen(startAt: string) {
 export default function AppointmentList({
   apiUrl,
   filter,
+  currentGroomerId,
 }: {
   apiUrl: string;
   filter: "upcoming" | "past";
+  currentGroomerId?: GroomerId;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,7 +182,7 @@ export default function AppointmentList({
             {filter === "upcoming" && ap.status === "confirmed" && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 {!isRescheduling ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     <button
                       type="button"
                       onClick={() => openReschedule(ap)}
@@ -188,6 +191,13 @@ export default function AppointmentList({
                     >
                       Reschedule
                     </button>
+                    <SendToGroomerButton
+                      type="appointment"
+                      appointmentId={ap.id}
+                      currentGroomerId={currentGroomerId ?? ap.groomerId}
+                      disabled={isBusy}
+                      onSent={() => loadAppointments()}
+                    />
                     <button
                       type="button"
                       onClick={() => handleCancel(ap)}

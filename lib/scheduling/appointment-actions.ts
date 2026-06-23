@@ -186,3 +186,83 @@ export async function rescheduleAppointment(
 
   return { ok: true, appointment };
 }
+
+export async function transferAppointmentToGroomer(
+  appointmentId: string,
+  toGroomerId: GroomerId,
+  actor: string
+): Promise<AppointmentActionResult> {
+  const data = await readSchedulingData();
+  const appointment = findAppointment(data.appointments, appointmentId);
+
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.status === "cancelled") {
+    return { ok: false, error: "Cannot transfer a cancelled appointment", status: 409 };
+  }
+  if (appointment.groomerId === toGroomerId) {
+    return { ok: true, appointment };
+  }
+
+  const { date, time } = parseSlotFromIso(appointment.startAt);
+  const dayAvail = data.availability.find(
+    (a) => a.groomerId === toGroomerId && a.date === date
+  );
+  if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+    return {
+      ok: false,
+      error: "Groomer is not available for a 2-hour appointment at that time",
+      status: 409,
+    };
+  }
+
+  if (
+    isSlotTaken(
+      toGroomerId,
+      date,
+      time,
+      appointment.durationMinutes,
+      data.appointments,
+      appointment.id
+    )
+  ) {
+    return { ok: false, error: "That time slot is no longer available", status: 409 };
+  }
+
+  restoreGroomerAvailability(
+    data,
+    appointment.groomerId,
+    date,
+    time,
+    appointment.durationMinutes
+  );
+
+  appointment.groomerId = toGroomerId;
+  clearReminderFlags(appointment);
+
+  consumeGroomerAvailability(
+    data,
+    toGroomerId,
+    date,
+    time,
+    appointment.durationMinutes
+  );
+
+  await writeSchedulingData(data, {
+    action: "appointment_reschedule",
+    actor,
+    groomerId: toGroomerId,
+  });
+
+  try {
+    const { scheduleAppointmentReminders } = await import(
+      "@/lib/notifications/schedule-reminders"
+    );
+    await scheduleAppointmentReminders(appointment);
+  } catch (err) {
+    console.error("Reminder reschedule failed:", err);
+  }
+
+  return { ok: true, appointment };
+}

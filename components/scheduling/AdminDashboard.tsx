@@ -52,9 +52,11 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {tab === "leads" && <LeadsPanel />}
+      {tab === "leads" && <LeadsPanel apiBase="/api/staff/leads" />}
       {tab === "analytics" && <FunnelAnalyticsPanel />}
-      {tab === "team-calendar" && <TeamCalendarPanel />}
+      {tab === "team-calendar" && (
+        <TeamCalendarPanel availabilityApi="/api/staff/availability" />
+      )}
       {tab === "qa" && <QaDiagnosticsPanel />}
       {tab === "payments" && <StaffPaymentsPanel />}
     </SchedulingShell>

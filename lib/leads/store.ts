@@ -199,7 +199,9 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
 
 export async function updateLeadFields(
   leadId: string,
-  patch: Partial<Pick<Lead, "followUpMode" | "visitOutcome" | "listStatus">>
+  patch: Partial<
+    Pick<Lead, "followUpMode" | "visitOutcome" | "listStatus" | "groomerId" | "groomerName">
+  >
 ): Promise<Lead | null> {
   const data = await readLeadsData();
   const index = data.leads.findIndex((l) => l.id === leadId);
@@ -214,6 +216,12 @@ export async function updateLeadFields(
   }
   if (patch.listStatus !== undefined) {
     lead.listStatus = patch.listStatus;
+  }
+  if (patch.groomerId !== undefined) {
+    lead.groomerId = patch.groomerId;
+  }
+  if (patch.groomerName !== undefined) {
+    lead.groomerName = patch.groomerName;
   }
   lead.updatedAt = new Date().toISOString();
   data.leads[index] = lead;
@@ -252,6 +260,13 @@ export async function addLeadNote(leadId: string, text: string): Promise<Lead | 
 
   await writeLeadsData(data);
   return data.leads[idx];
+}
+
+export async function getLeadByAppointmentId(
+  appointmentId: string
+): Promise<Lead | null> {
+  const data = await readLeadsData();
+  return data.leads.find((l) => l.appointmentId === appointmentId) ?? null;
 }
 
 export async function getLeadById(leadId: string): Promise<Lead | null> {

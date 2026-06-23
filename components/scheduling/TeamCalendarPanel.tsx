@@ -20,8 +20,10 @@ type GroomerFilter = GroomerId | "all";
 
 export default function TeamCalendarPanel({
   availabilityOnly = false,
+  availabilityApi = "/api/admin/availability",
 }: {
   availabilityOnly?: boolean;
+  availabilityApi?: string;
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
@@ -74,7 +76,9 @@ export default function TeamCalendarPanel({
         </div>
       )}
 
-      {tab === "calendar" && <TeamAvailabilityCalendar />}
+      {tab === "calendar" && (
+        <TeamAvailabilityCalendar availabilityApi={availabilityApi} />
+      )}
       {tab === "history" && <AvailabilityHistoryPanel />}
       {tab === "upcoming" && (
         <AppointmentList apiUrl={appointmentApi} filter="upcoming" />

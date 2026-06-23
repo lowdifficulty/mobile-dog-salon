@@ -67,7 +67,7 @@ const initialData: BookingFormData = {
   groomerName: "",
 };
 
-const STEP_COUNT = 4;
+const STEP_COUNT = 5;
 const SLOT_HOLD_SECONDS = 10 * 60;
 
 const inputClass =
@@ -103,18 +103,22 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const discountActive = true;
 
   useEffect(() => {
-    if (step !== 4 || submitted || isSubmitting) return;
-
+    if (submitted || isSubmitting) return;
     setHoldSecondsLeft(SLOT_HOLD_SECONDS);
+  }, [data.slotKey, submitted, isSubmitting]);
+
+  useEffect(() => {
+    if (step < 4 || step > 5 || submitted || isSubmitting) return;
+
     const interval = window.setInterval(() => {
       setHoldSecondsLeft((prev) => Math.max(0, prev - 1));
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [step, data.slotKey, submitted, isSubmitting]);
+  }, [step, submitted, isSubmitting]);
 
   useEffect(() => {
-    if (step !== 4 || holdSecondsLeft > 0 || submitted || isSubmitting) return;
+    if (step < 4 || step > 5 || holdSecondsLeft > 0 || submitted || isSubmitting) return;
 
     setData((prev) => ({
       ...prev,
@@ -226,10 +230,10 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     setStep(step - 1);
   };
 
-  const handleBookFromAddress = () => {
-    if (!canProceed()) return;
-    persistLead("contact_info");
-    void handleSubmit();
+  const handleContinueFromAddress = () => {
+    if (!isValidBookingContact(data.address, data.city, data.zipCode)) return;
+    persistLead("address");
+    setStep(5);
   };
 
   const canProceed = () => {
@@ -241,10 +245,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       case 3:
         return Boolean(data.slotKey);
       case 4:
-        return (
-          isValidBookingContact(data.address, data.city, data.zipCode) &&
-          isValidBookingContactInfo(data.fullName, data.phone)
-        );
+        return isValidBookingContact(data.address, data.city, data.zipCode);
+      case 5:
+        return isValidBookingContactInfo(data.fullName, data.phone);
       default:
         return false;
     }
@@ -544,7 +547,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
 
         {step === 4 && (
           <div className="space-y-4">
-            {appointmentSummary("50% Discount Activated — Last Step!")}
+            {appointmentSummary()}
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
               <p className="text-xs font-medium text-amber-900">
                 Your appointment will be held for 10 minutes
@@ -558,38 +561,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               </p>
             </div>
             <div className="space-y-3">
-              <h3 className="text-base font-bold text-gray-900">Contact &amp; address</h3>
-              <div>
-                <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
-                  Name *
-                </label>
-                <input
-                  id="booking-name"
-                  name="name"
-                  type="text"
-                  value={data.fullName}
-                  onChange={(e) => update("fullName", e.target.value)}
-                  placeholder="Your full name"
-                  autoComplete="name"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
-                  Phone number *
-                </label>
-                <input
-                  id="booking-phone"
-                  name="tel"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={data.phone}
-                  onChange={(e) => update("phone", e.target.value)}
-                  placeholder="(714) 555-0123"
-                  className={inputClass}
-                />
-              </div>
+              <h3 className="text-base font-bold text-gray-900">Address</h3>
               <div>
                 <label htmlFor="booking-address" className="block text-xs font-medium text-gray-700 mb-1">
                   Street address *
@@ -639,6 +611,58 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="space-y-4">
+            {appointmentSummary("50% Discount Activated — Last Step!")}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
+              <p className="text-xs font-medium text-amber-900">
+                Your appointment will be held for 10 minutes
+              </p>
+              <p
+                className="text-2xl font-bold tabular-nums text-amber-950 mt-1"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {formatHoldCountdown(holdSecondsLeft)}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-gray-900">Contact information</h3>
+              <div>
+                <label htmlFor="booking-name" className="block text-xs font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  id="booking-name"
+                  name="name"
+                  type="text"
+                  value={data.fullName}
+                  onChange={(e) => update("fullName", e.target.value)}
+                  placeholder="Your full name"
+                  autoComplete="name"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="booking-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                  Phone number *
+                </label>
+                <input
+                  id="booking-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={data.phone}
+                  onChange={(e) => update("phone", e.target.value)}
+                  placeholder="(714) 555-0123"
+                  className={inputClass}
+                />
+              </div>
+            </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}
             <p className="text-[11px] leading-relaxed text-gray-500">
               By booking, you agree to our{" "}
@@ -660,7 +684,21 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
           {step === 4 && (
             <button
               type="button"
-              onClick={handleBookFromAddress}
+              onClick={handleContinueFromAddress}
+              disabled={!canProceed()}
+              className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continue
+            </button>
+          )}
+
+          {step === 5 && (
+            <button
+              type="button"
+              onClick={() => {
+                persistLead("contact_info");
+                void handleSubmit();
+              }}
               disabled={!canProceed() || isSubmitting}
               className="w-full px-5 py-3 bg-brand text-white text-sm font-semibold rounded-full hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
             >

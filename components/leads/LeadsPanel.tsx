@@ -34,6 +34,10 @@ import {
 } from "@/lib/leads/appointment-fields";
 import { getServiceLabel } from "@/lib/pricing";
 import JobApplicantsPanel from "@/components/leads/JobApplicantsPanel";
+import LeadDetailsEditor, {
+  leadToFormValues,
+  type LeadDetailsFormValues,
+} from "@/components/leads/LeadDetailsEditor";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 import type { GroomerId } from "@/lib/scheduling/types";
 
@@ -350,6 +354,7 @@ export default function LeadsPanel({
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -384,6 +389,7 @@ export default function LeadsPanel({
     (next: LeadsPanelView) => {
       setView(next);
       setExpandedId(null);
+      setEditingId(null);
       if (next === "abandoned") {
         setAbandonedSubtab("all");
       }
@@ -479,7 +485,7 @@ export default function LeadsPanel({
       followUpMode?: LeadFollowUpMode;
       visitOutcome?: VisitOutcome;
       listStatus?: LeadListStatus;
-    }
+    } & Partial<LeadDetailsFormValues>
   ) {
     setSavingId(leadId);
     setError(null);
@@ -489,7 +495,10 @@ export default function LeadsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed");
+      }
       if (
         body.listStatus === "cold_storage" &&
         (view === "abandoned" || view === "scheduled" || view === "complete")
@@ -501,11 +510,16 @@ export default function LeadsPanel({
       }
       await loadLeads();
       await loadBadges();
-    } catch {
-      setError("Could not update lead.");
+      setEditingId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update lead.");
     } finally {
       setSavingId(null);
     }
+  }
+
+  async function saveLeadDetails(leadId: string, values: LeadDetailsFormValues) {
+    await patchLead(leadId, values);
   }
 
   async function deleteLead(leadId: string) {
@@ -788,6 +802,16 @@ export default function LeadsPanel({
 
                   {expanded && (
                     <div className="border-t border-gray-200/80 px-4 py-4 space-y-4 bg-white/60">
+                      {editingId === lead.id ? (
+                        <LeadDetailsEditor
+                          leadId={lead.id}
+                          initial={leadToFormValues(lead)}
+                          busy={busy}
+                          onSave={saveLeadDetails}
+                          onCancel={() => setEditingId(null)}
+                        />
+                      ) : (
+                        <>
                       <div className="grid sm:grid-cols-2 gap-3 text-sm">
                         <p>
                           <span className="text-gray-400">Email:</span> {lead.email || "—"}
@@ -835,6 +859,15 @@ export default function LeadsPanel({
                           </p>
                         )}
                       </div>
+
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setEditingId(lead.id)}
+                        className="text-sm font-semibold text-brand hover:text-accent underline disabled:opacity-50"
+                      >
+                        Edit lead details
+                      </button>
 
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
@@ -924,6 +957,8 @@ export default function LeadsPanel({
                           </button>
                         )}
                       </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </article>

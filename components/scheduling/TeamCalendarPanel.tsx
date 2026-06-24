@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AppointmentList from "./AppointmentList";
+import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import TeamAvailabilityCalendar from "./TeamAvailabilityCalendar";
 import AvailabilityHistoryPanel from "./AvailabilityHistoryPanel";
 import { GROOMERS } from "@/lib/scheduling/groomers";
@@ -27,6 +28,7 @@ export default function TeamCalendarPanel({
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
+  const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
 
   const appointmentApi =
     groomerId === "all"
@@ -81,7 +83,19 @@ export default function TeamCalendarPanel({
       )}
       {tab === "history" && <AvailabilityHistoryPanel />}
       {tab === "upcoming" && (
-        <AppointmentList apiUrl={appointmentApi} filter="upcoming" />
+        <>
+          <StaffBookAppointmentForm
+            defaultGroomerId={groomerId === "all" ? "melanie" : groomerId}
+            allowGroomerPick={groomerId === "all"}
+            onBooked={() => setAppointmentRefreshKey((key) => key + 1)}
+          />
+          <AppointmentList
+            key={appointmentRefreshKey}
+            apiUrl={appointmentApi}
+            filter="upcoming"
+            allowOverrideAvailability
+          />
+        </>
       )}
       {tab === "past" && <AppointmentList apiUrl={appointmentApi} filter="past" />}
     </div>

@@ -32,7 +32,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         id,
         slotKey,
         user.email,
-        groomerOptions
+        {
+          ...groomerOptions,
+          overrideAvailability: Boolean(body.overrideAvailability),
+          allowSameDay: Boolean(body.overrideAvailability),
+        }
       );
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });

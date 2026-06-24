@@ -200,7 +200,25 @@ export async function upsertLead(input: LeadUpsertInput): Promise<Lead> {
 export async function updateLeadFields(
   leadId: string,
   patch: Partial<
-    Pick<Lead, "followUpMode" | "visitOutcome" | "listStatus" | "groomerId" | "groomerName">
+    Pick<
+      Lead,
+      | "followUpMode"
+      | "visitOutcome"
+      | "listStatus"
+      | "groomerId"
+      | "groomerName"
+      | "phone"
+      | "firstName"
+      | "lastName"
+      | "fullName"
+      | "email"
+      | "petName"
+      | "petSize"
+      | "service"
+      | "address"
+      | "city"
+      | "zipCode"
+    >
   >
 ): Promise<Lead | null> {
   const data = await readLeadsData();
@@ -223,6 +241,55 @@ export async function updateLeadFields(
   if (patch.groomerName !== undefined) {
     lead.groomerName = patch.groomerName;
   }
+  if (patch.phone !== undefined) {
+    lead.phone = patch.phone;
+  }
+  if (patch.firstName !== undefined) {
+    lead.firstName = patch.firstName;
+  }
+  if (patch.lastName !== undefined) {
+    lead.lastName = patch.lastName;
+  }
+  if (patch.fullName !== undefined) {
+    lead.fullName = patch.fullName;
+  }
+  if (patch.email !== undefined) {
+    lead.email = patch.email;
+  }
+  if (patch.petName !== undefined) {
+    lead.petName = patch.petName;
+  }
+  if (patch.petSize !== undefined) {
+    lead.petSize = patch.petSize;
+  }
+  if (patch.service !== undefined) {
+    lead.service = patch.service;
+  }
+  if (patch.address !== undefined) {
+    lead.address = patch.address;
+  }
+  if (patch.city !== undefined) {
+    lead.city = patch.city;
+  }
+  if (patch.zipCode !== undefined) {
+    lead.zipCode = patch.zipCode;
+  }
+
+  if (patch.petName !== undefined || patch.petSize !== undefined) {
+    const primaryPet = {
+      petName: patch.petName ?? lead.petName ?? "",
+      petSize: patch.petSize ?? lead.petSize ?? "",
+    };
+    const extraPets = (lead.pets ?? []).slice(1);
+    lead.pets = primaryPet.petName || primaryPet.petSize
+      ? [primaryPet, ...extraPets]
+      : extraPets.length
+        ? extraPets
+        : undefined;
+    lead.petName = primaryPet.petName;
+    lead.petSize = primaryPet.petSize;
+  }
+
   lead.updatedAt = new Date().toISOString();
   data.leads[index] = lead;
   await writeLeadsData(data);

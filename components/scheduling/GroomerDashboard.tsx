@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
 import AppointmentList from "./AppointmentList";
+import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import type { SessionUser } from "@/lib/scheduling/types";
@@ -18,11 +19,12 @@ const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading team calendar…</p>,
 });
 
-type Tab = "upcoming" | "past" | "leads" | "team-calendar" | "availability";
+type Tab = "upcoming" | "book" | "past" | "leads" | "team-calendar" | "availability";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("upcoming");
+  const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const groomerId = user.groomerId;
 
   async function logout() {
@@ -41,6 +43,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "upcoming", label: "Upcoming" },
+    { id: "book", label: "Book appointment" },
     { id: "past", label: "Past" },
     { id: "leads", label: "Leads" },
     { id: "team-calendar", label: "Team calendar" },
@@ -75,9 +78,21 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         <DashboardErrorBoundary>
           {tab === "upcoming" && (
             <AppointmentList
+              key={appointmentRefreshKey}
               apiUrl="/api/groomer/appointments"
               filter="upcoming"
               currentGroomerId={groomerId}
+              allowOverrideAvailability
+            />
+          )}
+          {tab === "book" && (
+            <StaffBookAppointmentForm
+              defaultGroomerId={groomerId}
+              defaultOpen
+              onBooked={() => {
+                setAppointmentRefreshKey((key) => key + 1);
+                setTab("upcoming");
+              }}
             />
           )}
           {tab === "past" && (

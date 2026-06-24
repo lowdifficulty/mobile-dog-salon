@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     (a) => a.groomerId === groomerId && a.date === date
   );
   if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
-    return NextResponse.json({ error: "Groomer is not available for a 2-hour appointment at that time" }, { status: 409 });
+    return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
   }
 
   if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {

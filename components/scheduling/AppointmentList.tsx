@@ -6,6 +6,9 @@ import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/bookin
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
+import StaffDateTimePicker, {
+  buildSlotKey,
+} from "@/components/scheduling/StaffDateTimePicker";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 
@@ -24,15 +27,19 @@ export default function AppointmentList({
   apiUrl,
   filter,
   currentGroomerId,
+  allowOverrideAvailability = false,
 }: {
   apiUrl: string;
   filter: "upcoming" | "past";
   currentGroomerId?: GroomerId;
+  allowOverrideAvailability?: boolean;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleGroomerId, setRescheduleGroomerId] = useState<GroomerId | "">("");
   const [rescheduleSlotKey, setRescheduleSlotKey] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -61,12 +68,16 @@ export default function AppointmentList({
     setActionError(null);
     setRescheduleId(ap.id);
     setRescheduleDate("");
+    setRescheduleTime("");
+    setRescheduleGroomerId(ap.groomerId);
     setRescheduleSlotKey("");
   }
 
   function closeReschedule() {
     setRescheduleId(null);
     setRescheduleDate("");
+    setRescheduleTime("");
+    setRescheduleGroomerId("");
     setRescheduleSlotKey("");
   }
 
@@ -102,7 +113,12 @@ export default function AppointmentList({
   }
 
   async function handleReschedule(ap: Appointment) {
-    if (!rescheduleSlotKey) {
+    const slotKey =
+      allowOverrideAvailability && rescheduleDate && rescheduleTime && rescheduleGroomerId
+        ? buildSlotKey(rescheduleGroomerId, rescheduleDate, rescheduleTime)
+        : rescheduleSlotKey;
+
+    if (!slotKey) {
       setActionError("Pick a new date and time first.");
       return;
     }
@@ -113,7 +129,11 @@ export default function AppointmentList({
       const res = await fetch(`${manageApiBase}/${ap.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reschedule", slotKey: rescheduleSlotKey }),
+        body: JSON.stringify({
+          action: "reschedule",
+          slotKey,
+          overrideAvailability: allowOverrideAvailability || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Reschedule failed");
@@ -230,21 +250,41 @@ export default function AppointmentList({
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm font-semibold text-gray-800">Pick a new time</p>
-                    <WeekAvailabilityPicker
-                      service={ap.service}
-                      selectedDate={rescheduleDate}
-                      selectedSlotKey={rescheduleSlotKey}
-                      onSelectDate={(date) => {
-                        setRescheduleDate(date);
-                        setRescheduleSlotKey("");
-                      }}
-                      onSelectSlot={selectRescheduleSlot}
-                    />
+                    {allowOverrideAvailability ? (
+                      <StaffDateTimePicker
+                        groomerId={rescheduleGroomerId || ap.groomerId}
+                        selectedDate={rescheduleDate}
+                        selectedTime={rescheduleTime}
+                        onSelectDate={(date) => {
+                          setRescheduleDate(date);
+                          setRescheduleTime("");
+                        }}
+                        onSelectTime={setRescheduleTime}
+                        allowGroomerPick={!currentGroomerId}
+                        onSelectGroomer={setRescheduleGroomerId}
+                      />
+                    ) : (
+                      <WeekAvailabilityPicker
+                        service={ap.service}
+                        selectedDate={rescheduleDate}
+                        selectedSlotKey={rescheduleSlotKey}
+                        onSelectDate={(date) => {
+                          setRescheduleDate(date);
+                          setRescheduleSlotKey("");
+                        }}
+                        onSelectSlot={selectRescheduleSlot}
+                      />
+                    )}
                     <div className="flex flex-wrap gap-3">
                       <button
                         type="button"
                         onClick={() => handleReschedule(ap)}
-                        disabled={isBusy || !rescheduleSlotKey}
+                        disabled={
+                          isBusy ||
+                          (allowOverrideAvailability
+                            ? !rescheduleDate || !rescheduleTime
+                            : !rescheduleSlotKey)
+                        }
                         className="px-4 py-2 rounded-full text-sm font-semibold bg-brand text-white hover:bg-brand-dark disabled:opacity-50"
                       >
                         {isBusy ? "Saving…" : "Confirm new time"}

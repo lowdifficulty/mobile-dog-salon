@@ -1,11 +1,14 @@
 import "server-only";
 
+import { randomUUID } from "crypto";
 import {
   consumeGroomerAvailability,
   hasMinimumAvailabilityForBooking,
   restoreGroomerAvailability,
 } from "@/lib/scheduling/availability";
+import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
+  isBookableDate,
   isSlotTaken,
   parseSlotFromIso,
   parseSlotKey,
@@ -17,6 +20,33 @@ import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 export type AppointmentActionResult =
   | { ok: true; appointment: Appointment }
   | { ok: false; error: string; status: number };
+
+export interface CreateAppointmentInput {
+  slotKey?: string;
+  groomerId?: GroomerId;
+  date?: string;
+  time?: string;
+  petName?: string;
+  petBreed?: string;
+  petSize: string;
+  additionalPets?: { petName: string; petSize: string }[];
+  service: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone: string;
+  smsOptIn?: boolean;
+  address: string;
+  city?: string;
+  zipCode: string;
+  notes?: string;
+}
+
+export interface AppointmentMutationOptions {
+  groomerId?: GroomerId;
+  overrideAvailability?: boolean;
+  allowSameDay?: boolean;
+}
 
 function clearReminderFlags(appointment: Appointment): void {
   delete appointment.reminder24hEmailSentAt;
@@ -34,6 +64,129 @@ function findAppointment(
   if (!appointment) return null;
   if (groomerId && appointment.groomerId !== groomerId) return null;
   return appointment;
+}
+
+function resolveSlot(
+  input: Pick<CreateAppointmentInput, "slotKey" | "groomerId" | "date" | "time">
+): { groomerId: GroomerId; date: string; time: string } | { error: string } {
+  if (input.slotKey) {
+    try {
+      return parseSlotKey(input.slotKey);
+    } catch {
+      return { error: "Invalid slot" };
+    }
+  }
+
+  const { groomerId, date, time } = input;
+  if (!groomerId || !date || !time) {
+    return { error: "slotKey or groomerId, date, and time are required" };
+  }
+
+  return { groomerId, date, time };
+}
+
+export async function createAppointment(
+  input: CreateAppointmentInput,
+  actor: string,
+  options?: AppointmentMutationOptions
+): Promise<AppointmentActionResult> {
+  const phoneTrimmed = input.phone?.trim() ?? "";
+  if (!phoneTrimmed) {
+    return { ok: false, error: "Phone number is required", status: 400 };
+  }
+
+  const street = String(input.address ?? "").trim();
+  const cityName = String(input.city ?? "").trim();
+  const zipTrimmed = String(input.zipCode ?? "").trim();
+
+  if (!input.petSize || !input.service || !input.firstName || !input.lastName || !street) {
+    return { ok: false, error: "Missing required fields", status: 400 };
+  }
+
+  if (!/^\d{5}(-\d{4})?$/.test(zipTrimmed)) {
+    return { ok: false, error: "Please enter a valid ZIP code.", status: 400 };
+  }
+
+  const resolved = resolveSlot(input);
+  if ("error" in resolved) {
+    return { ok: false, error: resolved.error, status: 400 };
+  }
+
+  const { groomerId, date, time } = resolved;
+
+  if (options?.groomerId && groomerId !== options.groomerId) {
+    return {
+      ok: false,
+      error: "You can only book appointments on your own schedule",
+      status: 403,
+    };
+  }
+
+  if (!options?.allowSameDay && !isBookableDate(date)) {
+    return {
+      ok: false,
+      error: "Same-day appointments are not available. Please choose a future date.",
+      status: 400,
+    };
+  }
+
+  const data = await readSchedulingData();
+
+  if (!options?.overrideAvailability) {
+    const dayAvail = data.availability.find(
+      (a) => a.groomerId === groomerId && a.date === date
+    );
+    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+      return {
+        ok: false,
+        error: "Groomer is not available at that time",
+        status: 409,
+      };
+    }
+  }
+
+  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+    return { ok: false, error: "That time slot is no longer available", status: 409 };
+  }
+
+  const emailTrimmed = String(input.email ?? "").trim();
+  const bookingEmail =
+    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+
+  const appointment: Appointment = {
+    id: randomUUID(),
+    groomerId,
+    startAt: slotToISO(date, time),
+    durationMinutes: BOOKING_DURATION_MINUTES,
+    status: "confirmed",
+    petName: input.petName?.trim() ?? "",
+    petBreed: input.petBreed ?? "",
+    petSize: input.petSize,
+    additionalPets: Array.isArray(input.additionalPets)
+      ? input.additionalPets.filter((pet) => pet?.petSize)
+      : undefined,
+    service: input.service,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    email: bookingEmail,
+    phone: phoneTrimmed,
+    smsOptIn: Boolean(input.smsOptIn),
+    address: street,
+    city: cityName || "Orange County",
+    zipCode: zipTrimmed,
+    notes: input.notes ?? "",
+    createdAt: new Date().toISOString(),
+  };
+
+  data.appointments.push(appointment);
+  consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
+  await writeSchedulingData(data, {
+    action: "booking",
+    actor,
+    groomerId,
+  });
+
+  return { ok: true, appointment };
 }
 
 export async function cancelAppointment(
@@ -78,7 +231,7 @@ export async function rescheduleAppointment(
   appointmentId: string,
   slotKey: string,
   actor: string,
-  options?: { groomerId?: GroomerId }
+  options?: AppointmentMutationOptions
 ): Promise<AppointmentActionResult> {
   let groomerId: GroomerId;
   let date: string;
@@ -121,18 +274,20 @@ export async function rescheduleAppointment(
     return { ok: true, appointment };
   }
 
-  const dayAvail = data.availability.find(
-    (a) => a.groomerId === groomerId && a.date === date
-  );
-  if (
-    !dayAvail ||
-    !hasMinimumAvailabilityForBooking(dayAvail.times, time)
-  ) {
-    return {
-      ok: false,
-      error: "Groomer is not available for a 2-hour appointment at that time",
-      status: 409,
-    };
+  if (!options?.overrideAvailability) {
+    const dayAvail = data.availability.find(
+      (a) => a.groomerId === groomerId && a.date === date
+    );
+    if (
+      !dayAvail ||
+      !hasMinimumAvailabilityForBooking(dayAvail.times, time)
+    ) {
+      return {
+        ok: false,
+        error: "Groomer is not available at that time",
+        status: 409,
+      };
+    }
   }
 
   if (
@@ -212,7 +367,7 @@ export async function transferAppointmentToGroomer(
   if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
     return {
       ok: false,
-      error: "Groomer is not available for a 2-hour appointment at that time",
+      error: "Groomer is not available at that time",
       status: 409,
     };
   }

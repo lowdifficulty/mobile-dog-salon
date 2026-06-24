@@ -11,6 +11,12 @@ import StaffDateTimePicker, {
 } from "@/components/scheduling/StaffDateTimePicker";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
+import LeadDetailsEditor, {
+  leadToFormValues,
+  type LeadDetailsFormValues,
+} from "@/components/leads/LeadDetailsEditor";
+
+const LEADS_API = "/api/staff/leads";
 
 function formatWhen(startAt: string) {
   return new Date(startAt).toLocaleString("en-US", {
@@ -43,6 +49,9 @@ export default function AppointmentList({
   const [rescheduleSlotKey, setRescheduleSlotKey] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [editLeadAppointmentId, setEditLeadAppointmentId] = useState<string | null>(null);
+  const [leadFormValues, setLeadFormValues] = useState<LeadDetailsFormValues | null>(null);
+  const [leadFormLoading, setLeadFormLoading] = useState(false);
 
   const manageApiBase = apiUrl.split("?")[0];
 
@@ -66,6 +75,7 @@ export default function AppointmentList({
 
   function openReschedule(ap: Appointment) {
     setActionError(null);
+    closeEditLead();
     setRescheduleId(ap.id);
     setRescheduleDate("");
     setRescheduleTime("");
@@ -79,6 +89,51 @@ export default function AppointmentList({
     setRescheduleTime("");
     setRescheduleGroomerId("");
     setRescheduleSlotKey("");
+  }
+
+  function closeEditLead() {
+    setEditLeadAppointmentId(null);
+    setLeadFormValues(null);
+  }
+
+  async function openEditLead(ap: Appointment) {
+    setActionError(null);
+    closeReschedule();
+    setEditLeadAppointmentId(ap.id);
+    setLeadFormLoading(true);
+    setLeadFormValues(null);
+
+    try {
+      const res = await fetch(`${LEADS_API}/lookup?appointmentId=${encodeURIComponent(ap.id)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not load client details");
+      setLeadFormValues(leadToFormValues(data));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not load client details");
+      closeEditLead();
+    } finally {
+      setLeadFormLoading(false);
+    }
+  }
+
+  async function saveLeadFromAppointment(appointmentId: string, values: LeadDetailsFormValues) {
+    setBusyId(appointmentId);
+    setActionError(null);
+    try {
+      const res = await fetch(`${LEADS_API}/by-appointment/${appointmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not save client details");
+      closeEditLead();
+      await loadAppointments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Could not save client details");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   function selectRescheduleSlot(slot: AvailableSlot) {
@@ -183,6 +238,7 @@ export default function AppointmentList({
         const appointmentPets = getAppointmentPets(ap);
         const petSummary = formatPetsList(appointmentPets);
         const isRescheduling = rescheduleId === ap.id;
+        const isEditingLead = editLeadAppointmentId === ap.id;
         const isBusy = busyId === ap.id;
         const isOwnAppointment = currentGroomerId && ap.groomerId === currentGroomerId;
         const cardAccentClass =
@@ -221,8 +277,28 @@ export default function AppointmentList({
               ap.status === "confirmed" &&
               (!currentGroomerId || ap.groomerId === currentGroomerId) && (
               <div className="mt-4 pt-4 border-t border-gray-100">
-                {!isRescheduling ? (
+                {isEditingLead ? (
+                  leadFormLoading || !leadFormValues ? (
+                    <p className="text-sm text-gray-500">Loading client details…</p>
+                  ) : (
+                    <LeadDetailsEditor
+                      leadId={ap.id}
+                      initial={leadFormValues}
+                      busy={isBusy}
+                      onSave={saveLeadFromAppointment}
+                      onCancel={closeEditLead}
+                    />
+                  )
+                ) : !isRescheduling ? (
                   <div className="flex flex-wrap gap-3 items-center">
+                    <button
+                      type="button"
+                      onClick={() => openEditLead(ap)}
+                      disabled={isBusy}
+                      className="text-sm font-semibold text-brand hover:text-accent underline disabled:opacity-50"
+                    >
+                      Edit client
+                    </button>
                     <button
                       type="button"
                       onClick={() => openReschedule(ap)}

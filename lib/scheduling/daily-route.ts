@@ -10,6 +10,7 @@ import {
   ROUTE_GAS_PRICE_PER_GALLON,
 } from "@/lib/scheduling/route-depot";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import { buildGoogleMapsEmbedUrl } from "@/lib/scheduling/google-maps-route-map";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -61,6 +62,7 @@ export interface DailyRoutePlan {
   gasPricePerGallon: number;
   totalGasCost: number;
   googleMapsUrl: string;
+  googleMapsEmbedUrl: string | null;
   usesEstimates: boolean;
 }
 
@@ -217,6 +219,8 @@ export async function buildDailyRoutePlan(
     ...stops.map((s) => s.fullAddress),
     ROUTE_DEPOT.fullAddress,
   ];
+  const stopAddresses = stops.map((s) => s.fullAddress);
+  const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(ROUTE_DEPOT.fullAddress, stopAddresses);
 
   return {
     date,
@@ -235,6 +239,7 @@ export async function buildDailyRoutePlan(
     gasPricePerGallon,
     totalGasCost,
     googleMapsUrl: buildGoogleMapsDirectionsUrl(mapAddresses),
+    googleMapsEmbedUrl,
     usesEstimates,
   };
 }

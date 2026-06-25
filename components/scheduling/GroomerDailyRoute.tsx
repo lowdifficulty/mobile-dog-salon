@@ -196,7 +196,11 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
             </p>
           </div>
 
-          <GroomerRouteMap points={route.mapPoints} path={route.routePath} />
+          <GroomerRouteMap
+            googleMapsEmbedUrl={route.googleMapsEmbedUrl}
+            points={route.mapPoints}
+            path={route.routePath}
+          />
 
           <a
             href={route.googleMapsUrl}

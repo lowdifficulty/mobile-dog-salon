@@ -52,35 +52,3 @@ export async function estimateDrivingLeg(
   const est = fallbackLeg(from, to);
   return { ...est, source: "estimate" };
 }
-
-export async function fetchDrivingRoutePath(
-  points: GeoPoint[]
-): Promise<{ path: { lat: number; lon: number }[]; source: "osrm" | "estimate" }> {
-  if (points.length < 2) {
-    return {
-      path: points.map((point) => ({ lat: point.lat, lon: point.lon })),
-      source: "estimate",
-    };
-  }
-
-  const coords = points.map((point) => `${point.lon},${point.lat}`).join(";");
-  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) throw new Error("OSRM route failed");
-    const data = (await res.json()) as {
-      routes?: { geometry?: { coordinates?: [number, number][] } }[];
-    };
-    const coordinates = data.routes?.[0]?.geometry?.coordinates;
-    if (!coordinates?.length) throw new Error("OSRM route empty");
-    return {
-      path: coordinates.map(([lon, lat]) => ({ lat, lon })),
-      source: "osrm",
-    };
-  } catch {
-    return {
-      path: points.map((point) => ({ lat: point.lat, lon: point.lon })),
-      source: "estimate",
-    };
-  }
-}

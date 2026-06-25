@@ -1,4 +1,5 @@
 import { normalizePhone } from "./normalize";
+import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
 
 export type LeadCrmView = "abandoned" | "scheduled" | "complete" | "cold_storage";
@@ -34,6 +35,30 @@ export function matchesAbandonedSubtab(
   return getAbandonedLeadSubtab(lead) === subtab;
 }
 
+export function appointmentEndMs(
+  appointmentStartAt: string,
+  durationMinutes = BOOKING_DURATION_MINUTES
+): number {
+  return new Date(appointmentStartAt).getTime() + durationMinutes * 60 * 1000;
+}
+
+/** Appointment start time has passed but the visit window has not ended yet. */
+export function isAppointmentInProgress(
+  lead: {
+    funnelStep: LeadFunnelStep;
+    appointmentStartAt?: string;
+  },
+  now = Date.now(),
+  durationMinutes = BOOKING_DURATION_MINUTES
+): boolean {
+  if (!lead.appointmentStartAt) return false;
+  if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
+  const startMs = new Date(lead.appointmentStartAt).getTime();
+  if (Number.isNaN(startMs)) return false;
+  const endMs = appointmentEndMs(lead.appointmentStartAt, durationMinutes);
+  return now >= startMs && now < endMs;
+}
+
 export function hasSelectedAppointmentTime(lead: {
   funnelStep: LeadFunnelStep;
   appointmentStartAt?: string;
@@ -48,6 +73,7 @@ export function isScheduledLead(lead: {
 }): boolean {
   if (!lead.appointmentStartAt) return false;
   if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
+  if (isAppointmentInProgress(lead)) return false;
   return new Date(lead.appointmentStartAt) >= new Date();
 }
 
@@ -58,6 +84,7 @@ export function isAbandonedLead(lead: {
   lastAppointmentAt?: string;
 }): boolean {
   if (isScheduledLead(lead)) return false;
+  if (isAppointmentInProgress(lead)) return false;
   if (isCompletedVisitLead(lead)) return false;
   return hasSelectedAppointmentTime(lead);
 }
@@ -84,6 +111,7 @@ export function isInAbandonedCrmView(lead: Lead): boolean {
   const normalized = withLeadDefaults(lead);
   if (normalized.listStatus !== "active") return false;
   if (isScheduledLead(normalized)) return false;
+  if (isAppointmentInProgress(normalized)) return false;
   if (isCompletedVisitLead(normalized)) return false;
   if (hasValidLeadPhone(normalized)) return true;
   return hasSelectedAppointmentTime(normalized);
@@ -102,7 +130,10 @@ export function leadMatchesCrmView(lead: Lead, view: LeadCrmView): boolean {
     return isScheduledLead(normalized) && hasValidLeadPhone(normalized);
   }
   if (view === "complete") {
-    return hasValidLeadPhone(normalized) && isCompletedVisitLead(normalized);
+    return (
+      hasValidLeadPhone(normalized) &&
+      (isCompletedVisitLead(normalized) || isAppointmentInProgress(normalized))
+    );
   }
   if (view === "abandoned") {
     return isInAbandonedCrmView(normalized);

@@ -2,7 +2,7 @@ import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
 import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import { geocodeAppointmentAddress, geocodeAddress } from "@/lib/scheduling/geocode";
-import { estimateDrivingLeg, fetchDrivingRoutePath } from "@/lib/scheduling/driving-estimates";
+import { estimateDrivingLeg } from "@/lib/scheduling/driving-estimates";
 import {
   ROUTE_DEPOT,
   ROUTE_GALLONS_PER_APPOINTMENT,
@@ -10,7 +10,6 @@ import {
   ROUTE_GAS_PRICE_PER_GALLON,
 } from "@/lib/scheduling/route-depot";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
-import { buildGoogleMapsEmbedUrl } from "@/lib/scheduling/google-maps-route-map";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -37,22 +36,12 @@ export interface DailyRouteStop {
   leg: RouteLegEstimate;
 }
 
-export interface RouteMapPoint {
-  lat: number;
-  lon: number;
-  label: string;
-  kind: "depot" | "stop";
-  order?: number;
-}
-
 export interface DailyRoutePlan {
   date: string;
   groomerId: GroomerId;
   depotAddress: string;
   stops: DailyRouteStop[];
   returnLeg: RouteLegEstimate;
-  mapPoints: RouteMapPoint[];
-  routePath: { lat: number; lon: number }[];
   totalDriveMiles: number;
   totalDriveMinutes: number;
   appointmentCount: number;
@@ -62,7 +51,6 @@ export interface DailyRoutePlan {
   gasPricePerGallon: number;
   totalGasCost: number;
   googleMapsUrl: string;
-  googleMapsEmbedUrl: string | null;
   usesEstimates: boolean;
 }
 
@@ -120,7 +108,6 @@ export async function buildDailyRoutePlan(
   }
 
   const stops: DailyRouteStop[] = [];
-  const routeWaypoints = [depotPoint];
   let totalDriveMiles = 0;
   let totalDriveMinutes = 0;
   let usesEstimates = false;
@@ -136,7 +123,6 @@ export async function buildDailyRoutePlan(
       zipCode: ap.zipCode,
       fullAddress,
     });
-    routeWaypoints.push(destPoint);
     const approximateLocation = destPoint.precision === "zip";
     if (approximateLocation) usesEstimates = true;
 
@@ -186,27 +172,6 @@ export async function buildDailyRoutePlan(
   totalDriveMiles += returnLeg.distanceMiles;
   totalDriveMinutes += returnLeg.durationMinutes;
 
-  routeWaypoints.push(depotPoint);
-
-  const mapPoints: RouteMapPoint[] = [
-    {
-      lat: depotPoint.lat,
-      lon: depotPoint.lon,
-      label: ROUTE_DEPOT.label,
-      kind: "depot",
-    },
-    ...stops.map((stop, index) => ({
-      lat: routeWaypoints[index + 1].lat,
-      lon: routeWaypoints[index + 1].lon,
-      label: stop.clientName,
-      kind: "stop" as const,
-      order: stop.order,
-    })),
-  ];
-
-  const routePathResult = await fetchDrivingRoutePath(routeWaypoints);
-  if (routePathResult.source === "estimate") usesEstimates = true;
-
   const appointmentCount = stops.length;
   const gallonsDriving = totalDriveMiles / ROUTE_GAS_MPG;
   const gallonsAppointmentUse = appointmentCount * ROUTE_GALLONS_PER_APPOINTMENT;
@@ -219,17 +184,12 @@ export async function buildDailyRoutePlan(
     ...stops.map((s) => s.fullAddress),
     ROUTE_DEPOT.fullAddress,
   ];
-  const stopAddresses = stops.map((s) => s.fullAddress);
-  const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(ROUTE_DEPOT.fullAddress, stopAddresses);
-
   return {
     date,
     groomerId,
     depotAddress: ROUTE_DEPOT.fullAddress,
     stops,
     returnLeg,
-    mapPoints,
-    routePath: routePathResult.path,
     totalDriveMiles,
     totalDriveMinutes,
     appointmentCount,
@@ -239,7 +199,6 @@ export async function buildDailyRoutePlan(
     gasPricePerGallon,
     totalGasCost,
     googleMapsUrl: buildGoogleMapsDirectionsUrl(mapAddresses),
-    googleMapsEmbedUrl,
     usesEstimates,
   };
 }

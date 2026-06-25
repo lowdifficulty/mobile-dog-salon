@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/scheduling/auth";
 import { isLeadCurrentlyActive } from "@/lib/leads/activity";
-import { leadMatchesCrmView, withLeadDefaults, type LeadCrmView } from "@/lib/leads/filters";
+import {
+  isAppointmentInProgress,
+  leadMatchesCrmView,
+  withLeadDefaults,
+  type LeadCrmView,
+} from "@/lib/leads/filters";
 import { isFollowUpDue, syncLeadsWithAppointments } from "@/lib/leads/sync";
 
 const VALID_VIEWS: LeadCrmView[] = ["scheduled", "complete", "abandoned", "cold_storage"];
@@ -41,7 +46,8 @@ export async function GET(request: Request) {
       leads: filtered.map((lead) => ({
         ...lead,
         followUpDue: isFollowUpDue(lead),
-        currentlyActive: isLeadCurrentlyActive(lead),
+        currentlyActive:
+          isAppointmentInProgress(lead) || isLeadCurrentlyActive(lead),
       })),
     });
   } catch {

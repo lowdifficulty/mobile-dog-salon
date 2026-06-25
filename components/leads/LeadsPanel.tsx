@@ -6,6 +6,7 @@ import {
   getAbandonedLeadSubtab,
   hasValidLeadPhone,
   isAbandonedLead,
+  isAppointmentInProgress,
   isScheduledLead,
   matchesAbandonedSubtab,
   type AbandonedLeadSubtab,
@@ -115,6 +116,9 @@ function isDiamondLead(lead: LeadRow) {
 
 function rowStyle(lead: LeadRow, view: LeadCrmView) {
   if (view === "complete") {
+    if (isAppointmentInProgress(lead)) {
+      return "border-blue-500 bg-blue-100";
+    }
     return lead.visitOutcome === "complete"
       ? "border-green-400 bg-green-50"
       : "border-red-400 bg-red-50";
@@ -253,12 +257,24 @@ function sortScheduledLeads(leads: LeadRow[]): LeadRow[] {
 function sortCompletedLeads(leads: LeadRow[]): LeadRow[] {
   const sorted = [...leads];
   sorted.sort((a, b) => {
+    const aInProgress = isAppointmentInProgress(a) ? 0 : 1;
+    const bInProgress = isAppointmentInProgress(b) ? 0 : 1;
+    if (aInProgress !== bInProgress) return aInProgress - bInProgress;
+
     const aComplete = a.visitOutcome === "complete" ? 0 : 1;
     const bComplete = b.visitOutcome === "complete" ? 0 : 1;
     if (aComplete !== bComplete) return aComplete - bComplete;
 
-    const aTime = a.lastAppointmentAt ? new Date(a.lastAppointmentAt).getTime() : 0;
-    const bTime = b.lastAppointmentAt ? new Date(b.lastAppointmentAt).getTime() : 0;
+    const aTime = a.lastAppointmentAt
+      ? new Date(a.lastAppointmentAt).getTime()
+      : a.appointmentStartAt
+        ? new Date(a.appointmentStartAt).getTime()
+        : 0;
+    const bTime = b.lastAppointmentAt
+      ? new Date(b.lastAppointmentAt).getTime()
+      : b.appointmentStartAt
+        ? new Date(b.appointmentStartAt).getTime()
+        : 0;
     return bTime - aTime;
   });
   return sorted;
@@ -745,6 +761,11 @@ export default function LeadsPanel({
                             Scheduled
                           </span>
                         )}
+                        {isAppointmentInProgress(lead) && view === "complete" && (
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-blue-900 bg-blue-200 px-2 py-0.5 rounded-full">
+                            In progress
+                          </span>
+                        )}
                         {isAbandonedLead(lead) && view === "abandoned" && (
                           <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
                             Picked time
@@ -790,7 +811,14 @@ export default function LeadsPanel({
                           {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
                         </p>
                       )}
-                      {view === "complete" && lead.lastAppointmentAt && (
+                      {view === "complete" &&
+                        isAppointmentInProgress(lead) &&
+                        lead.appointmentStartAt && (
+                        <p className="text-sm font-medium text-gray-800 mt-0.5">
+                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                        </p>
+                      )}
+                      {view === "complete" && lead.lastAppointmentAt && !isAppointmentInProgress(lead) && (
                         <p className="text-sm font-medium text-gray-800 mt-0.5">
                           Last visit: {formatShortDate(lead.lastAppointmentAt)}
                           {lead.visitOutcome === "complete" && (

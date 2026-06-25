@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DailyRoutePlan } from "@/lib/scheduling/daily-route";
 import type { GroomerId } from "@/lib/scheduling/types";
-import GroomerRouteMap from "./GroomerRouteMap";
 
 function formatMiles(miles: number): string {
   return miles < 10 ? miles.toFixed(1) : Math.round(miles).toString();
@@ -195,12 +194,6 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
               {route.gasPricePerGallon.toFixed(2)}/gal · Round trip from {route.depotAddress}
             </p>
           </div>
-
-          <GroomerRouteMap
-            googleMapsEmbedUrl={route.googleMapsEmbedUrl}
-            points={route.mapPoints}
-            path={route.routePath}
-          />
 
           <a
             href={route.googleMapsUrl}

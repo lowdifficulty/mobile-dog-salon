@@ -22,11 +22,23 @@ export const CAT_GROOMING_SERVICES = [
     value: "cat-bath" as const,
     label: "Cat Bath",
     description: "Bath, brush, nails, clean ears",
+    bullets: [
+      "Gentle bath",
+      "Brush & dry",
+      "Nail trim",
+      "Ear cleaning",
+    ],
   },
   {
     value: "cat-groom" as const,
     label: "Cat Haircut",
     description: "Haircut includes a bath",
+    bullets: [
+      "Bath & dry",
+      "Custom haircut",
+      "Face trim",
+      "Nails & ears",
+    ],
   },
 ];
 

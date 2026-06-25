@@ -15,12 +15,13 @@ import BookingOptionButton from "@/components/booking/BookingOptionButton";
 import BookingOptionList from "@/components/booking/BookingOptionList";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
-import { GROOMERS, formatBookingBlockDisplay } from "@/lib/scheduling/groomers";
+import { formatBookingBlockDisplay, groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { isValidBookingContact } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
 import { warmMetaPixel } from "@/lib/meta-pixel";
 import type { LeadFunnelStep } from "@/lib/leads/types";
+import { BOOKING_DISCOUNT_BONUS } from "@/lib/booking/dog-service-packages";
 import {
   buildBookingNotes,
   formatPetNames,
@@ -151,11 +152,11 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
       slotKey,
       preferredDate: date,
       preferredTime: formatBookingBlockDisplay(time),
-      groomerName: GROOMERS[groomerId].name,
+      groomerName: groomerClientDisplayName(groomerId),
     }));
     persistLead("schedule_appointment", {
       groomerId,
-      groomerName: GROOMERS[groomerId].name,
+      groomerName: groomerClientDisplayName(groomerId),
       appointmentStartAt: slotToISO(date, time),
     });
     setStep(3);
@@ -410,12 +411,14 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
             <BookingOptionList>
               {CAT_GROOMING_SERVICES.map((service, index) => {
                 const quoted = getCatQuotedServicePrice(service.value, discountActive);
-                const subtitle = quoted != null ? `${formatPrice(quoted)} with discount applied` : undefined;
+                const subtitle =
+                  quoted != null ? `${formatPrice(quoted)} with discount applied` : undefined;
                 return (
                   <BookingOptionButton
                     key={service.value}
                     title={service.label}
-                    subtitle={subtitle ? `${service.description} · ${subtitle}` : service.description}
+                    subtitle={subtitle}
+                    bullets={service.bullets}
                     variant="text"
                     isFirst={index === 0}
                     isLast={index === CAT_GROOMING_SERVICES.length - 1}
@@ -425,6 +428,9 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
                 );
               })}
             </BookingOptionList>
+            <p className="text-xs font-bold text-gray-500 text-center px-1">
+              {BOOKING_DISCOUNT_BONUS}
+            </p>
           </div>
         )}
 

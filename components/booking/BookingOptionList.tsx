@@ -4,11 +4,7 @@ interface BookingOptionListProps {
   children: ReactNode;
 }
 
-/** Heyflow-style connected options in a horizontal row. */
+/** Side-by-side tappable option cards. */
 export default function BookingOptionList({ children }: BookingOptionListProps) {
-  return (
-    <div className="flex overflow-hidden rounded-lg border border-[#eaeaeb] bg-[#fafafb]">
-      {children}
-    </div>
-  );
+  return <div className="flex gap-2 sm:gap-3">{children}</div>;
 }

@@ -4,7 +4,7 @@ import type {
   AvailableSlot,
 } from "./types";
 import type { GroomerId } from "./types";
-import { GROOMERS, formatBookingBlockDisplay } from "./groomers";
+import { GROOMERS, formatBookingBlockDisplay, groomerClientDisplayName } from "./groomers";
 import { BOOKING_DURATION_MINUTES } from "./services";
 import { listBookingBlockStarts } from "./availability";
 
@@ -65,7 +65,7 @@ export function getAvailableSlotsForDate(
     for (const time of blockStarts) {
       slots.push({
         groomerId: day.groomerId,
-        groomerName: GROOMERS[day.groomerId].name,
+        groomerName: groomerClientDisplayName(day.groomerId),
         date,
         time,
         displayTime: formatBookingBlockDisplay(time),

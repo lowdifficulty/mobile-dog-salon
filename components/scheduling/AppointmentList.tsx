@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getServiceLabel } from "@/lib/pricing";
 import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
-import { GROOMERS } from "@/lib/scheduling/groomers";
+import { GROOMERS, groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
+import {
+  groomerAppointmentCardClass,
+  groomerAppointmentLegendDotClass,
+  groomerAppointmentLegendLabel,
+} from "@/lib/scheduling/groomer-crm-colors";
 
 function formatWhen(startAt: string) {
   return new Date(startAt).toLocaleString("en-US", {
@@ -137,6 +142,9 @@ export default function AppointmentList({
   }
 
   const colorByGroomer = filter === "upcoming" && currentGroomerId;
+  const otherGroomerIds = colorByGroomer
+    ? (Object.keys(GROOMERS) as GroomerId[]).filter((id) => id !== currentGroomerId)
+    : [];
 
   return (
     <div className="space-y-3">
@@ -146,10 +154,15 @@ export default function AppointmentList({
             <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" aria-hidden />
             My appointments
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-accent shrink-0" aria-hidden />
-            Other groomers
-          </span>
+          {otherGroomerIds.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1.5">
+              <span
+                className={`w-3 h-3 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(id)}`}
+                aria-hidden
+              />
+              {groomerAppointmentLegendLabel(id)}
+            </span>
+          ))}
         </p>
       )}
       {actionError && (
@@ -165,14 +178,11 @@ export default function AppointmentList({
         const isRescheduling = rescheduleId === ap.id;
         const isBusy = busyId === ap.id;
         const isOwnAppointment = currentGroomerId && ap.groomerId === currentGroomerId;
-        const cardAccentClass =
-          ap.status === "cancelled"
-            ? "border-gray-300 opacity-80"
-            : colorByGroomer
-              ? isOwnAppointment
-                ? "border-green-500 bg-green-50"
-                : "border-accent bg-accent-light/50"
-              : "border-accent";
+        const cardAccentClass = groomerAppointmentCardClass(ap.groomerId, {
+          isOwn: Boolean(isOwnAppointment),
+          cancelled: ap.status === "cancelled",
+          colorByGroomer: Boolean(colorByGroomer),
+        });
 
         return (
           <div key={ap.id} className={`site-card p-4 border-l-4 ${cardAccentClass}`}>

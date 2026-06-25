@@ -15,8 +15,12 @@ import BookingOptionButton, {
 } from "@/components/booking/BookingOptionButton";
 import BookingOptionList from "@/components/booking/BookingOptionList";
 import type { AvailableSlot } from "@/lib/scheduling/types";
+import {
+  BOOKING_DISCOUNT_BONUS,
+  DOG_SERVICE_PACKAGES,
+} from "@/lib/booking/dog-service-packages";
 import { parseSlotKey, slotToISO, getTodayPacificDate, isBookableDate } from "@/lib/scheduling/slots";
-import { GROOMERS, formatBookingBlockDisplay } from "@/lib/scheduling/groomers";
+import { formatBookingBlockDisplay, groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import {
   isValidBookingContact,
 } from "@/lib/scheduling/address";
@@ -32,10 +36,7 @@ import {
   type BookingPet,
 } from "@/lib/booking/pets";
 
-const SERVICE_OPTIONS = [
-  { value: "bath-brush", label: "Bath Only" },
-  { value: "full-groom", label: "Bath & Haircut" },
-];
+const STEP_COUNT = 4;
 
 interface BookingFormData {
   petSize: string;
@@ -64,8 +65,6 @@ const initialData: BookingFormData = {
   slotKey: "",
   groomerName: "",
 };
-
-const STEP_COUNT = 4;
 
 function isValidBookingPhone(phone: string): boolean {
   return phone.trim().replace(/\D/g, "").length >= 10;
@@ -160,11 +159,11 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       slotKey,
       preferredDate: date,
       preferredTime: formatBookingBlockDisplay(time),
-      groomerName: GROOMERS[groomerId].name,
+      groomerName: groomerClientDisplayName(groomerId),
     }));
     persistLead("schedule_appointment", {
       groomerId,
-      groomerName: GROOMERS[groomerId].name,
+      groomerName: groomerClientDisplayName(groomerId),
       appointmentStartAt: slotToISO(date, time),
     });
     setStep(4);
@@ -495,7 +494,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
               <p className="text-xs text-gray-500 mt-1">Tap a package to continue.</p>
             </div>
             <BookingOptionList>
-              {SERVICE_OPTIONS.map((service, index) => {
+              {DOG_SERVICE_PACKAGES.map((service, index) => {
                 const quoted = getQuotedServicePrice(data.petSize, service.value, discountActive);
                 const subtitle =
                   quoted != null ? `${formatPrice(quoted)} with discount applied` : undefined;
@@ -504,15 +503,19 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                     key={service.value}
                     title={service.label}
                     subtitle={subtitle}
+                    bullets={service.bullets}
                     variant="text"
                     isFirst={index === 0}
-                    isLast={index === SERVICE_OPTIONS.length - 1}
+                    isLast={index === DOG_SERVICE_PACKAGES.length - 1}
                     selected={data.service === service.value}
                     onClick={() => handleSelectService(service.value)}
                   />
                 );
               })}
             </BookingOptionList>
+            <p className="text-xs font-bold text-gray-500 text-center px-1">
+              {BOOKING_DISCOUNT_BONUS}
+            </p>
           </div>
         )}
 

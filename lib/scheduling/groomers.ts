@@ -2,7 +2,14 @@ import type { GroomerId } from "./types";
 
 export const GROOMERS: Record<
   GroomerId,
-  { id: GroomerId; name: string; email: string; calendarEmail: string }
+  {
+    id: GroomerId;
+    name: string;
+    /** Shown on the public booking calendar only; staff CRM keeps `name`. */
+    clientName?: string;
+    email: string;
+    calendarEmail: string;
+  }
 > = {
   melanie: {
     id: "melanie",
@@ -13,6 +20,7 @@ export const GROOMERS: Record<
   diamond: {
     id: "diamond",
     name: "Diamond",
+    clientName: "Sarah",
     email: "diamond@mobiledog-salon.com",
     calendarEmail: "diamond@mobiledog-salon.com",
   },
@@ -73,6 +81,12 @@ export function formatDisplayTime(time24: string): string {
 
 export function groomerName(id: GroomerId): string {
   return GROOMERS[id].name;
+}
+
+/** Client-facing booking calendar and confirmation copy. */
+export function groomerClientDisplayName(id: GroomerId): string {
+  const groomer = GROOMERS[id];
+  return groomer.clientName ?? groomer.name;
 }
 
 export function groomerIdFromEmail(email: string): GroomerId | null {

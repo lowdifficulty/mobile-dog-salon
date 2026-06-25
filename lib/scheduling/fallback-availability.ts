@@ -1,4 +1,4 @@
-import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay } from "./groomers";
+import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay, groomerClientDisplayName } from "./groomers";
 import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listBookingBlockStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
@@ -32,7 +32,7 @@ export function buildFallbackRangeDays(
         for (const time of listBookingBlockStarts(times)) {
           slots.push({
             groomerId,
-            groomerName: GROOMERS[groomerId].name,
+            groomerName: groomerClientDisplayName(groomerId),
             date,
             time,
             displayTime: formatBookingBlockDisplay(time),

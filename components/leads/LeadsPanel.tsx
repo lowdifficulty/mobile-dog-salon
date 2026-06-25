@@ -66,6 +66,7 @@ interface LeadRow {
   lastAppointmentAt?: string;
   scheduledAt?: string;
   appointmentStartAt?: string;
+  groomerId?: GroomerId;
   groomerName?: string;
   followUpMode: LeadFollowUpMode;
   visitOutcome: VisitOutcome;
@@ -104,6 +105,10 @@ function displayName(lead: LeadRow) {
   return "—";
 }
 
+function isDiamondLead(lead: LeadRow) {
+  return lead.groomerId === "diamond" || lead.groomerName === "Diamond";
+}
+
 function rowStyle(lead: LeadRow, view: LeadCrmView) {
   if (view === "complete") {
     return lead.visitOutcome === "complete"
@@ -111,6 +116,11 @@ function rowStyle(lead: LeadRow, view: LeadCrmView) {
       : "border-red-400 bg-red-50";
   }
   if (isScheduledLead(lead)) {
+    if (isDiamondLead(lead)) {
+      return lead.followUpMode === "chill"
+        ? "border-blue-300 bg-blue-50"
+        : "border-blue-500 bg-blue-100";
+    }
     return lead.followUpMode === "chill"
       ? "border-blue-300 bg-blue-50"
       : "border-purple-400 bg-purple-50";

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
 import { readSchedulingData } from "@/lib/scheduling/store";
+import {
+  buildFallbackRangeDays,
+  buildFallbackWeekDays,
+} from "@/lib/scheduling/fallback-availability";
 import {
   getAvailableSlotsForDate,
   getDatesWithAvailability,
@@ -17,12 +22,17 @@ export async function GET(request: Request) {
   const from = searchParams.get("from"); // YYYY-MM-DD range start
   const daysParam = searchParams.get("days");
 
+  const devAllSlots = isLocalhostRequest(request);
   const data = await readSchedulingData();
 
   if (from && daysParam) {
     const dayCount = Number(daysParam);
     if (!Number.isFinite(dayCount) || dayCount < 1) {
       return NextResponse.json({ error: "Invalid days" }, { status: 400 });
+    }
+    if (devAllSlots) {
+      const rangeDays = buildFallbackRangeDays(from, dayCount);
+      return NextResponse.json({ from, days: rangeDays, devAllSlots: true });
     }
     const rangeDays = getRangeAvailability(
       from,
@@ -36,6 +46,10 @@ export async function GET(request: Request) {
 
   if (week) {
     const weekStart = getWeekStart(week);
+    if (devAllSlots) {
+      const days = buildFallbackWeekDays(weekStart);
+      return NextResponse.json({ weekStart, days, devAllSlots: true });
+    }
     const days = getWeekAvailability(
       weekStart,
       data.availability,
@@ -53,6 +67,13 @@ export async function GET(request: Request) {
     const start = `${month}-01`;
     const endDate = new Date(y, m, 0);
     const end = endDate.toISOString().slice(0, 10);
+    if (devAllSlots) {
+      const rangeDays = buildFallbackRangeDays(start, endDate.getDate());
+      const dates = rangeDays
+        .filter((day) => day.slots.length > 0)
+        .map((day) => day.date);
+      return NextResponse.json({ dates, devAllSlots: true });
+    }
     const dates = getDatesWithAvailability(
       data.availability,
       data.appointments,
@@ -65,6 +86,11 @@ export async function GET(request: Request) {
 
   if (!date) {
     return NextResponse.json({ error: "date, month, week, or from+days required" }, { status: 400 });
+  }
+
+  if (devAllSlots) {
+    const day = buildFallbackRangeDays(date, 1)[0];
+    return NextResponse.json({ slots: day?.slots ?? [], devAllSlots: true });
   }
 
   const slots = getAvailableSlotsForDate(

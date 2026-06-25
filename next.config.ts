@@ -30,6 +30,18 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "no-store, must-revalidate" },
         ],
       },
+      {
+        source: "/book",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
+        source: "/book-cats",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
+        source: "/api/availability",
+        headers: [{ key: "Cache-Control", value: "no-store, no-cache" }],
+      },
     ];
   },
   async redirects() {

@@ -1,4 +1,5 @@
-import { GROOMERS, TIME_SLOT_OPTIONS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
+import { GROOMERS, TIME_SLOT_OPTIONS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
+import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listSelfBookingStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {

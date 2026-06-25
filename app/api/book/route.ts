@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
 import {
   isBookableDate,
@@ -82,12 +83,15 @@ export async function POST(request: Request) {
   }
 
   const data = await readSchedulingData();
+  const devBooking = isLocalhostRequest(request);
 
-  const dayAvail = data.availability.find(
-    (a) => a.groomerId === groomerId && a.date === date
-  );
-  if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
-    return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
+  if (!devBooking) {
+    const dayAvail = data.availability.find(
+      (a) => a.groomerId === groomerId && a.date === date
+    );
+    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+      return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
+    }
   }
 
   if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {

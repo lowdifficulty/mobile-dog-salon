@@ -4,7 +4,8 @@ import type {
   AvailableSlot,
 } from "./types";
 import type { GroomerId } from "./types";
-import { GROOMERS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";import { BOOKING_DURATION_MINUTES } from "./services";
+import { GROOMERS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
+import { BOOKING_DURATION_MINUTES } from "./services";
 import { listSelfBookingStarts } from "./availability";
 
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];

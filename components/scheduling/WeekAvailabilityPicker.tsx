@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isLocalhostHost } from "@/lib/booking/form-utils";
 import type { AvailableSlot } from "@/lib/scheduling/types";
-import { formatDateISO } from "@/lib/scheduling/slots";
+import { getTodayPacificDate } from "@/lib/scheduling/slots";
 import {
   buildFallbackRangeDays,
   type FallbackWeekDay,
@@ -41,15 +42,16 @@ function formatDayRange(days: WeekDay[]): string {
 async function fetchAvailabilityRange(
   fromDate: string,
   service: string
-): Promise<WeekDay[]> {
+): Promise<{ days: WeekDay[]; devAllSlots: boolean }> {
   const res = await fetch(
-    `/api/availability?from=${fromDate}&days=${DAYS_TO_FETCH}&service=${encodeURIComponent(service)}`
+    `/api/availability?from=${fromDate}&days=${DAYS_TO_FETCH}&service=${encodeURIComponent(service)}`,
+    { cache: "no-store" }
   );
   if (!res.ok) {
     throw new Error("Availability request failed");
   }
   const data = await res.json();
-  return data.days ?? [];
+  return { days: data.days ?? [], devAllSlots: Boolean(data.devAllSlots) };
 }
 
 export default function WeekAvailabilityPicker({
@@ -63,6 +65,7 @@ export default function WeekAvailabilityPicker({
   const [pageStart, setPageStart] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(false);
+  const [devAllSlots, setDevAllSlots] = useState(false);
 
   useEffect(() => {
     if (!service) {
@@ -76,17 +79,29 @@ export default function WeekAvailabilityPicker({
     async function load() {
       setLoading(true);
       setFallbackMode(false);
+      setDevAllSlots(false);
       setPageStart(0);
 
-      const fromDate = formatDateISO(new Date());
+      const fromDate = getTodayPacificDate();
+
+      if (isLocalhostHost()) {
+        if (cancelled) return;
+        setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+        setDevAllSlots(true);
+        setFallbackMode(false);
+        setLoading(false);
+        return;
+      }
 
       try {
         const result = await fetchAvailabilityRange(fromDate, service);
         if (cancelled) return;
-        setDays(result);
+        setDays(result.days);
+        setDevAllSlots(result.devAllSlots);
       } catch {
         if (cancelled) return;
         setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+        setDevAllSlots(false);
         setFallbackMode(true);
       } finally {
         if (!cancelled) setLoading(false);
@@ -121,6 +136,13 @@ export default function WeekAvailabilityPicker({
 
   return (
     <div className="space-y-3">
+      {devAllSlots && (
+        <p className="text-xs text-blue-800 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+          Localhost: all bookable time slots are shown for testing. Production only shows real
+          groomer calendar availability.
+        </p>
+      )}
+
       {fallbackMode && (
         <p className="text-xs text-amber-800 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
           We couldn&apos;t load live availability. All time slots are shown as open — your

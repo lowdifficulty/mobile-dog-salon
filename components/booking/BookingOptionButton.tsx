@@ -14,21 +14,6 @@ interface BookingOptionButtonProps {
   onClick: () => void;
 }
 
-function selectionIndicator(selected: boolean) {
-  return (
-    <span
-      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-        selected
-          ? "border-white bg-white/20"
-          : "border-gray-400 bg-white group-hover:border-brand"
-      }`}
-      aria-hidden
-    >
-      {selected && <span className="h-2.5 w-2.5 rounded-full bg-white" />}
-    </span>
-  );
-}
-
 export default function BookingOptionButton({
   title,
   subtitle,
@@ -83,13 +68,12 @@ export default function BookingOptionButton({
     </span>
   );
 
-  const baseClass = `group min-w-0 flex-1 cursor-pointer rounded-lg border-2 px-2 py-4 transition-all duration-150 active:scale-[0.98] sm:px-3 sm:py-5 ${stateClass}`;
+  const baseClass = `min-w-0 flex-1 cursor-pointer rounded-lg border-2 px-2 py-4 transition-all duration-150 active:scale-[0.98] sm:px-3 sm:py-5 ${stateClass}`;
 
   if (variant === "picture") {
     return (
       <button type="button" onClick={onClick} className={`${baseClass} text-center`}>
         <span className="mx-auto flex flex-col items-center gap-2 sm:gap-3">
-          {selectionIndicator(selected)}
           {icon && (
             <span className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-brand bg-white p-1.5 sm:h-20 sm:w-20 sm:p-2">
               {icon}
@@ -107,10 +91,7 @@ export default function BookingOptionButton({
       onClick={onClick}
       className={`${baseClass} ${bullets?.length ? "text-left" : "text-center"}`}
     >
-      <span className="flex flex-col gap-2 px-1">
-        <span className={bullets?.length ? "" : "mx-auto"}>{selectionIndicator(selected)}</span>
-        {labelBlock}
-      </span>
+      <span className="block px-1">{labelBlock}</span>
     </button>
   );
 }

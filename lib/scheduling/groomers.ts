@@ -1,4 +1,5 @@
 import type { GroomerId } from "./types";
+import { BOOKING_DURATION_MINUTES, SELF_BOOKING_DISPLAY_MINUTES } from "./services";
 
 export const GROOMERS: Record<
   GroomerId,
@@ -52,7 +53,7 @@ export const TIME_SLOT_OPTIONS = [
   "20:00",
 ] as const;
 
-/** 2-hour appointment block start times (groomer + customer calendar). */
+/** 2-hour availability blocks groomers toggle on their calendar. */
 export const BOOKING_BLOCK_STARTS = [
   "08:00",
   "10:00",
@@ -63,13 +64,23 @@ export const BOOKING_BLOCK_STARTS = [
   "20:00",
 ] as const;
 
-export function formatBookingBlockDisplay(startTime24: string): string {
+function formatTimeRangeDisplay(startTime24: string, durationMinutes: number): string {
   const [h, m] = startTime24.split(":").map(Number);
-  const endMinutes = h * 60 + (m ?? 0) + 120;
+  const endMinutes = h * 60 + (m ?? 0) + durationMinutes;
   const endH = Math.floor(endMinutes / 60);
   const endM = endMinutes % 60;
   const endTime24 = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
   return `${formatDisplayTime(startTime24)} – ${formatDisplayTime(endTime24)}`;
+}
+
+/** Staff / groomer views — full appointment length. */
+export function formatBookingBlockDisplay(startTime24: string): string {
+  return formatTimeRangeDisplay(startTime24, BOOKING_DURATION_MINUTES);
+}
+
+/** Customer self-booking — 2-hour calendar label; appointment books for 3 hours. */
+export function formatSelfBookingSlotDisplay(startTime24: string): string {
+  return formatTimeRangeDisplay(startTime24, SELF_BOOKING_DISPLAY_MINUTES);
 }
 
 export function formatDisplayTime(time24: string): string {

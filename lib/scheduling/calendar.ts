@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import type { Appointment } from "./types";
 import { formatAppointmentAddress } from "./address";
 import { CALENDAR_NOTIFY_EMAILS, GROOMERS } from "./groomers";
+import { formatDurationLabel } from "@/lib/scheduling/services";
 import { getServiceLabel } from "@/lib/pricing";
 import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
 
@@ -75,8 +76,9 @@ export function buildIcsEvent(appointment: Appointment): string {
   const summary = escapeIcs(
     `Mobile Dog Salon — ${petNames} (${serviceLabel})`
   );
+  const durationLabel = formatDurationLabel(appointment.durationMinutes);
   const description = escapeIcs(
-    `Groomer: ${groomer.name}\nDuration: 2 hours\nPets: ${petSummary}\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${formatAppointmentAddress(appointment)}\nNotes: ${appointment.notes || "—"}`
+    `Groomer: ${groomer.name}\nDuration: ${durationLabel}\nPets: ${petSummary}\nService: ${serviceLabel}\nClient: ${appointment.firstName} ${appointment.lastName}\nPhone: ${appointment.phone}\nEmail: ${appointment.email}\nAddress: ${formatAppointmentAddress(appointment)}\nNotes: ${appointment.notes || "—"}`
   );
   const location = escapeIcs(`${formatAppointmentAddress(appointment)}, CA`);
 
@@ -131,9 +133,12 @@ export async function sendCalendarInvites(appointment: Appointment): Promise<boo
   const petSummary = formatPetsList(pets);
   const petNames = formatPetNames(pets);
 
-  const subject = `Appointment: ${petNames} with ${groomer.name} — ${serviceLabel} (2 hrs)`;
+  const durationLabel = formatDurationLabel(appointment.durationMinutes);
+  const durationShort = `${appointment.durationMinutes / 60} hrs`;
+
+  const subject = `Appointment: ${petNames} with ${groomer.name} — ${serviceLabel} (${durationShort})`;
   const html = `
-    <p><strong>New Mobile Dog Salon appointment (2 hours)</strong></p>
+    <p><strong>New Mobile Dog Salon appointment (${durationLabel})</strong></p>
     <p><strong>Groomer:</strong> ${groomer.name}<br/>
     <strong>When:</strong> ${startLocal} – ${endLocal} Pacific<br/>
     <strong>Pets:</strong> ${petSummary}<br/>
@@ -142,7 +147,7 @@ export async function sendCalendarInvites(appointment: Appointment): Promise<boo
     <strong>Phone:</strong> ${appointment.phone}<br/>
     <strong>Email:</strong> ${appointment.email}<br/>
     <strong>Address:</strong> ${formatAppointmentAddress(appointment)}</p>
-    <p>Open the attached calendar invite to add this 2-hour appointment to Outlook.</p>
+    <p>Open the attached calendar invite to add this ${durationLabel} appointment to Outlook.</p>
   `;
 
   if (!process.env.RESEND_API_KEY) {

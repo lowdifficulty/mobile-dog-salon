@@ -1,5 +1,8 @@
 import type { GroomerId, SchedulingData } from "./types";
-import { BOOKING_DURATION_MINUTES } from "./services";
+import { BOOKING_DURATION_MINUTES, GROOMER_AVAILABILITY_BLOCK_MINUTES } from "./services";
+import { TIME_SLOT_OPTIONS } from "./groomers";
+
+const SELF_BOOKING_HOURS = new Set<string>(TIME_SLOT_OPTIONS);
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -39,7 +42,7 @@ export function hasMinimumAvailabilityForBooking(
   return times.includes(startTime);
 }
 
-/** Hours blocked when a 2-hour appointment starts at `startTime`. */
+/** Hours blocked when an appointment starts at `startTime`. */
 export function bookingBlockHours(
   startTime: string,
   durationMinutes: number = BOOKING_DURATION_MINUTES
@@ -47,10 +50,10 @@ export function bookingBlockHours(
   return slotsCoveredByBooking(startTime, durationMinutes);
 }
 
-/** List non-overlapping 2-hour booking starts from groomer hour marks. */
+/** List non-overlapping booking starts from groomer hour marks (staff / team calendar). */
 export function listBookingBlockStarts(
   times: string[],
-  durationMinutes: number = BOOKING_DURATION_MINUTES,
+  durationMinutes: number = GROOMER_AVAILABILITY_BLOCK_MINUTES,
   isTaken?: (startTime: string) => boolean
 ): string[] {
   const sorted = [...new Set(times)].sort();
@@ -74,11 +77,28 @@ export function listBookingBlockStarts(
   return offered;
 }
 
+/**
+ * Customer self-booking: hourly start times when groomer marked that hour open.
+ * Only the start hour is required — appointment may extend past marked hours.
+ */
+export function listSelfBookingStarts(
+  times: string[],
+  isTaken?: (startTime: string) => boolean
+): string[] {
+  const sorted = [...new Set(times)].sort();
+  return sorted.filter((time) => {
+    if (!SELF_BOOKING_HOURS.has(time)) return false;
+    if (!hasMinimumAvailabilityForBooking(times, time)) return false;
+    if (isTaken?.(time)) return false;
+    return true;
+  });
+}
+
 export function setBookingBlockEnabled(
   times: string[],
   startTime: string,
   enabled: boolean,
-  durationMinutes: number = BOOKING_DURATION_MINUTES
+  durationMinutes: number = GROOMER_AVAILABILITY_BLOCK_MINUTES
 ): string[] {
   const block = bookingBlockHours(startTime, durationMinutes);
   if (enabled) {

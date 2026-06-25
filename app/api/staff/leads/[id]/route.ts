@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, requireStaff } from "@/lib/scheduling/auth";
 import { cancelAppointment } from "@/lib/scheduling/appointment-actions";
-import { deleteLeadById, updateLeadFields } from "@/lib/leads/store";
-import type { LeadFollowUpMode, LeadListStatus, VisitOutcome } from "@/lib/leads/types";
+import { deleteLeadById } from "@/lib/leads/store";
+import { patchLeadDetails, type LeadDetailsPatch } from "@/lib/leads/patch-lead";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireStaff();
+    const user = await requireStaff();
     const { id } = await context.params;
-    const body = (await request.json()) as {
-      followUpMode?: LeadFollowUpMode;
-      visitOutcome?: VisitOutcome;
-      listStatus?: LeadListStatus;
-    };
+    const body = (await request.json()) as LeadDetailsPatch;
 
     if (
       body.followUpMode !== undefined &&
@@ -40,17 +36,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Invalid listStatus" }, { status: 400 });
     }
 
-    const lead = await updateLeadFields(id, {
-      followUpMode: body.followUpMode,
-      visitOutcome: body.visitOutcome,
-      listStatus: body.listStatus,
-    });
-
-    if (!lead) {
-      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    const result = await patchLeadDetails(id, body, user.email);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    return NextResponse.json({ lead });
+    return NextResponse.json({ lead: result.lead });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -69,7 +60,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (removed.appointmentId) {
       const result = await cancelAppointment(
         removed.appointmentId,
-        "admin:lead-delete"
+        "staff:lead-delete"
       );
       if (!result.ok && result.status !== 404 && result.status !== 409) {
         return NextResponse.json({ error: result.error }, { status: result.status });

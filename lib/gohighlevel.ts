@@ -3,6 +3,7 @@ import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import { formatPetsList, getAppointmentPetLabel, getAppointmentPets } from "@/lib/booking/pets";
 import { getServiceLabel, getServicePrice, normalizePetSize } from "@/lib/pricing";
 import { GROOMERS, formatDisplayTime } from "@/lib/scheduling/groomers";
+import { formatDurationLabel } from "@/lib/scheduling/services";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const TZ = "America/Los_Angeles";
@@ -109,7 +110,7 @@ function buildAppointmentNote(appointment: Appointment): string {
     `Size: ${normalizePetSize(appointment.petSize)}`,
     `Service: ${serviceLabel} (${priceLine})`,
     `Date: ${formatAppointmentDate(appointment.startAt)}`,
-    `Time: ${formatAppointmentTime(appointment.startAt)} (2 hours)`,
+    `Time: ${formatAppointmentTime(appointment.startAt)} (${formatDurationLabel(appointment.durationMinutes)})`,
     `Groomer: ${groomer}`,
     `Address: ${formatAppointmentAddress(appointment)}`,
     appointment.notes ? `Notes: ${appointment.notes}` : "",

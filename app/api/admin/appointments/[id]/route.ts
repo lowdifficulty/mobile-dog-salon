@@ -27,7 +27,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (!slotKey) {
         return NextResponse.json({ error: "slotKey is required" }, { status: 400 });
       }
-      const result = await rescheduleAppointment(id, slotKey, admin.email);
+      const result = await rescheduleAppointment(id, slotKey, admin.email, {
+        overrideAvailability: Boolean(body.overrideAvailability),
+        allowSameDay: Boolean(body.overrideAvailability),
+      });
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });
       }

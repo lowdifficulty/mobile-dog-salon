@@ -1,6 +1,5 @@
-import { GROOMERS, TIME_SLOT_OPTIONS, formatBookingBlockDisplay, groomerClientDisplayName } from "./groomers";
-import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
-import { listBookingBlockStarts } from "./availability";
+import { GROOMERS, TIME_SLOT_OPTIONS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
+import { listSelfBookingStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {
   date: string;
@@ -29,13 +28,13 @@ export function buildFallbackRangeDays(
     if (isBookableDate(date)) {
       for (const groomerId of ACTIVE_GROOMER_IDS) {
         const times = [...TIME_SLOT_OPTIONS];
-        for (const time of listBookingBlockStarts(times)) {
+        for (const time of listSelfBookingStarts(times)) {
           slots.push({
             groomerId,
             groomerName: groomerClientDisplayName(groomerId),
             date,
             time,
-            displayTime: formatBookingBlockDisplay(time),
+            displayTime: formatSelfBookingSlotDisplay(time),
             slotKey: `${groomerId}|${date}|${time}`,
           });
         }

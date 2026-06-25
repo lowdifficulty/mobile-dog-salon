@@ -286,33 +286,9 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
     : null;
 
   const appointmentSummary = (discountHeading = "50% discount activated") => (
-    <>
-      <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
-        <p className="text-xl font-bold text-green-700 tracking-tight">{discountHeading}</p>
-      </div>
-      <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your appointment</p>
-        <p className="text-sm text-gray-900">
-          {data.preferredDate} at {data.preferredTime} with {data.groomerName}
-        </p>
-        <p className="text-sm text-gray-700 font-normal">
-          {getServiceLabel(data.service)}
-          {selectedPrice != null && (
-            <>
-              {" — "}
-              {listPrice != null && listPrice !== selectedPrice ? (
-                <>
-                  <span className="line-through text-gray-400">{formatPrice(listPrice)}</span>{" "}
-                  {formatPrice(selectedPrice)}
-                </>
-              ) : (
-                formatPrice(selectedPrice)
-              )}
-            </>
-          )}
-        </p>
-      </div>
-    </>
+    <div className="rounded-2xl border-2 border-green-300 bg-green-50 px-4 py-4 text-center">
+      <p className="text-xl font-bold text-green-700 tracking-tight">{discountHeading}</p>
+    </div>
   );
 
   if (submitted && calendarDetails) {

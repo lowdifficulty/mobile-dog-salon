@@ -12,15 +12,11 @@ import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import type { SessionUser } from "@/lib/scheduling/types";
 
-const LeadsPanel = dynamic(() => import("@/components/leads/LeadsPanel"), {
-  loading: () => <p className="text-sm text-gray-500">Loading leads…</p>,
-});
-
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
-  loading: () => <p className="text-sm text-gray-500">Loading team calendar…</p>,
+  loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type Tab = "route" | "upcoming" | "book" | "past" | "leads" | "team-calendar" | "availability";
+type Tab = "upcoming" | "route" | "book" | "team-calendar" | "availability";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -44,12 +40,10 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "upcoming", label: "Upcoming" },
-    { id: "route", label: "My Route" },
-    { id: "book", label: "Book Appointment" },
-    { id: "past", label: "Past" },
-    { id: "leads", label: "Leads" },
-    { id: "team-calendar", label: "Team calendar" },
-    { id: "availability", label: "My availability" },
+    { id: "route", label: "Route" },
+    { id: "book", label: "Book" },
+    { id: "team-calendar", label: "Calendar" },
+    { id: "availability", label: "Schedule" },
   ];
 
   return (
@@ -57,7 +51,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Daily route, upcoming appointments, leads, and team calendar."
+        subtitle="Upcoming appointments, daily route, calendar, and schedule."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
@@ -96,21 +90,6 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
                 setAppointmentRefreshKey((key) => key + 1);
                 setTab("upcoming");
               }}
-            />
-          )}
-          {tab === "past" && (
-            <AppointmentList
-              apiUrl="/api/groomer/appointments"
-              filter="past"
-              currentGroomerId={groomerId}
-            />
-          )}
-          {tab === "leads" && (
-            <LeadsPanel
-              hideJobApplicants
-              allowDelete={false}
-              apiBase="/api/staff/leads"
-              currentGroomerId={groomerId}
             />
           )}
           {tab === "team-calendar" && (

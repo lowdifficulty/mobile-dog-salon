@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
 import AppointmentList from "./AppointmentList";
+import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
@@ -19,11 +20,11 @@ const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading team calendar…</p>,
 });
 
-type Tab = "upcoming" | "book" | "past" | "leads" | "team-calendar" | "availability";
+type Tab = "route" | "upcoming" | "book" | "past" | "leads" | "team-calendar" | "availability";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("upcoming");
+  const [tab, setTab] = useState<Tab>("route");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const groomerId = user.groomerId;
 
@@ -42,6 +43,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   }
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: "route", label: "My route" },
     { id: "upcoming", label: "Upcoming" },
     { id: "book", label: "Book appointment" },
     { id: "past", label: "Past" },
@@ -55,16 +57,16 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Upcoming appointments, leads, and team calendar."
+        subtitle="Daily route, upcoming appointments, leads, and team calendar."
         onLogout={logout}
       >
-        <div className="flex flex-wrap gap-2 mb-8" data-groomer-tabs="v2">
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
           {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
                 tab === t.id
                   ? "bg-brand text-white border-brand"
                   : "bg-white text-brand border-gray-200 hover:border-accent"
@@ -76,6 +78,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         </div>
 
         <DashboardErrorBoundary>
+          {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
           {tab === "upcoming" && (
             <AppointmentList
               key={appointmentRefreshKey}

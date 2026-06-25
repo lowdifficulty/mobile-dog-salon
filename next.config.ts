@@ -42,6 +42,10 @@ const nextConfig: NextConfig = {
         source: "/api/availability",
         headers: [{ key: "Cache-Control", value: "no-store, no-cache" }],
       },
+      {
+        source: "/api/groomer/route",
+        headers: [{ key: "Cache-Control", value: "no-store, no-cache" }],
+      },
     ];
   },
   async redirects() {

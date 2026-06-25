@@ -24,7 +24,7 @@ type Tab = "route" | "upcoming" | "book" | "past" | "leads" | "team-calendar" | 
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("route");
+  const [tab, setTab] = useState<Tab>("upcoming");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const groomerId = user.groomerId;
 
@@ -43,9 +43,9 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "route", label: "My route" },
     { id: "upcoming", label: "Upcoming" },
-    { id: "book", label: "Book appointment" },
+    { id: "route", label: "My Route" },
+    { id: "book", label: "Book Appointment" },
     { id: "past", label: "Past" },
     { id: "leads", label: "Leads" },
     { id: "team-calendar", label: "Team calendar" },

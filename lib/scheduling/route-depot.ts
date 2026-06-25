@@ -10,4 +10,4 @@ export const ROUTE_DEPOT = {
 export const ROUTE_GAS_MPG = 11;
 export const ROUTE_GALLONS_PER_APPOINTMENT = 0.25;
 /** Default gas price for cost estimates (USD/gallon). */
-export const ROUTE_GAS_PRICE_PER_GALLON = 4.5;
+export const ROUTE_GAS_PRICE_PER_GALLON = 5.25;

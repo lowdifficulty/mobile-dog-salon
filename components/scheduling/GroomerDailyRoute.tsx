@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DailyRoutePlan } from "@/lib/scheduling/daily-route";
 import type { GroomerId } from "@/lib/scheduling/types";
+import GroomerRouteMap from "./GroomerRouteMap";
 
 function formatMiles(miles: number): string {
   return miles < 10 ? miles.toFixed(1) : Math.round(miles).toString();
@@ -106,8 +107,8 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
         <div>
           <h3 className="text-base font-bold text-gray-900">Daily route</h3>
           <p className="text-xs text-gray-500 mt-1 max-w-xl">
-            Depot → each appointment in time order. Estimates use driving distance at 11 MPG plus
-            ¼ gal per appointment.
+            Full drive cycle: depot → each client in time order → back to depot. Gas at 11 MPG
+            plus ¼ gal per appointment, priced at $5.25/gal.
           </p>
         </div>
         {scheduledDates.length > 0 && (
@@ -164,7 +165,7 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <p className="text-xs text-gray-500">Drive</p>
+                <p className="text-xs text-gray-500">Total drive</p>
                 <p className="text-lg font-bold text-brand leading-tight">
                   {formatMiles(route.totalDriveMiles)} mi
                 </p>
@@ -191,9 +192,11 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
             <p className="text-xs text-gray-500 border-t border-gray-100 pt-3">
               {route.totalGallons.toFixed(1)} gal total ({route.gallonsDriving.toFixed(1)} driving
               + {route.gallonsAppointmentUse.toFixed(1)} on-site) at $
-              {route.gasPricePerGallon.toFixed(2)}/gal · Start: {route.depotAddress}
+              {route.gasPricePerGallon.toFixed(2)}/gal · Round trip from {route.depotAddress}
             </p>
           </div>
+
+          <GroomerRouteMap points={route.mapPoints} path={route.routePath} />
 
           <a
             href={route.googleMapsUrl}
@@ -223,12 +226,36 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
                     {formatMinutes(stop.leg.durationMinutes)}
                   </p>
                 </div>
-                <p className="text-sm text-gray-700">
-                  {stop.petSummary} — {stop.serviceLabel}
+                <p className="text-sm text-gray-700 font-medium">
+                  {stop.appointmentTitle}
                 </p>
+                {stop.petSummary && stop.petSummary !== "your pet" && (
+                  <p className="text-sm text-gray-600 mt-0.5">{stop.petSummary}</p>
+                )}
                 <p className="text-sm text-gray-600 mt-1">{stop.fullAddress}</p>
+                {stop.leg.approximateLocation && (
+                  <p className="text-[11px] text-amber-700 mt-1">
+                    Approximate location (ZIP centroid) — use Google Maps for exact address.
+                  </p>
+                )}
               </li>
             ))}
+            <li className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Return · End of day
+                  </p>
+                  <p className="font-bold text-gray-900 mt-0.5">{route.returnLeg.toLabel}</p>
+                  <p className="text-sm text-gray-600 mt-1">{route.depotAddress}</p>
+                </div>
+                <p className="text-xs text-gray-500 shrink-0 text-right">
+                  {formatMiles(route.returnLeg.distanceMiles)} mi
+                  <br />
+                  {formatMinutes(route.returnLeg.durationMinutes)}
+                </p>
+              </div>
+            </li>
           </ol>
         </>
       )}

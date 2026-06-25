@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getServiceLabel } from "@/lib/pricing";
-import { formatPetNames, formatPetsList, getAppointmentPets } from "@/lib/booking/pets";
+import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
+import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 import { GROOMERS, groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
@@ -247,9 +247,7 @@ export default function AppointmentList({
       )}
 
       {appointments.map((ap) => {
-        const serviceLabel = getServiceLabel(ap.service);
-        const appointmentPets = getAppointmentPets(ap);
-        const petSummary = formatPetsList(appointmentPets);
+        const appointmentTitle = formatAppointmentTitle(ap);
         const isRescheduling = rescheduleId === ap.id;
         const isEditingLead = editLeadAppointmentId === ap.id;
         const isBusy = busyId === ap.id;
@@ -274,9 +272,14 @@ export default function AppointmentList({
               </div>
             </div>
             <p className="text-sm text-gray-800">
-              <strong>{petSummary}</strong>
-              {ap.petBreed ? ` (${ap.petBreed})` : ""} — {serviceLabel}
+              <strong>{appointmentTitle}</strong>
             </p>
+            {(ap.petName?.trim() || ap.petBreed) && (
+              <p className="text-sm text-gray-600 mt-0.5">
+                {ap.petName?.trim()}
+                {ap.petBreed ? ` (${ap.petBreed})` : ""}
+              </p>
+            )}
             <p className="text-sm text-gray-600 mt-1">
               {ap.firstName} {ap.lastName} · {ap.phone}
             </p>

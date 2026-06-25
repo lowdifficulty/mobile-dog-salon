@@ -1,7 +1,8 @@
-import { getServiceLabel } from "@/lib/pricing";
+import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
+import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
-import { geocodeAddress } from "@/lib/scheduling/geocode";
-import { estimateDrivingLeg } from "@/lib/scheduling/driving-estimates";
+import { geocodeAppointmentAddress, geocodeAddress } from "@/lib/scheduling/geocode";
+import { estimateDrivingLeg, fetchDrivingRoutePath } from "@/lib/scheduling/driving-estimates";
 import {
   ROUTE_DEPOT,
   ROUTE_GALLONS_PER_APPOINTMENT,
@@ -10,7 +11,6 @@ import {
 } from "@/lib/scheduling/route-depot";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
-import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 
 const PACIFIC_TZ = "America/Los_Angeles";
 
@@ -20,6 +20,7 @@ export interface RouteLegEstimate {
   distanceMiles: number;
   durationMinutes: number;
   estimateSource: "osrm" | "estimate";
+  approximateLocation?: boolean;
 }
 
 export interface DailyRouteStop {
@@ -28,11 +29,19 @@ export interface DailyRouteStop {
   startAt: string;
   displayTime: string;
   clientName: string;
+  appointmentTitle: string;
   petSummary: string;
-  serviceLabel: string;
   addressLine: string;
   fullAddress: string;
   leg: RouteLegEstimate;
+}
+
+export interface RouteMapPoint {
+  lat: number;
+  lon: number;
+  label: string;
+  kind: "depot" | "stop";
+  order?: number;
 }
 
 export interface DailyRoutePlan {
@@ -40,6 +49,9 @@ export interface DailyRoutePlan {
   groomerId: GroomerId;
   depotAddress: string;
   stops: DailyRouteStop[];
+  returnLeg: RouteLegEstimate;
+  mapPoints: RouteMapPoint[];
+  routePath: { lat: number; lon: number }[];
   totalDriveMiles: number;
   totalDriveMinutes: number;
   appointmentCount: number;
@@ -106,6 +118,7 @@ export async function buildDailyRoutePlan(
   }
 
   const stops: DailyRouteStop[] = [];
+  const routeWaypoints = [depotPoint];
   let totalDriveMiles = 0;
   let totalDriveMinutes = 0;
   let usesEstimates = false;
@@ -115,10 +128,15 @@ export async function buildDailyRoutePlan(
   for (let i = 0; i < dayAppointments.length; i++) {
     const ap = dayAppointments[i];
     const fullAddress = formatAppointmentAddress(ap);
-    const destPoint = await geocodeAddress(fullAddress);
-    if (!destPoint) {
-      throw new Error(`Could not locate address: ${fullAddress}`);
-    }
+    const destPoint = await geocodeAppointmentAddress({
+      address: ap.address,
+      city: ap.city,
+      zipCode: ap.zipCode,
+      fullAddress,
+    });
+    routeWaypoints.push(destPoint);
+    const approximateLocation = destPoint.precision === "zip";
+    if (approximateLocation) usesEstimates = true;
 
     const legResult = await estimateDrivingLeg(previousPoint, destPoint);
     if (legResult.source === "estimate") usesEstimates = true;
@@ -129,6 +147,7 @@ export async function buildDailyRoutePlan(
       distanceMiles: legResult.miles,
       durationMinutes: legResult.minutes,
       estimateSource: legResult.source,
+      approximateLocation,
     };
 
     totalDriveMiles += leg.distanceMiles;
@@ -140,8 +159,8 @@ export async function buildDailyRoutePlan(
       startAt: ap.startAt,
       displayTime: formatRouteStopTime(ap.startAt),
       clientName: `${ap.firstName} ${ap.lastName}`.trim() || "Guest",
+      appointmentTitle: formatAppointmentTitle(ap),
       petSummary: formatPetNames(getAppointmentPets(ap)),
-      serviceLabel: getServiceLabel(ap.service),
       addressLine: `${ap.address}, ${ap.city}`,
       fullAddress,
       leg,
@@ -150,6 +169,41 @@ export async function buildDailyRoutePlan(
     previousPoint = destPoint;
     previousLabel = leg.toLabel;
   }
+
+  const returnLegResult = await estimateDrivingLeg(previousPoint, depotPoint);
+  if (returnLegResult.source === "estimate") usesEstimates = true;
+
+  const returnLeg: RouteLegEstimate = {
+    fromLabel: previousLabel,
+    toLabel: ROUTE_DEPOT.label,
+    distanceMiles: returnLegResult.miles,
+    durationMinutes: returnLegResult.minutes,
+    estimateSource: returnLegResult.source,
+  };
+
+  totalDriveMiles += returnLeg.distanceMiles;
+  totalDriveMinutes += returnLeg.durationMinutes;
+
+  routeWaypoints.push(depotPoint);
+
+  const mapPoints: RouteMapPoint[] = [
+    {
+      lat: depotPoint.lat,
+      lon: depotPoint.lon,
+      label: ROUTE_DEPOT.label,
+      kind: "depot",
+    },
+    ...stops.map((stop, index) => ({
+      lat: routeWaypoints[index + 1].lat,
+      lon: routeWaypoints[index + 1].lon,
+      label: stop.clientName,
+      kind: "stop" as const,
+      order: stop.order,
+    })),
+  ];
+
+  const routePathResult = await fetchDrivingRoutePath(routeWaypoints);
+  if (routePathResult.source === "estimate") usesEstimates = true;
 
   const appointmentCount = stops.length;
   const gallonsDriving = totalDriveMiles / ROUTE_GAS_MPG;
@@ -161,6 +215,7 @@ export async function buildDailyRoutePlan(
   const mapAddresses = [
     ROUTE_DEPOT.fullAddress,
     ...stops.map((s) => s.fullAddress),
+    ROUTE_DEPOT.fullAddress,
   ];
 
   return {
@@ -168,6 +223,9 @@ export async function buildDailyRoutePlan(
     groomerId,
     depotAddress: ROUTE_DEPOT.fullAddress,
     stops,
+    returnLeg,
+    mapPoints,
+    routePath: routePathResult.path,
     totalDriveMiles,
     totalDriveMinutes,
     appointmentCount,

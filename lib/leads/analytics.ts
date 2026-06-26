@@ -101,12 +101,12 @@ function percentOf(count: number, total: number): number {
   return Math.round((count / total) * 1000) / 10;
 }
 
-export async function computeFunnelAnalytics(
+export function computeFunnelAnalytics(
   leads: Lead[],
   range: AnalyticsRange,
   customDate?: string,
   appointments: Appointment[] = []
-): Promise<FunnelAnalyticsResult> {
+): FunnelAnalyticsResult {
   const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range, customDate));
   const totalLeads = filtered.length;
 
@@ -140,7 +140,7 @@ export async function computeFunnelAnalytics(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
   ).length;
 
-  const financials = await computeFinancialAnalytics(filtered, range, appointments);
+  const financials = computeFinancialAnalytics(filtered, range, appointments);
 
   return {
     range,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ANALYTICS_EXPENSE_BUFFER_PERCENT,
+  ANALYTICS_PAYROLL_HOURS_PER_GROOM,
   ANALYTICS_PAYROLL_HOURLY_PER_GROOMER,
   ANALYTICS_TRUCK_COUNT,
   formatAnalyticsMoney,
@@ -25,7 +26,7 @@ function barTone(percent: number): string {
 }
 
 export default function FunnelAnalyticsPanel() {
-  const [range, setRange] = useState<AnalyticsRange>("week");
+  const [range, setRange] = useState<AnalyticsRange>("today");
   const [customDate, setCustomDate] = useState(todayPacificDate);
   const [data, setData] = useState<FunnelAnalyticsResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,9 +194,9 @@ export default function FunnelAnalyticsPanel() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
               {[
-                { label: "Gas (route miles)", value: data.financials.expenses.gas },
+                { label: "Gas (estimated)", value: data.financials.expenses.gas },
                 {
-                  label: `Payroll ($${ANALYTICS_PAYROLL_HOURLY_PER_GROOMER}/hr per groomer)`,
+                  label: `Payroll ($${ANALYTICS_PAYROLL_HOURLY_PER_GROOMER}/hr, +${ANALYTICS_PAYROLL_HOURS_PER_GROOM} hr/groom)`,
                   value: data.financials.expenses.payroll,
                 },
                 {

@@ -16,10 +16,10 @@ export async function GET(request: Request) {
   try {
     await requireAdmin();
     const { searchParams } = new URL(request.url);
-    const rangeParam = searchParams.get("range") ?? "week";
+    const rangeParam = searchParams.get("range") ?? "today";
     const range = VALID_RANGES.includes(rangeParam as AnalyticsRange)
       ? (rangeParam as AnalyticsRange)
-      : "week";
+      : "today";
 
     const dateParam = searchParams.get("date") ?? "";
     const customDate =
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
 
     const leads = leadsForAnalytics(await syncLeadsWithAppointments());
     const { appointments } = await readSchedulingData();
-    const analytics = await computeFunnelAnalytics(leads, range, customDate, appointments);
+    const analytics = computeFunnelAnalytics(leads, range, customDate, appointments);
 
     return NextResponse.json(analytics);
   } catch {

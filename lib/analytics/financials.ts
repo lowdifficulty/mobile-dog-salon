@@ -2,10 +2,14 @@ import { getQuotedServicePrice } from "@/lib/pricing";
 import type { AnalyticsRange } from "@/lib/leads/analytics";
 import { funnelStepOrder, type Lead } from "@/lib/leads/types";
 import {
-  appointmentPacificDate,
-  buildDailyRoutePlan,
-} from "@/lib/scheduling/daily-route";
-import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+  ROUTE_GALLONS_PER_APPOINTMENT,
+  ROUTE_GAS_MPG,
+  ROUTE_GAS_PRICE_PER_GALLON,
+} from "@/lib/scheduling/route-depot";
+import type { Appointment } from "@/lib/scheduling/types";
+
+/** Average driving miles attributed to each appointment for gas estimates. */
+export const ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT = 12;
 
 export const ANALYTICS_MARKETING_COST_PER_BOOKING = 15;
 export const ANALYTICS_PARKING_MONTHLY = 400;
@@ -14,6 +18,8 @@ export const ANALYTICS_TRUCK_COUNT = 2;
 /** Estimated monthly insurance per van (USD). */
 export const ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK = 250;
 export const ANALYTICS_PAYROLL_HOURLY_PER_GROOMER = 20;
+/** Extra payroll hours per grooming appointment (drive/setup beyond booked block). */
+export const ANALYTICS_PAYROLL_HOURS_PER_GROOM = 3;
 export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 20;
 
 const DAYS_PER_MONTH = 30;
@@ -134,39 +140,23 @@ export function appointmentsForBookedLeads(
   return result;
 }
 
-async function computeGasCostFromRoutes(
-  periodAppointments: Appointment[],
-  allAppointments: Appointment[]
-): Promise<number> {
-  if (periodAppointments.length === 0) return 0;
-
-  const dayKeys = new Set<string>();
-  for (const ap of periodAppointments) {
-    dayKeys.add(`${ap.groomerId}|${appointmentPacificDate(ap.startAt)}`);
-  }
-
-  let total = 0;
-  for (const key of dayKeys) {
-    const [groomerId, date] = key.split("|");
-    if (!groomerId || !date) continue;
-    try {
-      const plan = await buildDailyRoutePlan(
-        allAppointments,
-        groomerId as GroomerId,
-        date
-      );
-      if (plan) total += plan.totalGasCost;
-    } catch (err) {
-      console.error("Analytics gas estimate failed for", key, err);
-    }
-  }
-
-  return roundMoney(total);
+function estimateGasCost(appointmentCount: number): number {
+  if (appointmentCount === 0) return 0;
+  const gallonsPerAppointment =
+    ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT / ROUTE_GAS_MPG +
+    ROUTE_GALLONS_PER_APPOINTMENT;
+  return roundMoney(
+    appointmentCount * gallonsPerAppointment * ROUTE_GAS_PRICE_PER_GALLON
+  );
 }
 
 function computePayrollCost(appointments: Appointment[]): number {
   if (appointments.length === 0) return 0;
-  const hours = appointments.reduce((sum, ap) => sum + ap.durationMinutes / 60, 0);
+  const hours = appointments.reduce(
+    (sum, ap) =>
+      sum + ap.durationMinutes / 60 + ANALYTICS_PAYROLL_HOURS_PER_GROOM,
+    0
+  );
   return roundMoney(hours * ANALYTICS_PAYROLL_HOURLY_PER_GROOMER);
 }
 
@@ -192,13 +182,12 @@ function prorateMonthly(monthlyAmount: number, periodDays: number): number {
   return roundMoney((monthlyAmount / DAYS_PER_MONTH) * periodDays);
 }
 
-async function computeExpenses(
+function computeExpenses(
   periodAppointments: Appointment[],
-  allAppointments: Appointment[],
   bookedAppointments: number,
   periodDays: number
-): Promise<ExpenseBreakdown> {
-  const gas = await computeGasCostFromRoutes(periodAppointments, allAppointments);
+): ExpenseBreakdown {
+  const gas = estimateGasCost(periodAppointments.length);
   const payroll = computePayrollCost(periodAppointments);
   const insurance = prorateMonthly(
     ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK * ANALYTICS_TRUCK_COUNT,
@@ -226,11 +215,11 @@ async function computeExpenses(
   };
 }
 
-export async function computeFinancialAnalytics(
+export function computeFinancialAnalytics(
   filteredLeads: Lead[],
   range: AnalyticsRange,
   appointments: Appointment[]
-): Promise<FinancialAnalytics> {
+): FinancialAnalytics {
   const bookedLeads = filteredLeads.filter(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
   );
@@ -243,9 +232,8 @@ export async function computeFinancialAnalytics(
   const completedRevenue = sumLeadRevenue(completedLeads);
   const periodDays = analyticsPeriodDays(filteredLeads, range);
   const periodAppointments = appointmentsForBookedLeads(bookedLeads, appointments);
-  const expenses = await computeExpenses(
+  const expenses = computeExpenses(
     periodAppointments,
-    appointments,
     bookedLeads.length,
     periodDays
   );

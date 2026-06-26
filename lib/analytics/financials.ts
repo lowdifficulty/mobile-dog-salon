@@ -2,13 +2,10 @@ import { getQuotedServicePrice } from "@/lib/pricing";
 import type { AnalyticsRange } from "@/lib/leads/analytics";
 import { funnelStepOrder, type Lead } from "@/lib/leads/types";
 import {
-  ROUTE_GALLONS_PER_APPOINTMENT,
-  ROUTE_GAS_MPG,
-  ROUTE_GAS_PRICE_PER_GALLON,
-} from "@/lib/scheduling/route-depot";
-
-/** Average driving miles attributed to each appointment for gas estimates. */
-export const ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT = 12;
+  appointmentPacificDate,
+  buildDailyRoutePlan,
+} from "@/lib/scheduling/daily-route";
+import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export const ANALYTICS_MARKETING_COST_PER_BOOKING = 15;
 export const ANALYTICS_PARKING_MONTHLY = 400;
@@ -16,12 +13,14 @@ export const ANALYTICS_SUPPLIES_MONTHLY = 200;
 export const ANALYTICS_TRUCK_COUNT = 2;
 /** Estimated monthly insurance per van (USD). */
 export const ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK = 250;
+export const ANALYTICS_PAYROLL_HOURLY_PER_GROOMER = 20;
 export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 20;
 
 const DAYS_PER_MONTH = 30;
 
 export interface ExpenseBreakdown {
   gas: number;
+  payroll: number;
   insurance: number;
   parking: number;
   supplies: number;
@@ -99,14 +98,76 @@ function sumLeadRevenue(leads: Lead[]): {
   return { total: roundMoney(total), priced, unpriced };
 }
 
-function estimateGasCost(appointmentCount: number): number {
-  if (appointmentCount === 0) return 0;
-  const gallonsPerAppointment =
-    ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT / ROUTE_GAS_MPG +
-    ROUTE_GALLONS_PER_APPOINTMENT;
-  return roundMoney(
-    appointmentCount * gallonsPerAppointment * ROUTE_GAS_PRICE_PER_GALLON
+export function appointmentsForBookedLeads(
+  bookedLeads: Lead[],
+  appointments: Appointment[]
+): Appointment[] {
+  const byId = new Set(
+    bookedLeads.map((lead) => lead.appointmentId).filter(Boolean) as string[]
   );
+  const matched = new Set<string>();
+  const result: Appointment[] = [];
+
+  for (const ap of appointments) {
+    if (ap.status !== "confirmed") continue;
+    if (byId.has(ap.id)) {
+      result.push(ap);
+      matched.add(ap.id);
+    }
+  }
+
+  for (const lead of bookedLeads) {
+    if (!lead.appointmentStartAt || !lead.groomerId) continue;
+    const ap = appointments.find(
+      (candidate) =>
+        !matched.has(candidate.id) &&
+        candidate.status === "confirmed" &&
+        candidate.groomerId === lead.groomerId &&
+        candidate.startAt === lead.appointmentStartAt
+    );
+    if (ap) {
+      result.push(ap);
+      matched.add(ap.id);
+    }
+  }
+
+  return result;
+}
+
+async function computeGasCostFromRoutes(
+  periodAppointments: Appointment[],
+  allAppointments: Appointment[]
+): Promise<number> {
+  if (periodAppointments.length === 0) return 0;
+
+  const dayKeys = new Set<string>();
+  for (const ap of periodAppointments) {
+    dayKeys.add(`${ap.groomerId}|${appointmentPacificDate(ap.startAt)}`);
+  }
+
+  let total = 0;
+  for (const key of dayKeys) {
+    const [groomerId, date] = key.split("|");
+    if (!groomerId || !date) continue;
+    try {
+      const plan = await buildDailyRoutePlan(
+        allAppointments,
+        groomerId as GroomerId,
+        date
+      );
+      if (plan) total += plan.totalGasCost;
+    } catch (err) {
+      console.error("Analytics gas estimate failed for", key, err);
+    }
+  }
+
+  return roundMoney(total);
+}
+
+function computePayrollCost(appointments: Appointment[]): number {
+  if (appointments.length === 0) return 0;
+  const hours = appointments.reduce((sum, ap) => sum + ap.durationMinutes / 60, 0);
+  return roundMoney(hours * ANALYTICS_PAYROLL_HOURLY_PER_GROOMER);
 }
 
 function analyticsPeriodDays(leads: Lead[], range: AnalyticsRange): number {
@@ -131,11 +192,14 @@ function prorateMonthly(monthlyAmount: number, periodDays: number): number {
   return roundMoney((monthlyAmount / DAYS_PER_MONTH) * periodDays);
 }
 
-function computeExpenses(
+async function computeExpenses(
+  periodAppointments: Appointment[],
+  allAppointments: Appointment[],
   bookedAppointments: number,
   periodDays: number
-): ExpenseBreakdown {
-  const gas = estimateGasCost(bookedAppointments);
+): Promise<ExpenseBreakdown> {
+  const gas = await computeGasCostFromRoutes(periodAppointments, allAppointments);
+  const payroll = computePayrollCost(periodAppointments);
   const insurance = prorateMonthly(
     ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK * ANALYTICS_TRUCK_COUNT,
     periodDays
@@ -143,12 +207,15 @@ function computeExpenses(
   const parking = prorateMonthly(ANALYTICS_PARKING_MONTHLY, periodDays);
   const supplies = prorateMonthly(ANALYTICS_SUPPLIES_MONTHLY, periodDays);
   const marketing = roundMoney(bookedAppointments * ANALYTICS_MARKETING_COST_PER_BOOKING);
-  const subtotal = roundMoney(gas + insurance + parking + supplies + marketing);
+  const subtotal = roundMoney(
+    gas + payroll + insurance + parking + supplies + marketing
+  );
   const buffer = roundMoney(subtotal * (ANALYTICS_EXPENSE_BUFFER_PERCENT / 100));
   const total = roundMoney(subtotal + buffer);
 
   return {
     gas,
+    payroll,
     insurance,
     parking,
     supplies,
@@ -159,10 +226,11 @@ function computeExpenses(
   };
 }
 
-export function computeFinancialAnalytics(
+export async function computeFinancialAnalytics(
   filteredLeads: Lead[],
-  range: AnalyticsRange
-): FinancialAnalytics {
+  range: AnalyticsRange,
+  appointments: Appointment[]
+): Promise<FinancialAnalytics> {
   const bookedLeads = filteredLeads.filter(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
   );
@@ -174,7 +242,13 @@ export function computeFinancialAnalytics(
   const bookedRevenue = sumLeadRevenue(bookedLeads);
   const completedRevenue = sumLeadRevenue(completedLeads);
   const periodDays = analyticsPeriodDays(filteredLeads, range);
-  const expenses = computeExpenses(bookedLeads.length, periodDays);
+  const periodAppointments = appointmentsForBookedLeads(bookedLeads, appointments);
+  const expenses = await computeExpenses(
+    periodAppointments,
+    appointments,
+    bookedLeads.length,
+    periodDays
+  );
 
   return {
     bookedAppointments: bookedLeads.length,
@@ -196,17 +270,4 @@ export function formatAnalyticsMoney(amount: number): string {
     currency: "USD",
     maximumFractionDigits: 0,
   });
-}
-
-export function financialPeriodNote(range: AnalyticsRange, periodDays: number): string {
-  if (range === "today" || range === "custom") {
-    return "Parking, supplies, and insurance prorated for 1 day.";
-  }
-  if (range === "week") {
-    return "Parking, supplies, and insurance prorated for 7 days.";
-  }
-  if (range === "month") {
-    return "Parking, supplies, and insurance use full monthly amounts.";
-  }
-  return `Parking, supplies, and insurance prorated over ${periodDays} days.`;
 }

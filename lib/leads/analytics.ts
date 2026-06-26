@@ -6,6 +6,7 @@ import {
 } from "./types";
 import type { FinancialAnalytics } from "@/lib/analytics/financials";
 import { computeFinancialAnalytics } from "@/lib/analytics/financials";
+import type { Appointment } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -100,11 +101,12 @@ function percentOf(count: number, total: number): number {
   return Math.round((count / total) * 1000) / 10;
 }
 
-export function computeFunnelAnalytics(
+export async function computeFunnelAnalytics(
   leads: Lead[],
   range: AnalyticsRange,
-  customDate?: string
-): FunnelAnalyticsResult {
+  customDate?: string,
+  appointments: Appointment[] = []
+): Promise<FunnelAnalyticsResult> {
   const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range, customDate));
   const totalLeads = filtered.length;
 
@@ -138,7 +140,7 @@ export function computeFunnelAnalytics(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
   ).length;
 
-  const financials = computeFinancialAnalytics(filtered, range);
+  const financials = await computeFinancialAnalytics(filtered, range, appointments);
 
   return {
     range,

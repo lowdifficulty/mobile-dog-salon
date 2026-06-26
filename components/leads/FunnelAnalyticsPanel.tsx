@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ANALYTICS_EXPENSE_BUFFER_PERCENT,
+  ANALYTICS_PAYROLL_HOURLY_PER_GROOMER,
   ANALYTICS_TRUCK_COUNT,
   formatAnalyticsMoney,
-  financialPeriodNote,
 } from "@/lib/analytics/financials";
 import {
   ANALYTICS_RANGES,
@@ -135,7 +135,7 @@ export default function FunnelAnalyticsPanel() {
 
           <div className="site-card p-5 sm:p-6 space-y-5">
             <div>
-              <h3 className="font-semibold text-gray-900">Estimated revenue &amp; expenses</h3>
+              <h3 className="font-semibold text-gray-900">Revenue &amp; expenses</h3>
               <p className="text-sm text-gray-500 mt-1">
                 Revenue uses booked service prices (size, service, and phone discount).
                 {data.financials.unpricedBookings > 0 && (
@@ -147,7 +147,7 @@ export default function FunnelAnalyticsPanel() {
             <div className="grid sm:grid-cols-3 gap-4">
               <div className="rounded-xl border border-brand/20 bg-brand/5 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Est. revenue
+                  Revenue
                 </p>
                 <p className="text-2xl font-bold text-brand mt-2">
                   {formatAnalyticsMoney(data.financials.estimatedRevenue)}
@@ -161,7 +161,7 @@ export default function FunnelAnalyticsPanel() {
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Est. expenses
+                  Expenses
                 </p>
                 <p className="text-2xl font-bold text-gray-900 mt-2">
                   {formatAnalyticsMoney(data.financials.expenses.total)}
@@ -178,7 +178,7 @@ export default function FunnelAnalyticsPanel() {
                 }`}
               >
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Est. profit
+                  Profit
                 </p>
                 <p
                   className={`text-2xl font-bold mt-2 ${
@@ -193,7 +193,11 @@ export default function FunnelAnalyticsPanel() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
               {[
-                { label: "Gas", value: data.financials.expenses.gas },
+                { label: "Gas (route miles)", value: data.financials.expenses.gas },
+                {
+                  label: `Payroll ($${ANALYTICS_PAYROLL_HOURLY_PER_GROOMER}/hr per groomer)`,
+                  value: data.financials.expenses.payroll,
+                },
                 {
                   label: `Insurance (${ANALYTICS_TRUCK_COUNT} vans)`,
                   value: data.financials.expenses.insurance,
@@ -220,11 +224,6 @@ export default function FunnelAnalyticsPanel() {
                 </div>
               ))}
             </div>
-
-            <p className="text-xs text-gray-500">
-              {financialPeriodNote(data.range, data.financials.periodDays)} Gas is estimated at
-              12 mi/appointment, 11 MPG, ¼ gal/appointment, and $5.25/gal.
-            </p>
           </div>
 
           <div className="site-card p-5 sm:p-6">

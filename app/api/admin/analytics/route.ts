@@ -7,6 +7,7 @@ import {
 } from "@/lib/leads/analytics";
 import { leadsForAnalytics } from "@/lib/leads/filters";
 import { syncLeadsWithAppointments } from "@/lib/leads/sync";
+import { readSchedulingData } from "@/lib/scheduling/store";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const VALID_RANGES: AnalyticsRange[] = ["today", "week", "month", "all", "custom"];
@@ -29,7 +30,8 @@ export async function GET(request: Request) {
         : undefined;
 
     const leads = leadsForAnalytics(await syncLeadsWithAppointments());
-    const analytics = computeFunnelAnalytics(leads, range, customDate);
+    const { appointments } = await readSchedulingData();
+    const analytics = await computeFunnelAnalytics(leads, range, customDate, appointments);
 
     return NextResponse.json(analytics);
   } catch {

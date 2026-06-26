@@ -9,11 +9,11 @@ import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
 import LeadsPanel from "@/components/leads/LeadsPanel";
 import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
 
-type Tab = "leads" | "analytics" | "team-calendar" | "qa" | "payments";
+type Tab = "contacts" | "analytics" | "team-calendar" | "qa" | "payments";
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("leads");
+  const [tab, setTab] = useState<Tab>("contacts");
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "leads", label: "Leads" },
+    { id: "contacts", label: "Contacts" },
     { id: "analytics", label: "Analytics" },
     { id: "team-calendar", label: "Team calendar" },
     { id: "qa", label: "QA" },
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
   return (
     <SchedulingShell
       title="Admin dashboard"
-      subtitle="Leads, analytics, team calendar, QA, and payments."
+      subtitle="Contacts, analytics, team calendar, QA, and payments."
       onLogout={logout}
     >
       <div className="flex flex-wrap gap-2 mb-8">
@@ -52,7 +52,9 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {tab === "leads" && <LeadsPanel apiBase="/api/staff/leads" />}
+      {tab === "contacts" && (
+        <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
+      )}
       {tab === "analytics" && <FunnelAnalyticsPanel />}
       {tab === "team-calendar" && (
         <TeamCalendarPanel availabilityApi="/api/staff/availability" />

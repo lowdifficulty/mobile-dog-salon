@@ -369,11 +369,14 @@ export default function LeadsPanel({
   allowDelete = true,
   apiBase = "/api/admin/leads",
   currentGroomerId,
+  contactsLayout = false,
 }: {
   hideJobApplicants?: boolean;
   allowDelete?: boolean;
   apiBase?: string;
   currentGroomerId?: GroomerId;
+  /** Admin Contacts tab: Customers, Scheduled, Leads (no cold storage / applicants). */
+  contactsLayout?: boolean;
 }) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
   const [abandonedSubtab, setAbandonedSubtab] = useState<AbandonedLeadSubtab>("all");
@@ -598,57 +601,86 @@ export default function LeadsPanel({
 
   const emptyMessage =
     view === "abandoned"
-      ? "No abandoned leads yet. Incomplete bookings and leads still in the funnel appear here."
+      ? contactsLayout
+        ? "No leads in the funnel yet. Incomplete bookings and partial form fills appear here."
+        : "No abandoned leads yet. Incomplete bookings and leads still in the funnel appear here."
       : view === "scheduled"
         ? "No upcoming scheduled appointments."
         : view === "complete"
-          ? "No completed visits yet. Past appointments appear here after their scheduled time."
+          ? contactsLayout
+            ? "No customers for today or past visits yet."
+            : "No completed visits yet. Past appointments appear here after their scheduled time."
           : "No leads in cold storage.";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-        <LeadTabButton
-          label="Scheduled"
-          active={view === "scheduled"}
-          badgeCount={view === "scheduled" ? 0 : badgeCounts.scheduled}
-          onClick={() => switchToView("scheduled")}
-        />
-        <LeadTabButton
-          label="Complete"
-          active={view === "complete"}
-          badgeCount={view === "complete" ? 0 : badgeCounts.complete}
-          onClick={() => switchToView("complete")}
-        />
-        <LeadTabButton
-          label="Abandoned"
-          active={view === "abandoned"}
-          badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
-          onClick={() => switchToView("abandoned")}
-        />
-        <button
-          type="button"
-          onClick={() => switchToView("cold_storage")}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            view === "cold_storage"
-              ? "bg-brand text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          Cold storage
-        </button>
-        {!hideJobApplicants && (
-          <button
-            type="button"
-            onClick={() => switchToView("job_applicants")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              view === "job_applicants"
-                ? "bg-brand text-white"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            Job applicants
-          </button>
+        {contactsLayout ? (
+          <>
+            <LeadTabButton
+              label="Customers"
+              active={view === "complete"}
+              badgeCount={view === "complete" ? 0 : badgeCounts.complete}
+              onClick={() => switchToView("complete")}
+            />
+            <LeadTabButton
+              label="Scheduled"
+              active={view === "scheduled"}
+              badgeCount={view === "scheduled" ? 0 : badgeCounts.scheduled}
+              onClick={() => switchToView("scheduled")}
+            />
+            <LeadTabButton
+              label="Leads"
+              active={view === "abandoned"}
+              badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
+              onClick={() => switchToView("abandoned")}
+            />
+          </>
+        ) : (
+          <>
+            <LeadTabButton
+              label="Scheduled"
+              active={view === "scheduled"}
+              badgeCount={view === "scheduled" ? 0 : badgeCounts.scheduled}
+              onClick={() => switchToView("scheduled")}
+            />
+            <LeadTabButton
+              label="Complete"
+              active={view === "complete"}
+              badgeCount={view === "complete" ? 0 : badgeCounts.complete}
+              onClick={() => switchToView("complete")}
+            />
+            <LeadTabButton
+              label="Abandoned"
+              active={view === "abandoned"}
+              badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
+              onClick={() => switchToView("abandoned")}
+            />
+            <button
+              type="button"
+              onClick={() => switchToView("cold_storage")}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                view === "cold_storage"
+                  ? "bg-brand text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Cold storage
+            </button>
+            {!hideJobApplicants && (
+              <button
+                type="button"
+                onClick={() => switchToView("job_applicants")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  view === "job_applicants"
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Job applicants
+              </button>
+            )}
+          </>
         )}
       </div>
 

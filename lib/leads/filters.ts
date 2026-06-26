@@ -1,6 +1,9 @@
 import { normalizePhone } from "./normalize";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
+import { getTodayPacificDate } from "@/lib/scheduling/slots";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
+
+const PACIFIC_TZ = "America/Los_Angeles";
 
 export type LeadCrmView = "abandoned" | "scheduled" | "complete" | "cold_storage";
 
@@ -67,14 +70,36 @@ export function hasSelectedAppointmentTime(lead: {
   return funnelStepOrder(lead.funnelStep) >= funnelStepOrder("schedule_appointment");
 }
 
-export function isScheduledLead(lead: {
+export function appointmentPacificDate(appointmentStartAt: string): string {
+  return new Date(appointmentStartAt).toLocaleDateString("en-CA", { timeZone: PACIFIC_TZ });
+}
+
+export function isBookedVisitLead(lead: {
   funnelStep: LeadFunnelStep;
   appointmentStartAt?: string;
 }): boolean {
   if (!lead.appointmentStartAt) return false;
   if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
+  return true;
+}
+
+/** Customers tab: today's calendar visits and past appointments (no completion action required). */
+export function isCustomerVisitLead(lead: Lead): boolean {
+  const normalized = withLeadDefaults(lead);
+  if (!hasValidLeadPhone(normalized)) return false;
+  if (isBookedVisitLead(normalized)) {
+    return appointmentPacificDate(normalized.appointmentStartAt!) <= getTodayPacificDate();
+  }
+  return isCompletedVisitLead(normalized);
+}
+
+export function isScheduledLead(lead: {
+  funnelStep: LeadFunnelStep;
+  appointmentStartAt?: string;
+}): boolean {
+  if (!isBookedVisitLead(lead)) return false;
   if (isAppointmentInProgress(lead)) return false;
-  return new Date(lead.appointmentStartAt) >= new Date();
+  return appointmentPacificDate(lead.appointmentStartAt!) > getTodayPacificDate();
 }
 
 /** Picked a slot but did not complete booking — may still have address without phone. */
@@ -82,9 +107,16 @@ export function isAbandonedLead(lead: {
   funnelStep: LeadFunnelStep;
   appointmentStartAt?: string;
   lastAppointmentAt?: string;
+  phone?: string;
 }): boolean {
   if (isScheduledLead(lead)) return false;
-  if (isAppointmentInProgress(lead)) return false;
+  if (
+    isBookedVisitLead(lead) &&
+    normalizePhone(lead.phone ?? "").length >= 10 &&
+    appointmentPacificDate(lead.appointmentStartAt!) <= getTodayPacificDate()
+  ) {
+    return false;
+  }
   if (isCompletedVisitLead(lead)) return false;
   return hasSelectedAppointmentTime(lead);
 }
@@ -111,8 +143,7 @@ export function isInAbandonedCrmView(lead: Lead): boolean {
   const normalized = withLeadDefaults(lead);
   if (normalized.listStatus !== "active") return false;
   if (isScheduledLead(normalized)) return false;
-  if (isAppointmentInProgress(normalized)) return false;
-  if (isCompletedVisitLead(normalized)) return false;
+  if (isCustomerVisitLead(normalized)) return false;
   if (hasValidLeadPhone(normalized)) return true;
   return hasSelectedAppointmentTime(normalized);
 }
@@ -130,10 +161,7 @@ export function leadMatchesCrmView(lead: Lead, view: LeadCrmView): boolean {
     return isScheduledLead(normalized) && hasValidLeadPhone(normalized);
   }
   if (view === "complete") {
-    return (
-      hasValidLeadPhone(normalized) &&
-      (isCompletedVisitLead(normalized) || isAppointmentInProgress(normalized))
-    );
+    return isCustomerVisitLead(normalized);
   }
   if (view === "abandoned") {
     return isInAbandonedCrmView(normalized);

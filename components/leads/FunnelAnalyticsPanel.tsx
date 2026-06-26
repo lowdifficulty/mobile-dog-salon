@@ -129,7 +129,10 @@ export default function FunnelAnalyticsPanel() {
                 {data.completedPercent}%
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                {data.completedCount} finished
+                {data.completedCount} visit{data.completedCount === 1 ? "" : "s"}
+                {data.financials.dogsGroomed > 0 && (
+                  <> · {data.financials.dogsGroomed} dog{data.financials.dogsGroomed === 1 ? "" : "s"} groomed</>
+                )}
               </p>
             </div>
           </div>
@@ -196,7 +199,7 @@ export default function FunnelAnalyticsPanel() {
               {[
                 { label: "Gas (11 mi / appointment)", value: data.financials.expenses.gas },
                 {
-                  label: `Payroll ($${ANALYTICS_PAYROLL_PER_DOG} / dog)`,
+                  label: `Payroll ($${ANALYTICS_PAYROLL_PER_DOG} / dog, ${data.financials.dogsGroomed} groomed)`,
                   value: data.financials.expenses.payroll,
                 },
                 {

@@ -1,3 +1,7 @@
+import {
+  completedVisitsInRange,
+  countDogsInAppointments,
+} from "@/lib/analytics/visits";
 import { getQuotedServicePrice } from "@/lib/pricing";
 import type { AnalyticsRange } from "@/lib/leads/analytics";
 import { funnelStepOrder, type Lead } from "@/lib/leads/types";
@@ -57,10 +61,6 @@ function leadPets(lead: Lead) {
     return [{ petName: lead.petName ?? "", petSize: lead.petSize }];
   }
   return [];
-}
-
-function countDogsInLeads(leads: Lead[]): number {
-  return leads.reduce((sum, lead) => sum + Math.max(1, leadPets(lead).length), 0);
 }
 
 export function getLeadBookedPrice(lead: Lead): number | null {
@@ -211,7 +211,8 @@ function computeExpenses(
 export function computeFinancialAnalytics(
   filteredLeads: Lead[],
   range: AnalyticsRange,
-  appointments: Appointment[]
+  appointments: Appointment[],
+  customDate?: string
 ): FinancialAnalytics {
   const bookedLeads = filteredLeads.filter(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
@@ -224,18 +225,18 @@ export function computeFinancialAnalytics(
   const bookedRevenue = sumLeadRevenue(bookedLeads);
   const completedRevenue = sumLeadRevenue(completedLeads);
   const periodDays = analyticsPeriodDays(filteredLeads, range);
-  const periodAppointments = appointmentsForBookedLeads(bookedLeads, appointments);
-  const dogsGroomed = countDogsInLeads(completedLeads);
+  const completedVisits = completedVisitsInRange(appointments, range, customDate);
+  const dogsGroomed = countDogsInAppointments(completedVisits);
   const expenses = computeExpenses(
-    periodAppointments.length,
+    completedVisits.length,
     dogsGroomed,
-    completedLeads.length,
+    completedVisits.length,
     periodDays
   );
 
   return {
     bookedAppointments: bookedLeads.length,
-    completedAppointments: completedLeads.length,
+    completedAppointments: completedVisits.length,
     dogsGroomed,
     estimatedRevenue: bookedRevenue.total,
     completedRevenue: completedRevenue.total,

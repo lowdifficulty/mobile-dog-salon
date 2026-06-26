@@ -4,6 +4,7 @@ import {
   type Lead,
   type LeadFunnelStep,
 } from "./types";
+import { completedVisitsInRange } from "@/lib/analytics/visits";
 import type { FinancialAnalytics } from "@/lib/analytics/financials";
 import { computeFinancialAnalytics } from "@/lib/analytics/financials";
 import type { Appointment } from "@/lib/scheduling/types";
@@ -136,11 +137,15 @@ export function computeFunnelAnalytics(
   const scheduledCount = filtered.filter(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
   ).length;
-  const completedCount = filtered.filter(
-    (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
-  ).length;
+  const completedVisits = completedVisitsInRange(appointments, range, customDate);
+  const completedCount = completedVisits.length;
 
-  const financials = computeFinancialAnalytics(filtered, range, appointments);
+  const financials = computeFinancialAnalytics(
+    filtered,
+    range,
+    appointments,
+    customDate
+  );
 
   return {
     range,

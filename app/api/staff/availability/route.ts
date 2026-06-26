@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/scheduling/auth";
+import { effectiveAvailability } from "@/lib/scheduling/effective-availability";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { GroomerId } from "@/lib/scheduling/types";
 
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
     const groomerId = searchParams.get("groomerId") as GroomerId | null;
 
     const data = await readSchedulingData();
-    let list = data.availability;
+    let list = effectiveAvailability(data);
     if (groomerId) list = list.filter((a) => a.groomerId === groomerId);
 
     return NextResponse.json({ availability: list });

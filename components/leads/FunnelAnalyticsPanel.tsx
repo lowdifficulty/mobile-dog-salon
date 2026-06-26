@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ANALYTICS_EXPENSE_BUFFER_PERCENT,
+  ANALYTICS_TRUCK_COUNT,
+  formatAnalyticsMoney,
+  financialPeriodNote,
+} from "@/lib/analytics/financials";
+import {
   ANALYTICS_RANGES,
   type AnalyticsRange,
   type FunnelAnalyticsResult,
@@ -125,6 +131,100 @@ export default function FunnelAnalyticsPanel() {
                 {data.completedCount} finished
               </p>
             </div>
+          </div>
+
+          <div className="site-card p-5 sm:p-6 space-y-5">
+            <div>
+              <h3 className="font-semibold text-gray-900">Estimated revenue &amp; expenses</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Revenue uses booked service prices (size, service, and phone discount).
+                {data.financials.unpricedBookings > 0 && (
+                  <> {data.financials.unpricedBookings} booking(s) missing price data.</>
+                )}
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-brand/20 bg-brand/5 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Est. revenue
+                </p>
+                <p className="text-2xl font-bold text-brand mt-2">
+                  {formatAnalyticsMoney(data.financials.estimatedRevenue)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {data.financials.bookedAppointments} booked
+                  {data.financials.completedAppointments > 0 && (
+                    <> · {formatAnalyticsMoney(data.financials.completedRevenue)} completed</>
+                  )}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Est. expenses
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-2">
+                  {formatAnalyticsMoney(data.financials.expenses.total)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Includes {ANALYTICS_EXPENSE_BUFFER_PERCENT}% operating buffer
+                </p>
+              </div>
+              <div
+                className={`rounded-xl border p-4 ${
+                  data.financials.estimatedProfit >= 0
+                    ? "border-green-200 bg-green-50"
+                    : "border-red-200 bg-red-50"
+                }`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Est. profit
+                </p>
+                <p
+                  className={`text-2xl font-bold mt-2 ${
+                    data.financials.estimatedProfit >= 0 ? "text-green-800" : "text-red-700"
+                  }`}
+                >
+                  {formatAnalyticsMoney(data.financials.estimatedProfit)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Revenue minus expenses</p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              {[
+                { label: "Gas", value: data.financials.expenses.gas },
+                {
+                  label: `Insurance (${ANALYTICS_TRUCK_COUNT} vans)`,
+                  value: data.financials.expenses.insurance,
+                },
+                { label: "Parking", value: data.financials.expenses.parking },
+                { label: "Supplies", value: data.financials.expenses.supplies },
+                {
+                  label: "Marketing ($15 / booking)",
+                  value: data.financials.expenses.marketing,
+                },
+                {
+                  label: `${ANALYTICS_EXPENSE_BUFFER_PERCENT}% buffer`,
+                  value: data.financials.expenses.buffer,
+                },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2"
+                >
+                  <span className="text-gray-600">{row.label}</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatAnalyticsMoney(row.value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-500">
+              {financialPeriodNote(data.range, data.financials.periodDays)} Gas is estimated at
+              12 mi/appointment, 11 MPG, ¼ gal/appointment, and $5.25/gal.
+            </p>
           </div>
 
           <div className="site-card p-5 sm:p-6">

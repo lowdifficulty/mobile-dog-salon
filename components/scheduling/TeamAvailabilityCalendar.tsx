@@ -53,8 +53,10 @@ function emptyRows(): RowsByGroomer {
 
 export default function TeamAvailabilityCalendar({
   availabilityApi = "/api/admin/availability",
+  refreshKey = 0,
 }: {
   availabilityApi?: string;
+  refreshKey?: number;
 }) {
   const today = getTodayPacificDate();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -91,7 +93,7 @@ export default function TeamAvailabilityCalendar({
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   function goMonth(delta: number) {
     const d = new Date(viewYear, viewMonth - 1 + delta, 1);

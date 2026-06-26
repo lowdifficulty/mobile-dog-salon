@@ -22,6 +22,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("upcoming");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const groomerId = user.groomerId;
 
   async function logout() {
@@ -88,6 +89,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
               defaultOpen
               onBooked={() => {
                 setAppointmentRefreshKey((key) => key + 1);
+                setCalendarRefreshKey((key) => key + 1);
                 setTab("upcoming");
               }}
             />
@@ -96,6 +98,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
             <TeamCalendarPanel
               availabilityOnly
               availabilityApi="/api/staff/availability"
+              calendarRefreshKey={calendarRefreshKey}
             />
           )}
           {tab === "availability" && (

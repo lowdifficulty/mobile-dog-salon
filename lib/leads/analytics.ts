@@ -4,6 +4,8 @@ import {
   type Lead,
   type LeadFunnelStep,
 } from "./types";
+import type { FinancialAnalytics } from "@/lib/analytics/financials";
+import { computeFinancialAnalytics } from "@/lib/analytics/financials";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -37,6 +39,7 @@ export interface FunnelAnalyticsResult {
   scheduledPercent: number;
   completedCount: number;
   completedPercent: number;
+  financials: FinancialAnalytics;
 }
 
 function contactDatePacific(iso: string): string {
@@ -135,6 +138,8 @@ export function computeFunnelAnalytics(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
   ).length;
 
+  const financials = computeFinancialAnalytics(filtered, range);
+
   return {
     range,
     rangeLabel:
@@ -148,5 +153,6 @@ export function computeFunnelAnalytics(
     scheduledPercent: percentOf(scheduledCount, totalLeads),
     completedCount,
     completedPercent: percentOf(completedCount, totalLeads),
+    financials,
   };
 }

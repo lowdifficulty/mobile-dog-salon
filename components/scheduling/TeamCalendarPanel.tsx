@@ -22,13 +22,17 @@ type GroomerFilter = GroomerId | "all";
 export default function TeamCalendarPanel({
   availabilityOnly = false,
   availabilityApi = "/api/admin/availability",
+  calendarRefreshKey: externalCalendarRefreshKey = 0,
 }: {
   availabilityOnly?: boolean;
   availabilityApi?: string;
+  calendarRefreshKey?: number;
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
+  const [localCalendarRefreshKey, setLocalCalendarRefreshKey] = useState(0);
+  const calendarRefreshKey = externalCalendarRefreshKey + localCalendarRefreshKey;
 
   const appointmentApi =
     groomerId === "all"
@@ -79,7 +83,10 @@ export default function TeamCalendarPanel({
       )}
 
       {tab === "calendar" && (
-        <TeamAvailabilityCalendar availabilityApi={availabilityApi} />
+        <TeamAvailabilityCalendar
+          availabilityApi={availabilityApi}
+          refreshKey={calendarRefreshKey}
+        />
       )}
       {tab === "history" && <AvailabilityHistoryPanel />}
       {tab === "upcoming" && (
@@ -87,7 +94,10 @@ export default function TeamCalendarPanel({
           <StaffBookAppointmentForm
             defaultGroomerId={groomerId === "all" ? "melanie" : groomerId}
             allowGroomerPick={groomerId === "all"}
-            onBooked={() => setAppointmentRefreshKey((key) => key + 1)}
+            onBooked={() => {
+              setAppointmentRefreshKey((key) => key + 1);
+              setLocalCalendarRefreshKey((key) => key + 1);
+            }}
           />
           <AppointmentList
             key={appointmentRefreshKey}

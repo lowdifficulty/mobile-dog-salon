@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { requireGroomer } from "@/lib/scheduling/auth";
 import {
+  effectiveAvailability,
+  sanitizeGroomerAvailabilitySave,
+} from "@/lib/scheduling/effective-availability";
+import {
   getSchedulingPersistenceStatus,
   readSchedulingData,
   writeSchedulingData,
@@ -12,7 +16,9 @@ export async function GET() {
   try {
     const user = await requireGroomer();
     const data = await readSchedulingData();
-    const mine = data.availability.filter((a) => a.groomerId === user.groomerId);
+    const mine = effectiveAvailability(data).filter(
+      (a) => a.groomerId === user.groomerId
+    );
     return NextResponse.json({
       availability: mine,
       persistence: getSchedulingPersistenceStatus(),
@@ -28,15 +34,19 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const incoming = (body.availability ?? []) as AvailabilityDay[];
 
-    const sanitized = incoming
-      .filter((a) => a.date && Array.isArray(a.times))
-      .map((a) => ({
-        groomerId: user.groomerId!,
-        date: a.date,
-        times: [...new Set(a.times)].sort(),
-      }));
-
     const data = await readSchedulingData();
+    const sanitized = sanitizeGroomerAvailabilitySave(
+      user.groomerId!,
+      incoming
+        .filter((a) => a.date && Array.isArray(a.times))
+        .map((a) => ({
+          groomerId: user.groomerId!,
+          date: a.date,
+          times: [...new Set(a.times)].sort(),
+        })),
+      data.appointments
+    );
+
     data.availability = [
       ...data.availability.filter((a) => a.groomerId !== user.groomerId),
       ...sanitized,

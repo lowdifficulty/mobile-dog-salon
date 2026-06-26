@@ -10,8 +10,13 @@ import { listSelfBookingStarts } from "./availability";
 
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
-function parseLocalDateTime(date: string, time: string): Date {
-  return new Date(`${date}T${time}:00`);
+/** Pacific Time ISO string for Orange County appointments */
+export function slotToISO(date: string, time: string): string {
+  return new Date(`${date}T${time}:00-07:00`).toISOString();
+}
+
+function parsePacificDateTime(date: string, time: string): Date {
+  return new Date(slotToISO(date, time));
 }
 
 function overlaps(
@@ -31,7 +36,7 @@ export function isSlotTaken(
   appointments: Appointment[],
   excludeAppointmentId?: string
 ): boolean {
-  const start = parseLocalDateTime(date, time);
+  const start = parsePacificDateTime(date, time);
   const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
 
   return appointments.some((ap) => {
@@ -109,11 +114,6 @@ export function parseSlotKey(slotKey: string): {
     throw new Error("Invalid slot key");
   }
   return { groomerId: groomerId as GroomerId, date, time };
-}
-
-/** Pacific Time ISO string for Orange County appointments */
-export function slotToISO(date: string, time: string): string {
-  return new Date(`${date}T${time}:00-07:00`).toISOString();
 }
 
 const PACIFIC_TZ = "America/Los_Angeles";

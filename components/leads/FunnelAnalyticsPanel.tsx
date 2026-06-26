@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ANALYTICS_EXPENSE_BUFFER_PERCENT,
-  ANALYTICS_PAYROLL_HOURS_PER_GROOM,
-  ANALYTICS_PAYROLL_HOURLY_PER_GROOMER,
+  ANALYTICS_MARKETING_COST_PER_COMPLETED,
+  ANALYTICS_PAYROLL_PER_DOG,
   ANALYTICS_TRUCK_COUNT,
   formatAnalyticsMoney,
 } from "@/lib/analytics/financials";
@@ -194,19 +194,18 @@ export default function FunnelAnalyticsPanel() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
               {[
-                { label: "Gas (estimated)", value: data.financials.expenses.gas },
+                { label: "Gas (11 mi / appointment)", value: data.financials.expenses.gas },
                 {
-                  label: `Payroll ($${ANALYTICS_PAYROLL_HOURLY_PER_GROOMER}/hr, +${ANALYTICS_PAYROLL_HOURS_PER_GROOM} hr/groom)`,
+                  label: `Payroll ($${ANALYTICS_PAYROLL_PER_DOG} / dog)`,
                   value: data.financials.expenses.payroll,
                 },
                 {
                   label: `Insurance (${ANALYTICS_TRUCK_COUNT} vans)`,
                   value: data.financials.expenses.insurance,
                 },
-                { label: "Parking", value: data.financials.expenses.parking },
                 { label: "Supplies", value: data.financials.expenses.supplies },
                 {
-                  label: "Marketing ($15 / booking)",
+                  label: `Marketing ($${ANALYTICS_MARKETING_COST_PER_COMPLETED} / completed)`,
                   value: data.financials.expenses.marketing,
                 },
                 {

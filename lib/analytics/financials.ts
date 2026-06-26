@@ -2,24 +2,20 @@ import { getQuotedServicePrice } from "@/lib/pricing";
 import type { AnalyticsRange } from "@/lib/leads/analytics";
 import { funnelStepOrder, type Lead } from "@/lib/leads/types";
 import {
-  ROUTE_GALLONS_PER_APPOINTMENT,
   ROUTE_GAS_MPG,
   ROUTE_GAS_PRICE_PER_GALLON,
 } from "@/lib/scheduling/route-depot";
 import type { Appointment } from "@/lib/scheduling/types";
 
 /** Average driving miles attributed to each appointment for gas estimates. */
-export const ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT = 12;
+export const ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT = 11;
 
-export const ANALYTICS_MARKETING_COST_PER_BOOKING = 15;
-export const ANALYTICS_PARKING_MONTHLY = 400;
+export const ANALYTICS_MARKETING_COST_PER_COMPLETED = 12;
 export const ANALYTICS_SUPPLIES_MONTHLY = 200;
 export const ANALYTICS_TRUCK_COUNT = 2;
 /** Estimated monthly insurance per van (USD). */
 export const ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK = 250;
-export const ANALYTICS_PAYROLL_HOURLY_PER_GROOMER = 20;
-/** Extra payroll hours per grooming appointment (drive/setup beyond booked block). */
-export const ANALYTICS_PAYROLL_HOURS_PER_GROOM = 3;
+export const ANALYTICS_PAYROLL_PER_DOG = 60;
 export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 20;
 
 const DAYS_PER_MONTH = 30;
@@ -39,6 +35,7 @@ export interface ExpenseBreakdown {
 export interface FinancialAnalytics {
   bookedAppointments: number;
   completedAppointments: number;
+  dogsGroomed: number;
   estimatedRevenue: number;
   completedRevenue: number;
   pricedBookings: number;
@@ -60,6 +57,10 @@ function leadPets(lead: Lead) {
     return [{ petName: lead.petName ?? "", petSize: lead.petSize }];
   }
   return [];
+}
+
+function countDogsInLeads(leads: Lead[]): number {
+  return leads.reduce((sum, lead) => sum + Math.max(1, leadPets(lead).length), 0);
 }
 
 export function getLeadBookedPrice(lead: Lead): number | null {
@@ -142,22 +143,13 @@ export function appointmentsForBookedLeads(
 
 function estimateGasCost(appointmentCount: number): number {
   if (appointmentCount === 0) return 0;
-  const gallonsPerAppointment =
-    ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT / ROUTE_GAS_MPG +
-    ROUTE_GALLONS_PER_APPOINTMENT;
-  return roundMoney(
-    appointmentCount * gallonsPerAppointment * ROUTE_GAS_PRICE_PER_GALLON
-  );
+  const gallons =
+    (appointmentCount * ANALYTICS_ESTIMATED_DRIVE_MILES_PER_APPOINTMENT) / ROUTE_GAS_MPG;
+  return roundMoney(gallons * ROUTE_GAS_PRICE_PER_GALLON);
 }
 
-function computePayrollCost(appointments: Appointment[]): number {
-  if (appointments.length === 0) return 0;
-  const hours = appointments.reduce(
-    (sum, ap) =>
-      sum + ap.durationMinutes / 60 + ANALYTICS_PAYROLL_HOURS_PER_GROOM,
-    0
-  );
-  return roundMoney(hours * ANALYTICS_PAYROLL_HOURLY_PER_GROOMER);
+function computePayrollCost(dogsGroomed: number): number {
+  return roundMoney(dogsGroomed * ANALYTICS_PAYROLL_PER_DOG);
 }
 
 function analyticsPeriodDays(leads: Lead[], range: AnalyticsRange): number {
@@ -183,22 +175,23 @@ function prorateMonthly(monthlyAmount: number, periodDays: number): number {
 }
 
 function computeExpenses(
-  periodAppointments: Appointment[],
-  bookedAppointments: number,
+  appointmentCount: number,
+  dogsGroomed: number,
+  completedAppointments: number,
   periodDays: number
 ): ExpenseBreakdown {
-  const gas = estimateGasCost(periodAppointments.length);
-  const payroll = computePayrollCost(periodAppointments);
+  const gas = estimateGasCost(appointmentCount);
+  const payroll = computePayrollCost(dogsGroomed);
   const insurance = prorateMonthly(
     ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK * ANALYTICS_TRUCK_COUNT,
     periodDays
   );
-  const parking = prorateMonthly(ANALYTICS_PARKING_MONTHLY, periodDays);
+  const parking = 0;
   const supplies = prorateMonthly(ANALYTICS_SUPPLIES_MONTHLY, periodDays);
-  const marketing = roundMoney(bookedAppointments * ANALYTICS_MARKETING_COST_PER_BOOKING);
-  const subtotal = roundMoney(
-    gas + payroll + insurance + parking + supplies + marketing
+  const marketing = roundMoney(
+    completedAppointments * ANALYTICS_MARKETING_COST_PER_COMPLETED
   );
+  const subtotal = roundMoney(gas + payroll + insurance + supplies + marketing);
   const buffer = roundMoney(subtotal * (ANALYTICS_EXPENSE_BUFFER_PERCENT / 100));
   const total = roundMoney(subtotal + buffer);
 
@@ -232,15 +225,18 @@ export function computeFinancialAnalytics(
   const completedRevenue = sumLeadRevenue(completedLeads);
   const periodDays = analyticsPeriodDays(filteredLeads, range);
   const periodAppointments = appointmentsForBookedLeads(bookedLeads, appointments);
+  const dogsGroomed = countDogsInLeads(completedLeads);
   const expenses = computeExpenses(
-    periodAppointments,
-    bookedLeads.length,
+    periodAppointments.length,
+    dogsGroomed,
+    completedLeads.length,
     periodDays
   );
 
   return {
     bookedAppointments: bookedLeads.length,
     completedAppointments: completedLeads.length,
+    dogsGroomed,
     estimatedRevenue: bookedRevenue.total,
     completedRevenue: completedRevenue.total,
     pricedBookings: bookedRevenue.priced,

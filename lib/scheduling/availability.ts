@@ -1,8 +1,6 @@
 import type { GroomerId, SchedulingData } from "./types";
 import { BOOKING_DURATION_MINUTES, GROOMER_AVAILABILITY_BLOCK_MINUTES } from "./services";
-import { TIME_SLOT_OPTIONS } from "./groomers";
-
-const SELF_BOOKING_HOURS = new Set<string>(TIME_SLOT_OPTIONS);
+import { BOOKING_BLOCK_STARTS } from "./groomers";
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -34,12 +32,24 @@ export function hasConsecutiveAvailability(
   return slotsCoveredByBooking(startTime, durationMinutes).every((slot) => set.has(slot));
 }
 
-/** Groomer marked the slot start hour open (extra hour can flex if needed). */
+/** Groomer marked enough consecutive hours to book a 3-hour visit (2 hours min; 3rd assumed). */
 export function hasMinimumAvailabilityForBooking(
   times: string[],
-  startTime: string
+  startTime: string,
+  durationMinutes: number = BOOKING_DURATION_MINUTES
 ): boolean {
-  return times.includes(startTime);
+  const minMarkedMinutes = Math.max(60, durationMinutes - 60);
+  const set = new Set(times);
+  const start = timeToMinutes(startTime);
+  let markedMinutes = 0;
+
+  for (let m = start; m < start + durationMinutes; m += 60) {
+    const slot = minutesToTime(m);
+    if (!set.has(slot)) break;
+    markedMinutes += 60;
+  }
+
+  return markedMinutes >= minMarkedMinutes;
 }
 
 /** Hours blocked when an appointment starts at `startTime`. */
@@ -50,17 +60,16 @@ export function bookingBlockHours(
   return slotsCoveredByBooking(startTime, durationMinutes);
 }
 
-/** List non-overlapping booking starts from groomer hour marks (staff / team calendar). */
+/** List 3-hour booking starts from groomer availability (staff / team calendar). */
 export function listBookingBlockStarts(
   times: string[],
   durationMinutes: number = GROOMER_AVAILABILITY_BLOCK_MINUTES,
   isTaken?: (startTime: string) => boolean
 ): string[] {
-  const sorted = [...new Set(times)].sort();
   const offered: string[] = [];
 
-  for (const time of sorted) {
-    if (!hasMinimumAvailabilityForBooking(times, time)) continue;
+  for (const time of BOOKING_BLOCK_STARTS) {
+    if (!hasMinimumAvailabilityForBooking(times, time, durationMinutes)) continue;
     if (isTaken?.(time)) continue;
 
     const startMin = timeToMinutes(time);
@@ -78,16 +87,13 @@ export function listBookingBlockStarts(
 }
 
 /**
- * Customer self-booking: hourly start times when groomer marked that hour open.
- * Only the start hour is required — appointment may extend past marked hours.
+ * Customer self-booking: 3-hour block starts when groomer marked at least 2 consecutive hours.
  */
 export function listSelfBookingStarts(
   times: string[],
   isTaken?: (startTime: string) => boolean
 ): string[] {
-  const sorted = [...new Set(times)].sort();
-  return sorted.filter((time) => {
-    if (!SELF_BOOKING_HOURS.has(time)) return false;
+  return BOOKING_BLOCK_STARTS.filter((time) => {
     if (!hasMinimumAvailabilityForBooking(times, time)) return false;
     if (isTaken?.(time)) return false;
     return true;

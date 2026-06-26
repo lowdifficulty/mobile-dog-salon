@@ -263,7 +263,7 @@ export default function TeamAvailabilityCalendar({
         )}
 
         <div className="border-t border-gray-100 pt-4 text-xs text-gray-500">
-          <p className="font-semibold text-gray-700 mb-1">Availability blocks (2-hour)</p>
+          <p className="font-semibold text-gray-700 mb-1">Availability blocks (3-hour)</p>
           <p>{BOOKING_BLOCK_STARTS.map((t) => formatBookingBlockDisplay(t)).join(" · ")}</p>
         </div>
       </div>

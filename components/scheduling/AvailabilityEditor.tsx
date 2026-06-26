@@ -276,7 +276,7 @@ export default function AvailabilityEditor({
             <h3 className="text-lg font-bold text-brand mb-1">{formatDateLabel(selectedDate)}</h3>
             <p className="text-sm text-gray-500 mb-4">
               {selectedActive
-                ? `${listBookingBlockStarts(selectedTimes!).length} two-hour block${
+                ? `${listBookingBlockStarts(selectedTimes!).length} three-hour block${
                     listBookingBlockStarts(selectedTimes!).length === 1 ? "" : "s"
                   } available`
                 : "No hours set for this day"}
@@ -345,7 +345,7 @@ export default function AvailabilityEditor({
                 }
                 className="site-btn-outline text-sm w-full"
               >
-                Open all 2-hour blocks (8 AM – 10 PM)
+                Open all 3-hour blocks (8 AM – 11 PM)
               </button>
             )}
           </>

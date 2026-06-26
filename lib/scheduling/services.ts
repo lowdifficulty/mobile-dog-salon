@@ -1,11 +1,8 @@
 /** Every booked appointment blocks a 3-hour window on the groomer calendar. */
 export const BOOKING_DURATION_MINUTES = 180;
 
-/** Self-booking calendar shows a 2-hour window label; appointment still books for 3 hours. */
-export const SELF_BOOKING_DISPLAY_MINUTES = 120;
-
-/** Groomers open/close availability in 2-hour blocks on their calendar. */
-export const GROOMER_AVAILABILITY_BLOCK_MINUTES = 120;
+/** Groomers open/close availability in 3-hour blocks on their calendar. */
+export const GROOMER_AVAILABILITY_BLOCK_MINUTES = 180;
 
 /** Legacy per-service durations (display only; booking always uses BOOKING_DURATION_MINUTES). */
 export const SERVICE_DURATION_MINUTES: Record<string, number> = {

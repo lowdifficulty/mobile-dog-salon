@@ -1,5 +1,5 @@
 import type { GroomerId } from "./types";
-import { BOOKING_DURATION_MINUTES, SELF_BOOKING_DISPLAY_MINUTES } from "./services";
+import { BOOKING_DURATION_MINUTES } from "./services";
 
 export const GROOMERS: Record<
   GroomerId,
@@ -53,14 +53,12 @@ export const TIME_SLOT_OPTIONS = [
   "20:00",
 ] as const;
 
-/** 2-hour availability blocks groomers toggle on their calendar. */
+/** 3-hour availability blocks groomers toggle on their calendar. */
 export const BOOKING_BLOCK_STARTS = [
   "08:00",
-  "10:00",
-  "12:00",
+  "11:00",
   "14:00",
-  "16:00",
-  "18:00",
+  "17:00",
   "20:00",
 ] as const;
 
@@ -78,9 +76,9 @@ export function formatBookingBlockDisplay(startTime24: string): string {
   return formatTimeRangeDisplay(startTime24, BOOKING_DURATION_MINUTES);
 }
 
-/** Customer self-booking — 2-hour calendar label; appointment books for 3 hours. */
+/** Customer self-booking — 3-hour calendar slots. */
 export function formatSelfBookingSlotDisplay(startTime24: string): string {
-  return formatTimeRangeDisplay(startTime24, SELF_BOOKING_DISPLAY_MINUTES);
+  return formatTimeRangeDisplay(startTime24, BOOKING_DURATION_MINUTES);
 }
 
 export function formatDisplayTime(time24: string): string {

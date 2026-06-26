@@ -4,6 +4,7 @@ import type {
   AvailableSlot,
 } from "./types";
 import type { GroomerId } from "./types";
+import { isGroomerFullyBooked } from "./capacity";
 import { GROOMERS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
 import { BOOKING_DURATION_MINUTES } from "./services";
 import { listSelfBookingStarts } from "./availability";
@@ -62,6 +63,7 @@ export function getAvailableSlotsForDate(
   for (const day of availability) {
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
+    if (isGroomerFullyBooked(day.groomerId, date, appointments)) continue;
 
     const blockStarts = listSelfBookingStarts(day.times, (time) =>
       isSlotTaken(day.groomerId, date, time, duration, appointments)
@@ -94,6 +96,7 @@ export function getDatesWithAvailability(
     if (day.date < fromDate || day.date > toDate) continue;
     if (!isBookableDate(day.date)) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
+    if (isGroomerFullyBooked(day.groomerId, day.date, appointments)) continue;
     const hasSlot = listSelfBookingStarts(
       day.times,
       (time) =>

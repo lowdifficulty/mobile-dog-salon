@@ -13,6 +13,7 @@ import {
   consumeGroomerAvailability,
   hasMinimumAvailabilityForBooking,
 } from "@/lib/scheduling/availability";
+import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
@@ -91,6 +92,12 @@ export async function POST(request: Request) {
     );
     if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
       return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
+    }
+    if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
+      return NextResponse.json(
+        { error: "Groomer is fully booked on that day (4 appointments max)" },
+        { status: 409 }
+      );
     }
   }
 

@@ -6,6 +6,7 @@ import {
   hasMinimumAvailabilityForBooking,
   restoreGroomerAvailability,
 } from "@/lib/scheduling/availability";
+import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
   isBookableDate,
@@ -140,6 +141,13 @@ export async function createAppointment(
       return {
         ok: false,
         error: "Groomer is not available at that time",
+        status: 409,
+      };
+    }
+    if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
+      return {
+        ok: false,
+        error: "Groomer is fully booked on that day (4 appointments max)",
         status: 409,
       };
     }
@@ -288,6 +296,20 @@ export async function rescheduleAppointment(
         status: 409,
       };
     }
+    if (
+      isGroomerFullyBooked(
+        groomerId,
+        date,
+        data.appointments,
+        appointment.id
+      )
+    ) {
+      return {
+        ok: false,
+        error: "Groomer is fully booked on that day (4 appointments max)",
+        status: 409,
+      };
+    }
   }
 
   if (
@@ -368,6 +390,14 @@ export async function transferAppointmentToGroomer(
     return {
       ok: false,
       error: "Groomer is not available at that time",
+      status: 409,
+    };
+  }
+
+  if (isGroomerFullyBooked(toGroomerId, date, data.appointments, appointment.id)) {
+    return {
+      ok: false,
+      error: "Groomer is fully booked on that day (4 appointments max)",
       status: 409,
     };
   }

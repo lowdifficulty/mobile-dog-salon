@@ -1,4 +1,5 @@
 import { removeSlotsFromAvailability } from "./availability";
+import { isGroomerFullyBooked } from "./capacity";
 import { parseSlotFromIso } from "./slots";
 import type {
   Appointment,
@@ -14,6 +15,10 @@ export function effectiveAvailabilityTimes(
   times: string[],
   appointments: Appointment[]
 ): string[] {
+  if (isGroomerFullyBooked(groomerId, date, appointments)) {
+    return [];
+  }
+
   let result = times;
   for (const ap of appointments) {
     if (ap.groomerId !== groomerId || ap.status === "cancelled") continue;

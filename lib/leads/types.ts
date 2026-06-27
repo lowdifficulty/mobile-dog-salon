@@ -20,8 +20,7 @@ export const BOOKING_FUNNEL_STEPS: {
   { id: "pet_info", label: "Select Size", order: 2 },
   { id: "package_selected", label: "Select Service", order: 3 },
   { id: "schedule_appointment", label: "Schedule Appointment", order: 4 },
-  { id: "address", label: "Address", order: 5 },
-  { id: "contact_info", label: "Contact Info", order: 6 },
+  { id: "address", label: "Booked", order: 5 },
 ];
 
 /** Full CRM funnel including post-booking milestones. */
@@ -98,7 +97,7 @@ export interface Lead {
   listStatus?: LeadListStatus;
   lastActiveAt?: string;
   notes: LeadNote[];
-  source: "booking" | "contact";
+  source: "booking" | "contact" | "franchise";
   createdAt: string;
   updatedAt: string;
 }
@@ -134,5 +133,5 @@ export interface LeadUpsertInput {
   visitOutcome?: VisitOutcome;
   listStatus?: LeadListStatus;
   message?: string;
-  source?: "booking" | "contact";
+  source?: "booking" | "contact" | "franchise";
 }

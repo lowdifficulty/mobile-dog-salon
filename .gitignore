@@ -36,6 +36,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+.local-server.log
+.local-server.pid
 _blog-pack/
 _blog-import/
 _blog-image-links/

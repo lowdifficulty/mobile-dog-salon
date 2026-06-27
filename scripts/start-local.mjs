@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { killPort } from "./local-server.mjs";
 
 const PORT = "3000";
 const isWin = process.platform === "win32";
@@ -32,38 +32,6 @@ async function waitForServer(port, maxAttempts = 120) {
   return false;
 }
 
-function killPort(port) {
-  try {
-    if (isWin) {
-      const out = execSync(`netstat -ano | findstr :${port}`, {
-        encoding: "utf8",
-        shell: true,
-      });
-      const pids = new Set();
-      for (const line of out.split("\n")) {
-        if (!line.includes("LISTENING")) continue;
-        const parts = line.trim().split(/\s+/);
-        const pid = Number.parseInt(parts[parts.length - 1], 10);
-        if (pid > 0) pids.add(pid);
-      }
-      for (const pid of pids) {
-        try {
-          execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore", shell: true });
-        } catch {
-          // process already exited
-        }
-      }
-    } else {
-      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
-        shell: true,
-        stdio: "ignore",
-      });
-    }
-  } catch {
-    // port was free
-  }
-}
-
 function run(cmd, args, env = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
@@ -80,9 +48,11 @@ function run(cmd, args, env = {}) {
 
 async function main() {
   console.log(`Stopping anything on port ${PORT}...`);
-  killPort(PORT);
+  killPort(Number(PORT));
 
-  if (existsSync(".next")) {
+  if (existsSync(".next") && !process.argv.includes("--clean")) {
+    console.log("Using existing .next build (pass --clean to wipe cache).");
+  } else if (existsSync(".next")) {
     console.log("Removing stale .next cache...");
     rmSync(".next", { recursive: true, force: true });
   }

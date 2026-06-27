@@ -30,6 +30,7 @@ const ROUTES = [
   "/blog",
   "/blog/mobile-dog-grooming-near-me-how-to-choose-a-groomer-that-comes-to-you",
   "/contact",
+  "/franchise",
   "/book",
   "/privacy-policy",
   "/groomer/login",

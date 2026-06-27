@@ -39,7 +39,7 @@ export interface SaveLeadPayload {
   groomerId?: string;
   groomerName?: string;
   message?: string;
-  source?: "booking" | "contact";
+  source?: "booking" | "contact" | "franchise";
 }
 
 export async function saveLead(payload: SaveLeadPayload): Promise<void> {

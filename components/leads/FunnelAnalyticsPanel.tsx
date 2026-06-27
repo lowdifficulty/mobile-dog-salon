@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  ANALYTICS_EXPENSE_BUFFER_PERCENT,
-  ANALYTICS_MARKETING_COST_PER_COMPLETED,
-  ANALYTICS_PAYROLL_PER_DOG,
-  ANALYTICS_TRUCK_COUNT,
-  formatAnalyticsMoney,
-} from "@/lib/analytics/financials";
+import { formatAnalyticsMoney } from "@/lib/analytics/financials";
 import {
   ANALYTICS_RANGES,
   type AnalyticsRange,
@@ -156,12 +150,6 @@ export default function FunnelAnalyticsPanel() {
                 <p className="text-2xl font-bold text-brand mt-2">
                   {formatAnalyticsMoney(data.financials.estimatedRevenue)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {data.financials.bookedAppointments} booked
-                  {data.financials.completedAppointments > 0 && (
-                    <> · {formatAnalyticsMoney(data.financials.completedRevenue)} completed</>
-                  )}
-                </p>
               </div>
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -169,9 +157,6 @@ export default function FunnelAnalyticsPanel() {
                 </p>
                 <p className="text-2xl font-bold text-gray-900 mt-2">
                   {formatAnalyticsMoney(data.financials.expenses.total)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Includes {ANALYTICS_EXPENSE_BUFFER_PERCENT}% operating buffer
                 </p>
               </div>
               <div
@@ -191,30 +176,17 @@ export default function FunnelAnalyticsPanel() {
                 >
                   {formatAnalyticsMoney(data.financials.estimatedProfit)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Revenue minus expenses</p>
               </div>
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
               {[
-                { label: "Gas (11 mi / appointment)", value: data.financials.expenses.gas },
-                {
-                  label: `Payroll ($${ANALYTICS_PAYROLL_PER_DOG} / dog, ${data.financials.dogsGroomed} groomed)`,
-                  value: data.financials.expenses.payroll,
-                },
-                {
-                  label: `Insurance (${ANALYTICS_TRUCK_COUNT} vans)`,
-                  value: data.financials.expenses.insurance,
-                },
+                { label: "Gas", value: data.financials.expenses.gas },
+                { label: "Payroll", value: data.financials.expenses.payroll },
+                { label: "Insurance", value: data.financials.expenses.insurance },
                 { label: "Supplies", value: data.financials.expenses.supplies },
-                {
-                  label: `Marketing ($${ANALYTICS_MARKETING_COST_PER_COMPLETED} / completed)`,
-                  value: data.financials.expenses.marketing,
-                },
-                {
-                  label: `${ANALYTICS_EXPENSE_BUFFER_PERCENT}% buffer`,
-                  value: data.financials.expenses.buffer,
-                },
+                { label: "Marketing", value: data.financials.expenses.marketing },
+                { label: "Buffer", value: data.financials.expenses.buffer },
               ].map((row) => (
                 <div
                   key={row.label}

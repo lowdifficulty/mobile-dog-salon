@@ -25,7 +25,7 @@ export function warmMetaPixel(): void {
 /** Custom event for each CRM funnel step (build audiences & funnels in Meta). */
 export function trackMetaFunnelStep(
   step: LeadFunnelStep,
-  source: "booking" | "contact" = "booking"
+  source: "booking" | "contact" | "franchise" = "booking"
 ) {
   fbq("trackCustom", "LeadFunnelStep", {
     funnel_step: step,
@@ -37,7 +37,7 @@ export function trackMetaFunnelStep(
 /** Standard Meta Lead event — address entered, booking completed, or contact form submitted. */
 export function trackMetaLead(
   step: LeadFunnelStep,
-  source: "booking" | "contact" = "booking"
+  source: "booking" | "contact" | "franchise" = "booking"
 ) {
   fbq("track", "Lead", {
     content_name: step,
@@ -48,9 +48,10 @@ export function trackMetaLead(
 
 export function trackMetaLeadIfConversion(
   step: LeadFunnelStep,
-  source: "booking" | "contact" = "booking"
+  source: "booking" | "contact" | "franchise" = "booking"
 ) {
   trackMetaFunnelStep(step, source);
+  if (source === "franchise") return;
   const isBookingLead =
     source === "booking" &&
     (step === "address" || step === "scheduled");

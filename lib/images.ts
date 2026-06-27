@@ -55,5 +55,9 @@ export const IMAGE_SLOTS = {
   blog3: dogPhoto(11),
   reviews: dogPhoto(12),
   careers: dogPhoto(13),
+  franchise: BRANDING_AD,
   locations: dogPhoto(14),
 } as const;
+
+/** Primary share preview for franchise link cards */
+export const OG_FRANCHISE_IMAGE = BRANDING_AD;

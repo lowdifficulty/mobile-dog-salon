@@ -344,6 +344,7 @@ export default function AppointmentList({
                         groomerId={rescheduleGroomerId || ap.groomerId}
                         selectedDate={rescheduleDate}
                         selectedTime={rescheduleTime}
+                        excludeAppointmentId={ap.id}
                         onSelectDate={(date) => {
                           setRescheduleDate(date);
                           setRescheduleTime("");

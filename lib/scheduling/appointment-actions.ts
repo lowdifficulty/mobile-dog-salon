@@ -304,7 +304,7 @@ export async function rescheduleAppointment(
       groomerId,
       date,
       time,
-      appointment.durationMinutes,
+      BOOKING_DURATION_MINUTES,
       data.appointments,
       appointment.id
     )
@@ -314,6 +314,7 @@ export async function rescheduleAppointment(
 
   appointment.groomerId = groomerId;
   appointment.startAt = slotToISO(date, time);
+  appointment.durationMinutes = BOOKING_DURATION_MINUTES;
   appointment.status = "confirmed";
   clearReminderFlags(appointment);
 
@@ -378,7 +379,7 @@ export async function transferAppointmentToGroomer(
       toGroomerId,
       date,
       time,
-      appointment.durationMinutes,
+      BOOKING_DURATION_MINUTES,
       data.appointments,
       appointment.id
     )

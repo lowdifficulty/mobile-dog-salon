@@ -19,6 +19,11 @@ export function serviceDurationMinutes(service: string): number {
   return BOOKING_DURATION_MINUTES;
 }
 
+/** Calendar blocking always uses the full groom visit length, even for legacy shorter records. */
+export function appointmentBlockMinutes(durationMinutes?: number): number {
+  return Math.max(durationMinutes ?? 0, BOOKING_DURATION_MINUTES);
+}
+
 export function formatDurationLabel(minutes: number): string {
   const hours = minutes / 60;
   return Number.isInteger(hours)

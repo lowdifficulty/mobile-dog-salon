@@ -6,7 +6,7 @@ import type {
 import type { GroomerId } from "./types";
 import { isGroomerFullyBooked } from "./capacity";
 import { GROOMERS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
-import { BOOKING_DURATION_MINUTES } from "./services";
+import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
 
 const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
@@ -38,13 +38,17 @@ export function isSlotTaken(
   excludeAppointmentId?: string
 ): boolean {
   const start = parsePacificDateTime(date, time);
-  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  const end = new Date(
+    start.getTime() + appointmentBlockMinutes(durationMinutes) * 60 * 1000
+  );
 
   return appointments.some((ap) => {
     if (ap.id === excludeAppointmentId) return false;
     if (ap.groomerId !== groomerId || ap.status === "cancelled") return false;
     const apStart = new Date(ap.startAt);
-    const apEnd = new Date(apStart.getTime() + ap.durationMinutes * 60 * 1000);
+    const apEnd = new Date(
+      apStart.getTime() + appointmentBlockMinutes(ap.durationMinutes) * 60 * 1000
+    );
     return overlaps(start, end, apStart, apEnd);
   });
 }

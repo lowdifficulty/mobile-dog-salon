@@ -1,5 +1,6 @@
 import { slotsCoveredByBooking } from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
+import { appointmentBlockMinutes } from "./services";
 import { parseSlotFromIso } from "./slots";
 import type {
   Appointment,
@@ -24,7 +25,9 @@ export function effectiveAvailabilityTimes(
     if (ap.groomerId !== groomerId || ap.status === "cancelled") continue;
     const slot = parseSlotFromIso(ap.startAt);
     if (slot.date !== date) continue;
-    const toRemove = new Set(slotsCoveredByBooking(slot.time, ap.durationMinutes));
+    const toRemove = new Set(
+      slotsCoveredByBooking(slot.time, appointmentBlockMinutes(ap.durationMinutes))
+    );
     result = result.filter((t) => !toRemove.has(t)).sort();
   }
   return result;
@@ -55,7 +58,10 @@ export function appointmentLockedHourSlots(
   for (const ap of appointments) {
     if (ap.groomerId !== groomerId || ap.status === "cancelled") continue;
     const slot = parseSlotFromIso(ap.startAt);
-    const hours = slotsCoveredByBooking(slot.time, ap.durationMinutes);
+    const hours = slotsCoveredByBooking(
+      slot.time,
+      appointmentBlockMinutes(ap.durationMinutes)
+    );
     locked[slot.date] = [...new Set([...(locked[slot.date] ?? []), ...hours])].sort();
   }
 

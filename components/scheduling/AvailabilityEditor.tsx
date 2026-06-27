@@ -6,10 +6,12 @@ import {
   formatBookingBlockDisplay,
 } from "@/lib/scheduling/groomers";
 import {
+  bookingBlockHours,
   isBookingBlockEnabled,
   listBookingBlockStarts,
   setBookingBlockEnabled,
 } from "@/lib/scheduling/availability";
+import { GROOMER_AVAILABILITY_BLOCK_MINUTES } from "@/lib/scheduling/services";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
@@ -61,6 +63,7 @@ export default function AvailabilityEditor({
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
   const [rows, setRows] = useState<Record<string, string[]>>({});
+  const [lockedHours, setLockedHours] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -90,6 +93,7 @@ export default function AvailabilityEditor({
       map[a.date] = [...a.times];
     }
     setRows(map);
+    setLockedHours((data.locked as Record<string, string[]>) ?? {});
     if (data.persistence?.writable === false) {
       setPersistenceNote(data.persistence.message);
     } else {
@@ -113,8 +117,18 @@ export default function AvailabilityEditor({
     setMessage("");
   }
 
+  function isBlockLocked(date: string, blockStart: string): boolean {
+    const dayLocked = new Set(lockedHours[date] ?? []);
+    const block = bookingBlockHours(blockStart, GROOMER_AVAILABILITY_BLOCK_MINUTES);
+    return block.some((hour) => dayLocked.has(hour));
+  }
+
   function toggleBlock(date: string, blockStart: string) {
     if (readOnly) return;
+    if (isBlockLocked(date, blockStart)) {
+      setMessage("That block has a booked appointment and cannot be removed.");
+      return;
+    }
     setRows((prev) => {
       const current = prev[date] ?? [];
       const enabled = isBookingBlockEnabled(current, blockStart);
@@ -130,6 +144,10 @@ export default function AvailabilityEditor({
 
   function markDayOff(date: string) {
     if (readOnly) return;
+    if ((lockedHours[date]?.length ?? 0) > 0) {
+      setMessage("This day has booked appointments — cancel or move them before marking the day off.");
+      return;
+    }
     setRows((prev) => {
       const next = { ...prev };
       delete next[date];
@@ -265,7 +283,7 @@ export default function AvailabilityEditor({
           <p className="text-xs text-gray-500 mt-4">
             {readOnly
               ? "Days with a dot have availability set. Click a day to view hours."
-              : "Click a day to set your working hours. Days with a dot are already scheduled."}
+              : "Click a day to set your working hours. Blocks marked · booked cannot be removed until the appointment is cancelled or moved."}
           </p>
         </div>
       </div>
@@ -289,19 +307,25 @@ export default function AvailabilityEditor({
             {canEditSelected && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {BOOKING_BLOCK_STARTS.map((blockStart) => {
+                  const locked = isBlockLocked(selectedDate, blockStart);
                   const selected = isBookingBlockEnabled(selectedTimes ?? [], blockStart);
                   return (
                     <button
                       key={blockStart}
                       type="button"
                       onClick={() => toggleBlock(selectedDate, blockStart)}
+                      disabled={locked}
+                      title={locked ? "Booked appointment — cannot remove" : undefined}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                        selected
-                          ? "bg-brand text-white border-brand"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-accent"
+                        locked
+                          ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                          : selected
+                            ? "bg-brand text-white border-brand"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-accent"
                       }`}
                     >
                       {formatBookingBlockDisplay(blockStart)}
+                      {locked ? " · booked" : ""}
                     </button>
                   );
                 })}

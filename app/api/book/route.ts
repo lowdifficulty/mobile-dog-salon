@@ -9,10 +9,7 @@ import {
   slotToISO,
 } from "@/lib/scheduling/slots";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
-import {
-  consumeGroomerAvailability,
-  hasMinimumAvailabilityForBooking,
-} from "@/lib/scheduling/availability";
+import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
@@ -131,7 +128,6 @@ export async function POST(request: Request) {
   };
 
   data.appointments.push(appointment);
-  consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
   await writeSchedulingData(data, {
     action: "booking",
     actor: bookingEmail,

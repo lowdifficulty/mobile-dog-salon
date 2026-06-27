@@ -1,11 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import {
-  consumeGroomerAvailability,
-  hasMinimumAvailabilityForBooking,
-  restoreGroomerAvailability,
-} from "@/lib/scheduling/availability";
+import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
@@ -187,7 +183,6 @@ export async function createAppointment(
   };
 
   data.appointments.push(appointment);
-  consumeGroomerAvailability(data, groomerId, date, time, BOOKING_DURATION_MINUTES);
   await writeSchedulingData(data, {
     action: "booking",
     actor,
@@ -216,15 +211,7 @@ export async function cancelAppointment(
     return { ok: false, error: "Appointment is already cancelled", status: 409 };
   }
 
-  const { date, time } = parseSlotFromIso(appointment.startAt);
   appointment.status = "cancelled";
-  restoreGroomerAvailability(
-    data,
-    appointment.groomerId,
-    date,
-    time,
-    appointment.durationMinutes
-  );
 
   await writeSchedulingData(data, {
     action: "appointment_cancel",
@@ -325,26 +312,10 @@ export async function rescheduleAppointment(
     return { ok: false, error: "That time slot is no longer available", status: 409 };
   }
 
-  restoreGroomerAvailability(
-    data,
-    appointment.groomerId,
-    oldSlot.date,
-    oldSlot.time,
-    appointment.durationMinutes
-  );
-
   appointment.groomerId = groomerId;
   appointment.startAt = slotToISO(date, time);
   appointment.status = "confirmed";
   clearReminderFlags(appointment);
-
-  consumeGroomerAvailability(
-    data,
-    groomerId,
-    date,
-    time,
-    appointment.durationMinutes
-  );
 
   await writeSchedulingData(data, {
     action: "appointment_reschedule",
@@ -415,24 +386,8 @@ export async function transferAppointmentToGroomer(
     return { ok: false, error: "That time slot is no longer available", status: 409 };
   }
 
-  restoreGroomerAvailability(
-    data,
-    appointment.groomerId,
-    date,
-    time,
-    appointment.durationMinutes
-  );
-
   appointment.groomerId = toGroomerId;
   clearReminderFlags(appointment);
-
-  consumeGroomerAvailability(
-    data,
-    toGroomerId,
-    date,
-    time,
-    appointment.durationMinutes
-  );
 
   await writeSchedulingData(data, {
     action: "appointment_reschedule",

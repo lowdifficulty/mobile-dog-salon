@@ -2,6 +2,7 @@ import {
   completedVisitsInRange,
   countDogsInAppointments,
 } from "@/lib/analytics/visits";
+import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { getQuotedServicePrice } from "@/lib/pricing";
 import type { AnalyticsRange } from "@/lib/leads/analytics";
 import { funnelStepOrder, type Lead } from "@/lib/leads/types";
@@ -83,7 +84,7 @@ export function getLeadBookedPrice(lead: Lead): number | null {
   return found ? total : null;
 }
 
-function sumLeadRevenue(leads: Lead[]): {
+function sumAppointmentRevenue(appointments: Appointment[]): {
   total: number;
   priced: number;
   unpriced: number;
@@ -92,8 +93,8 @@ function sumLeadRevenue(leads: Lead[]): {
   let priced = 0;
   let unpriced = 0;
 
-  for (const lead of leads) {
-    const price = getLeadBookedPrice(lead);
+  for (const appointment of appointments) {
+    const price = getAppointmentBookedPrice(appointment);
     if (price == null) {
       unpriced += 1;
       continue;
@@ -217,16 +218,11 @@ export function computeFinancialAnalytics(
   const bookedLeads = filteredLeads.filter(
     (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder("scheduled")
   );
-  const completedLeads = filteredLeads.filter(
-    (lead) =>
-      funnelStepOrder(lead.funnelStep) >= funnelStepOrder("appointment_completed")
-  );
 
-  const bookedRevenue = sumLeadRevenue(bookedLeads);
-  const completedRevenue = sumLeadRevenue(completedLeads);
   const periodDays = analyticsPeriodDays(filteredLeads, range);
   const completedVisits = completedVisitsInRange(appointments, range, customDate);
   const dogsGroomed = countDogsInAppointments(completedVisits);
+  const visitRevenue = sumAppointmentRevenue(completedVisits);
   const expenses = computeExpenses(
     completedVisits.length,
     dogsGroomed,
@@ -238,12 +234,12 @@ export function computeFinancialAnalytics(
     bookedAppointments: bookedLeads.length,
     completedAppointments: completedVisits.length,
     dogsGroomed,
-    estimatedRevenue: bookedRevenue.total,
-    completedRevenue: completedRevenue.total,
-    pricedBookings: bookedRevenue.priced,
-    unpricedBookings: bookedRevenue.unpriced,
+    estimatedRevenue: visitRevenue.total,
+    completedRevenue: visitRevenue.total,
+    pricedBookings: visitRevenue.priced,
+    unpricedBookings: visitRevenue.unpriced,
     expenses,
-    estimatedProfit: roundMoney(bookedRevenue.total - expenses.total),
+    estimatedProfit: roundMoney(visitRevenue.total - expenses.total),
     periodDays,
   };
 }

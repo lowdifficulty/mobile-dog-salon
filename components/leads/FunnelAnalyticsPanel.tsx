@@ -135,9 +135,9 @@ export default function FunnelAnalyticsPanel() {
             <div>
               <h3 className="font-semibold text-gray-900">Revenue &amp; expenses</h3>
               <p className="text-sm text-gray-500 mt-1">
-                Revenue uses booked service prices (size, service, and phone discount).
+                Revenue is the sum of groom prices for completed visits (size, service, and phone discount).
                 {data.financials.unpricedBookings > 0 && (
-                  <> {data.financials.unpricedBookings} booking(s) missing price data.</>
+                  <> {data.financials.unpricedBookings} visit(s) missing price data.</>
                 )}
               </p>
             </div>

@@ -21,7 +21,7 @@ export const ANALYTICS_TRUCK_COUNT = 2;
 /** Estimated monthly insurance per van (USD). */
 export const ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK = 250;
 export const ANALYTICS_PAYROLL_PER_DOG = 60;
-export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 20;
+export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 5;
 
 const DAYS_PER_MONTH = 30;
 

@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "67": "node scripts/start-local.mjs",
+    "42": "node scripts/push-prod.mjs",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/ensure-local.mjs --restart --skip-if-ci",

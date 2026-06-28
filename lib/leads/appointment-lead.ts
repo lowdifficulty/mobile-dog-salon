@@ -1,7 +1,12 @@
 import "server-only";
 
 import { normalizePhone } from "./normalize";
-import { getLeadByAppointmentId, readLeadsData, upsertLead } from "./store";
+import {
+  addLeadNote,
+  getLeadByAppointmentId,
+  readLeadsData,
+  upsertLead,
+} from "./store";
 import { patchLeadDetails, type LeadDetailsPatch } from "./patch-lead";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { Appointment } from "@/lib/scheduling/types";
@@ -51,7 +56,9 @@ function leadToFormFields(lead: Lead): Omit<LeadFormLookup, "leadId"> {
   };
 }
 
-async function findLeadForAppointment(appointment: Appointment): Promise<Lead | null> {
+export async function findLeadForAppointment(
+  appointment: Appointment
+): Promise<Lead | null> {
   const byId = await getLeadByAppointmentId(appointment.id);
   if (byId) return byId;
 
@@ -125,4 +132,54 @@ export async function patchLeadForAppointment(
   }
 
   return patchLeadDetails(lead.id, patch, actor);
+}
+
+export async function addNoteForAppointment(
+  appointmentId: string,
+  text: string,
+  groomerId: string
+): Promise<{ ok: true; lead: Lead } | { ok: false; error: string; status: number }> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Note text required", status: 400 };
+  }
+
+  const scheduling = await readSchedulingData();
+  const appointment = scheduling.appointments.find((a) => a.id === appointmentId);
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.groomerId !== groomerId) {
+    return { ok: false, error: "Not your client", status: 403 };
+  }
+
+  let lead = await findLeadForAppointment(appointment);
+  if (!lead) {
+    const fields = appointmentToFormFields(appointment);
+    lead = await upsertLead({
+      funnelStep: "scheduled",
+      source: "booking",
+      appointmentId: appointment.id,
+      appointmentStartAt: appointment.startAt,
+      groomerId: appointment.groomerId,
+      scheduledAt: appointment.createdAt,
+      phone: fields.phone,
+      firstName: fields.firstName,
+      lastName: fields.lastName,
+      email: fields.email,
+      petName: fields.petName,
+      petSize: fields.petSize,
+      service: fields.service,
+      address: fields.address,
+      city: fields.city,
+      zipCode: fields.zipCode,
+    });
+  }
+
+  const updated = await addLeadNote(lead.id, trimmed);
+  if (!updated) {
+    return { ok: false, error: "Lead not found", status: 404 };
+  }
+
+  return { ok: true, lead: updated };
 }

@@ -10,13 +10,14 @@ import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
+import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
 import type { SessionUser } from "@/lib/scheduling/types";
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type Tab = "upcoming" | "route" | "book" | "team-calendar" | "availability";
+type Tab = "upcoming" | "route" | "book" | "team-calendar" | "availability" | "clients";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "upcoming", label: "Upcoming" },
+    { id: "clients", label: "Active clients" },
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
     { id: "team-calendar", label: "Calendar" },
@@ -52,7 +54,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Upcoming appointments, daily route, calendar, and schedule."
+        subtitle="Upcoming appointments, active clients, daily route, calendar, and schedule."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
@@ -74,6 +76,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
         <DashboardErrorBoundary>
           {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
+          {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
           {tab === "upcoming" && (
             <AppointmentList
               key={appointmentRefreshKey}

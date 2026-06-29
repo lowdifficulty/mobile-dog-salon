@@ -5,6 +5,8 @@ import {
 } from "@/lib/scheduling/appointment-actions";
 import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { mergeAppointmentIds, listClientAppointments } from "@/lib/client/appointments";
+import { getClientServiceAddress } from "@/lib/client/licky-address";
+import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
 import { requireClient } from "@/lib/payments/auth";
 import { findClientById, updateClient } from "@/lib/payments/store";
 
@@ -49,6 +51,10 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json()) as CreateAppointmentInput & { slotKey?: string };
+
+    const existingAppointments = await listClientAppointments(account);
+    const savedAddress = getClientServiceAddress(account, existingAppointments);
+
     if (!body.slotKey || !body.petSize || !body.service) {
       return NextResponse.json({ error: "Missing booking fields" }, { status: 400 });
     }
@@ -64,15 +70,19 @@ export async function POST(request: Request) {
       email: account.email,
       phone: account.phone,
       smsOptIn: true,
-      address: body.address ?? "",
-      city: body.city ?? "",
-      zipCode: body.zipCode ?? "",
+      address: body.address?.trim() || savedAddress?.address || "",
+      city: body.city?.trim() || savedAddress?.city || "",
+      zipCode: body.zipCode?.trim() || savedAddress?.zipCode || "",
       notes: account.lockedInDiscount
         ? "50% phone discount applied. Discount locked in via client portal."
         : "",
     };
 
-    const result = await createAppointment(input, `client:${account.email}`);
+    const result = await createAppointment(
+      input,
+      `client:${account.email}`,
+      { overrideAvailability: isLocalhostRequest(request) }
+    );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

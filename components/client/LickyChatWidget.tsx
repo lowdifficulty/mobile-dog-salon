@@ -65,7 +65,11 @@ export default function LickyChatWidget({
     });
     const data = (await res.json()) as ChatApiResponse;
     if (!res.ok) {
-      return { reply: data.error ?? "Something went wrong.", buttons: [] };
+      const msg =
+        res.status === 401
+          ? "Please log in again to chat with Licky."
+          : data.error ?? "Something went wrong.";
+      return { reply: msg, buttons: [] };
     }
     return data;
   }

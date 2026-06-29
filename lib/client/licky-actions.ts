@@ -36,10 +36,20 @@ import {
 import type { ClientAccount } from "@/lib/payments/types";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { updateClient } from "@/lib/payments/store";
+import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
 import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
+import type { AppointmentMutationOptions } from "@/lib/scheduling/appointment-actions";
 
 export interface LickyActionContext {
   account: ClientAccount;
+}
+
+function lickyBookingOptions(
+  request: Request | undefined,
+  fromFallback?: boolean
+): AppointmentMutationOptions {
+  const localhost = request ? isLocalhostRequest(request) : false;
+  return { overrideAvailability: localhost || Boolean(fromFallback) };
 }
 
 const MAX_SLOTS_IN_REPLY = 24;
@@ -103,12 +113,14 @@ export async function lickyBuildAvailabilityResponse(params: {
     service: data.service,
     days: data.days,
     groomerId: data.groomerId,
+    fromFallback: data.source === "fallback",
   });
 }
 
 export async function lickyBookAppointment(
   ctx: LickyActionContext,
-  params: { slot_key: string; service?: string }
+  params: { slot_key: string; service?: string; fromFallback?: boolean },
+  request?: Request
 ): Promise<LickyStructuredResponse> {
   const slotKey = params.slot_key?.trim();
   const service = params.service?.trim() || "full-groom";
@@ -127,7 +139,7 @@ export async function lickyBookAppointment(
 
   if (!savedAddress) {
     await updateClient(ctx.account.id, {
-      pendingLickyBooking: { slotKey, service },
+      pendingLickyBooking: { slotKey, service, fromFallback: params.fromFallback },
     });
     return structuredFromText(
       "What's your service address? Street, city, and zip — e.g. 123 Main St, Irvine, 92618"
@@ -154,7 +166,11 @@ export async function lickyBookAppointment(
       : "Booked via Licky chat.",
   };
 
-  const result = await createAppointment(input, `licky:${ctx.account.email}`);
+  const result = await createAppointment(
+    input,
+    `licky:${ctx.account.email}`,
+    lickyBookingOptions(request, params.fromFallback)
+  );
   if (!result.ok) {
     return structuredFromText(result.error);
   }
@@ -201,7 +217,8 @@ export async function lickySaveClientAddress(
 
 export async function lickyCompletePendingBooking(
   ctx: LickyActionContext,
-  message: string
+  message: string,
+  request?: Request
 ): Promise<LickyStructuredResponse | null> {
   const pending = ctx.account.pendingLickyBooking;
   if (!pending?.slotKey) return null;
@@ -217,10 +234,15 @@ export async function lickyCompletePendingBooking(
   await updateClient(ctx.account.id, { pendingLickyBooking: null });
 
   const refreshed = { ...ctx.account, serviceAddress: parsed, pendingLickyBooking: null };
-  return lickyBookAppointment({ account: refreshed }, {
-    slot_key: pending.slotKey,
-    service: pending.service,
-  });
+  return lickyBookAppointment(
+    { account: refreshed },
+    {
+      slot_key: pending.slotKey,
+      service: pending.service,
+      fromFallback: pending.fromFallback,
+    },
+    request
+  );
 }
 
 export async function lickyCheckAvailability(

@@ -44,6 +44,7 @@ export function buildAvailabilityResponse(
     service: string;
     days: number;
     groomerId?: string;
+    fromFallback?: boolean;
   }
 ): LickyStructuredResponse {
   if (!slots.length) {
@@ -57,7 +58,11 @@ export function buildAvailabilityResponse(
   const buttons: LickyButton[] = page.map((s) => ({
     label: formatSlotButtonLabel(s),
     action: "book_slot",
-    payload: { slotKey: s.slotKey, service: opts.service },
+    payload: {
+      slotKey: s.slotKey,
+      service: opts.service,
+      fromFallback: Boolean(opts.fromFallback),
+    },
   }));
 
   if (slots.length > offset + 3) {

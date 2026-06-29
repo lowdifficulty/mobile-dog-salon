@@ -33,6 +33,7 @@ export interface ClientAccount {
   pendingLickyBooking?: {
     slotKey: string;
     service: string;
+    fromFallback?: boolean;
   } | null;
 }
 

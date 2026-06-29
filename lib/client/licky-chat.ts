@@ -161,7 +161,7 @@ export async function createLickyReply(
     return createFallbackReply(messages, context, actionCtx);
   }
 
-  const customTraining = await getLickyCustomTrainingText();
+  const customTraining = await getLickyCustomTrainingText().catch(() => "");
 
   const systemContent = [
     LICKY_SYSTEM_PROMPT,

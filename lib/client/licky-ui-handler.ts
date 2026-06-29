@@ -27,6 +27,10 @@ function payloadNumber(payload: Record<string, unknown> | undefined, key: string
   return undefined;
 }
 
+function payloadBoolean(payload: Record<string, unknown> | undefined, key: string): boolean {
+  return payload?.[key] === true;
+}
+
 export async function buildAvailabilityActionResponse(
   payload?: Record<string, unknown>
 ): Promise<LickyStructuredResponse> {
@@ -46,12 +50,14 @@ export async function buildAvailabilityActionResponse(
     service: data.service,
     days: data.days,
     groomerId: data.groomerId,
+    fromFallback: data.source === "fallback",
   });
 }
 
 export async function handleLickyClientAction(
   action: LickyClientAction,
-  ctx: LickyActionContext
+  ctx: LickyActionContext,
+  request?: Request
 ): Promise<LickyStructuredResponse> {
   switch (action.type) {
     case "show_availability":
@@ -64,7 +70,15 @@ export async function handleLickyClientAction(
       if (!slotKey) {
         return structuredFromText("Missing slot — tap a time button.");
       }
-      return lickyBookAppointment(ctx, { slot_key: slotKey, service });
+      return lickyBookAppointment(
+        ctx,
+        {
+          slot_key: slotKey,
+          service,
+          fromFallback: payloadBoolean(action.payload, "fromFallback"),
+        },
+        request
+      );
 
     default:
       return structuredFromText("Try a button or ask me again!");

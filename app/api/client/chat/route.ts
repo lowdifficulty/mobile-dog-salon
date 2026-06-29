@@ -15,18 +15,27 @@ import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
+  let sessionUser;
   try {
-    const sessionUser = await requireClient();
+    sessionUser = await requireClient();
+  } catch {
+    return NextResponse.json(
+      { error: "Please log in to chat with Licky.", reply: "Please log in to chat with me!" },
+      { status: 401 }
+    );
+  }
+
+  try {
     const account = await findClientById(sessionUser.id);
     if (!account) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
     const body = await request.json();
     const action = body.action as LickyClientAction | undefined;
 
     if (action?.type) {
-      const response = await handleLickyClientAction(action, { account });
+      const response = await handleLickyClientAction(action, { account }, request);
       return NextResponse.json({ ...response, ...lickyChatStatus() });
     }
 
@@ -39,7 +48,8 @@ export async function POST(request: Request) {
     if (account.pendingLickyBooking?.slotKey && lastUserMessage.trim()) {
       const pendingResponse = await lickyCompletePendingBooking(
         { account },
-        lastUserMessage
+        lastUserMessage,
+        request
       );
       if (pendingResponse) {
         return NextResponse.json({ ...pendingResponse, ...lickyChatStatus() });
@@ -102,7 +112,14 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ ...response, ...lickyChatStatus() });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    console.error("Licky chat error:", err);
+    return NextResponse.json(
+      {
+        error: "Chat failed",
+        reply: "Woof! I hit a snag. Try again in a moment.",
+      },
+      { status: 500 }
+    );
   }
 }

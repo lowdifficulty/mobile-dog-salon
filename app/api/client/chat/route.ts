@@ -5,6 +5,8 @@ import {
   type ChatMessage,
 } from "@/lib/client/licky-chat";
 import { listClientAppointments } from "@/lib/client/appointments";
+import { getClientServiceAddress } from "@/lib/client/licky-address";
+import { lickyCompletePendingBooking } from "@/lib/client/licky-actions";
 import { handleLickyClientAction, type LickyClientAction } from "@/lib/client/licky-ui-handler";
 import { requireClient } from "@/lib/payments/auth";
 import { findClientById } from "@/lib/payments/store";
@@ -31,6 +33,17 @@ export async function POST(request: Request) {
     const messages = (body.messages ?? []) as ChatMessage[];
     if (!messages.length || messages[messages.length - 1]?.role !== "user") {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
+    }
+
+    const lastUserMessage = messages.filter((m) => m.role === "user").pop()?.content ?? "";
+    if (account.pendingLickyBooking?.slotKey && lastUserMessage.trim()) {
+      const pendingResponse = await lickyCompletePendingBooking(
+        { account },
+        lastUserMessage
+      );
+      if (pendingResponse) {
+        return NextResponse.json({ ...pendingResponse, ...lickyChatStatus() });
+      }
     }
 
     const appointments = await listClientAppointments(account);
@@ -67,6 +80,21 @@ export async function POST(request: Request) {
     }
     if (account.petProfile?.notes) {
       contextLines.push(`Pet notes: ${account.petProfile.notes}`);
+    }
+
+    const serviceAddress = getClientServiceAddress(account, appointments);
+    if (serviceAddress) {
+      contextLines.push(
+        `Service address on file: ${serviceAddress.address}, ${serviceAddress.city} ${serviceAddress.zipCode}`
+      );
+    } else {
+      contextLines.push("Service address: not on file — ask for street, city, and zip before booking.");
+    }
+
+    if (account.pendingLickyBooking?.slotKey) {
+      contextLines.push(
+        `Waiting for address to book slot ${account.pendingLickyBooking.slotKey} (${account.pendingLickyBooking.service}).`
+      );
     }
 
     const response = await createLickyReply(messages, contextLines.join("\n"), {

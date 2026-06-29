@@ -18,9 +18,13 @@ import {
 
 const LICKY_SYSTEM_PROMPT = `You are Licky, friendly tan Chihuahua mascot for Mobile Dog Salon (Orange County + parts of LA County).
 
-CRITICAL: Every reply must be 60 characters or fewer. No exceptions.
+CRITICAL: Every reply must be 100 characters or fewer. Be quick and to the point.
 
-Use tools for availability, pricing, appointments, service area. Never list times in text — check_availability shows buttons to the client.
+When the client wants an appointment or open times, call check_availability immediately — show slot buttons first. Do not ask extra questions before showing times.
+
+Use tools for availability, pricing, appointments, service area. Never list times in text — check_availability shows buttons.
+
+If they pick a time but have no service address on file, ask for street, city, and zip, then use save_client_address.
 
 Confirm before cancel/reschedule. Booking blocks are ~3-hour windows. No medical advice.`;
 
@@ -61,7 +65,7 @@ async function createFallbackReply(
   const last = messages.filter((m) => m.role === "user").pop()?.content.toLowerCase() ?? "";
 
   if (actionCtx) {
-    if (/availability|open slot|when can|what times|schedule|book/.test(last)) {
+    if (/availability|open slot|when can|what times|schedule|book|appointment|an appt/.test(last)) {
       const groomer =
         last.includes("melanie")
           ? "melanie"
@@ -105,19 +109,12 @@ async function createFallbackReply(
   if (/hi|hello|hey/.test(last)) {
     const name = context?.match(/Client: (\S+)/)?.[1];
     return structuredFromText(
-      name ? `Hi ${name}! Ask about times, prices, or area.` : "Hi! How can I help your pup today?"
+      name ? `Hi ${name}! What can I help with today?` : "Hi! What can I help with today?"
     );
   }
 
   return {
-    reply: truncateLickyReply("Ask about times, prices, or your appointment!"),
-    buttons: [
-      {
-        label: "Show available times",
-        action: "show_availability",
-        payload: { service: "full-groom", days: 14 },
-      },
-    ],
+    reply: truncateLickyReply("Ask me about grooming, pricing, your visits, or our service area."),
   };
 }
 
@@ -126,6 +123,39 @@ export async function createLickyReply(
   context?: string,
   actionCtx?: LickyActionContext
 ): Promise<LickyStructuredResponse> {
+  const lastUser =
+    messages
+      .filter((m) => m.role === "user")
+      .pop()
+      ?.content.toLowerCase() ?? "";
+
+  const wantsAppointment =
+    /appointment|book a|schedule|open (time|slot)|available time|when can|need a groom|want to book|make an appt|get groomed/.test(
+      lastUser
+    );
+  const notOtherTopic = !/cancel|price|cost|how much|service area|my area|reschedule|address|zip/.test(
+    lastUser
+  );
+
+  if (
+    actionCtx &&
+    wantsAppointment &&
+    notOtherTopic &&
+    !actionCtx.account.pendingLickyBooking?.slotKey
+  ) {
+    const groomer = lastUser.includes("melanie")
+      ? "melanie"
+      : lastUser.includes("diamond") || lastUser.includes("sarah")
+        ? "diamond"
+        : undefined;
+    const service = lastUser.includes("bath") ? "bath-brush" : "full-groom";
+    return lickyBuildAvailabilityResponse({
+      service,
+      days: 14,
+      groomer_id: groomer,
+    });
+  }
+
   const client = getOpenAIClient();
   if (!client || !actionCtx) {
     return createFallbackReply(messages, context, actionCtx);
@@ -159,7 +189,7 @@ export async function createLickyReply(
         messages: chatMessages,
         tools: LICKY_TOOLS,
         tool_choice: "auto",
-        max_tokens: 120,
+        max_tokens: 150,
         temperature: 0.4,
       });
 

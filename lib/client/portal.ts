@@ -13,6 +13,6 @@ export function clientToSessionUser(account: ClientAccount): ClientSessionUser {
 }
 
 export const LICKY_WELCOME_MESSAGE =
-  "Hi, this is Licky. Can't wait to meet your dog! If you need to cancel or reschedule you can log in here and I'll be available. Click next to continue!";
+  "Hi, I'm Licky! Your grooming buddy. Ask me anything — I'm here to help you and your pup.";
 
 export const LICKY_AVATAR = "/images/booking/dog-small.png";

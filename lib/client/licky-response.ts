@@ -1,6 +1,6 @@
 import type { AvailableSlot } from "@/lib/scheduling/types";
 
-export const LICKY_MAX_CHARS = 60;
+export const LICKY_MAX_CHARS = 100;
 
 export type LickyButtonAction =
   | "book_slot"
@@ -74,7 +74,7 @@ export function buildAvailabilityResponse(
   }
 
   return {
-    reply: truncateLickyReply("Pick a time below!"),
+    reply: truncateLickyReply("Here are open times — pick one below!"),
     buttons,
   };
 }

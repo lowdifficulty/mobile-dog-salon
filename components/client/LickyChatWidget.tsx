@@ -193,25 +193,9 @@ export default function LickyChatWidget({
             ) : (
               <>
                 {messages.length === 0 && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-500 text-center py-2">
-                      Short answers, quick buttons — ask Licky anything!
-                    </p>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void handleButton({
-                          label: "Show available times",
-                          action: "show_availability",
-                          payload: { service: "full-groom", days: 14 },
-                        })
-                      }
-                      className="w-full py-2 text-sm font-semibold rounded-full border border-brand text-brand bg-white hover:bg-brand/5 disabled:opacity-50"
-                    >
-                      Show available times
-                    </button>
-                  </div>
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Ask Licky anything — grooming tips, pricing, your visits, and more.
+                  </p>
                 )}
                 {messages.map((msg, i) => (
                   <div

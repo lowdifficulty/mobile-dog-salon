@@ -21,7 +21,11 @@ import {
   createAppointment,
   type CreateAppointmentInput,
 } from "@/lib/scheduling/appointment-actions";
-import { updateClient } from "@/lib/payments/store";
+import {
+  getClientServiceAddress,
+  parseClientAddressMessage,
+  saveClientServiceAddress,
+} from "@/lib/client/licky-address";
 import {
   formatPrice,
   getListServicePrice,
@@ -29,9 +33,10 @@ import {
   getServiceLabel,
   normalizePetSize,
 } from "@/lib/pricing";
-import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
-import type { GroomerId } from "@/lib/scheduling/types";
 import type { ClientAccount } from "@/lib/payments/types";
+import type { GroomerId } from "@/lib/scheduling/types";
+import { updateClient } from "@/lib/payments/store";
+import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
 
 export interface LickyActionContext {
   account: ClientAccount;
@@ -113,22 +118,23 @@ export async function lickyBookAppointment(
   }
 
   const appointments = await listClientAppointments(ctx.account);
-  const last =
-    appointments.find((a) => a.address?.trim()) ?? appointments[0];
+  const savedAddress = getClientServiceAddress(ctx.account, appointments);
 
   const pet = ctx.account.petProfile?.pets?.[0];
+  const last = appointments[0];
   const petSize = pet?.petSize || last?.petSize || "medium";
   const petName = pet?.petName || last?.petName || "";
-  const address = last?.address?.trim() ?? "";
-  const city = last?.city?.trim() ?? "";
-  const zipCode = last?.zipCode?.trim() ?? "";
 
-  if (!address) {
-    return {
-      reply: truncateLickyReply("Add your address under My dog first!"),
-      buttons: [],
-    };
+  if (!savedAddress) {
+    await updateClient(ctx.account.id, {
+      pendingLickyBooking: { slotKey, service },
+    });
+    return structuredFromText(
+      "What's your service address? Street, city, and zip — e.g. 123 Main St, Irvine, 92618"
+    );
   }
+
+  const { address, city, zipCode } = savedAddress;
 
   const input: CreateAppointmentInput = {
     slotKey,
@@ -158,6 +164,7 @@ export async function lickyBookAppointment(
       ctx.account.appointmentIds,
       result.appointment.id
     ),
+    pendingLickyBooking: null,
   });
 
   const when = new Date(result.appointment.startAt).toLocaleString("en-US", {
@@ -169,6 +176,51 @@ export async function lickyBookAppointment(
   });
 
   return structuredFromText(`Booked! ${when} See Appointments tab.`);
+}
+
+export async function lickySaveClientAddress(
+  ctx: LickyActionContext,
+  params: { full_address?: string; address?: string; city?: string; zip_code?: string }
+): Promise<string> {
+  let parsed = null;
+  if (params.full_address?.trim()) {
+    parsed = parseClientAddressMessage(params.full_address);
+  } else if (params.address?.trim() && params.city?.trim() && params.zip_code?.trim()) {
+    parsed = parseClientAddressMessage(
+      `${params.address}, ${params.city}, ${params.zip_code}`
+    );
+  }
+
+  if (!parsed) {
+    return "Need a full address with street, city, and 5-digit zip.";
+  }
+
+  await saveClientServiceAddress(ctx.account.id, parsed);
+  return `Saved your address: ${parsed.address}, ${parsed.city} ${parsed.zipCode}.`;
+}
+
+export async function lickyCompletePendingBooking(
+  ctx: LickyActionContext,
+  message: string
+): Promise<LickyStructuredResponse | null> {
+  const pending = ctx.account.pendingLickyBooking;
+  if (!pending?.slotKey) return null;
+
+  const parsed = parseClientAddressMessage(message);
+  if (!parsed) {
+    return structuredFromText(
+      "Need street, city, and zip. Example: 123 Main St, Irvine, 92618"
+    );
+  }
+
+  await saveClientServiceAddress(ctx.account.id, parsed);
+  await updateClient(ctx.account.id, { pendingLickyBooking: null });
+
+  const refreshed = { ...ctx.account, serviceAddress: parsed, pendingLickyBooking: null };
+  return lickyBookAppointment({ account: refreshed }, {
+    slot_key: pending.slotKey,
+    service: pending.service,
+  });
 }
 
 export async function lickyCheckAvailability(
@@ -362,6 +414,13 @@ export async function executeLickyTool(
           })
         ).reply
       );
+    case "save_client_address":
+      return lickySaveClientAddress(ctx, {
+        full_address: typeof args.full_address === "string" ? args.full_address : undefined,
+        address: typeof args.address === "string" ? args.address : undefined,
+        city: typeof args.city === "string" ? args.city : undefined,
+        zip_code: typeof args.zip_code === "string" ? args.zip_code : undefined,
+      });
     default:
       return `Unknown tool: ${name}`;
   }

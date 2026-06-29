@@ -103,6 +103,8 @@ export async function updateClient(
       | "appointmentIds"
       | "petProfile"
       | "pendingLickyWelcome"
+      | "serviceAddress"
+      | "pendingLickyBooking"
       | "squareCustomerId"
     >
   >

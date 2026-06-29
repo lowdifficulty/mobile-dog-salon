@@ -20,12 +20,13 @@ export async function PATCH(request: Request) {
   try {
     const sessionUser = await requireClient();
     const body = await request.json();
-    const { petProfile, firstName, lastName, phone, clearLickyWelcome } = body as {
+    const { petProfile, firstName, lastName, phone, clearLickyWelcome, serviceAddress } = body as {
       petProfile?: { pets: { petName: string; petSize: string; notes?: string }[]; notes?: string };
       firstName?: string;
       lastName?: string;
       phone?: string;
       clearLickyWelcome?: boolean;
+      serviceAddress?: { address: string; city: string; zipCode: string };
     };
 
     const updated = await updateClient(sessionUser.id, {
@@ -34,6 +35,15 @@ export async function PATCH(request: Request) {
       ...(lastName !== undefined ? { lastName: lastName.trim() } : {}),
       ...(phone !== undefined ? { phone: phone.trim() } : {}),
       ...(clearLickyWelcome ? { pendingLickyWelcome: false } : {}),
+      ...(serviceAddress !== undefined
+        ? {
+            serviceAddress: {
+              address: serviceAddress.address?.trim() ?? "",
+              city: serviceAddress.city?.trim() ?? "",
+              zipCode: serviceAddress.zipCode?.trim() ?? "",
+            },
+          }
+        : {}),
     });
 
     if (!updated) {

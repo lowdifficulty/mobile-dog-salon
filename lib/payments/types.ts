@@ -23,6 +23,17 @@ export interface ClientAccount {
   };
   /** Show Licky welcome once after first registration login. */
   pendingLickyWelcome?: boolean;
+  /** Home address for mobile grooming visits. */
+  serviceAddress?: {
+    address: string;
+    city: string;
+    zipCode: string;
+  };
+  /** Slot chosen in chat while waiting for address. */
+  pendingLickyBooking?: {
+    slotKey: string;
+    service: string;
+  } | null;
 }
 
 export interface ClientSessionUser {

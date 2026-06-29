@@ -114,6 +114,27 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "save_client_address",
+      description:
+        "Save the client's mobile grooming service address to their account. Use when they provide street, city, and zip.",
+      parameters: {
+        type: "object",
+        properties: {
+          full_address: {
+            type: "string",
+            description: "Full address like '123 Main St, Irvine, 92618'",
+          },
+          address: { type: "string" },
+          city: { type: "string" },
+          zip_code: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "book_appointment",
       description: "Book grooming when client chose a slot_key. UI buttons handle booking.",
       parameters: {

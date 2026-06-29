@@ -80,6 +80,9 @@ export default function ClientHub() {
 
   const [pets, setPets] = useState<ClientPetProfile[]>([{ petName: "", petSize: "" }]);
   const [dogNotes, setDogNotes] = useState("");
+  const [serviceAddress, setServiceAddress] = useState("");
+  const [serviceCity, setServiceCity] = useState("");
+  const [serviceZip, setServiceZip] = useState("");
   const [photos, setPhotos] = useState<PortalPhoto[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPetName, setPhotoPetName] = useState("");
@@ -135,6 +138,9 @@ export default function ClientHub() {
         setPets(profilePets);
       }
       setDogNotes(data.profile?.petProfile?.notes ?? "");
+      setServiceAddress(data.profile?.serviceAddress?.address ?? "");
+      setServiceCity(data.profile?.serviceAddress?.city ?? "");
+      setServiceZip(data.profile?.serviceAddress?.zipCode ?? "");
       if (data.client) setClient(data.client);
     }
   }, []);
@@ -249,9 +255,9 @@ export default function ClientHub() {
         petSize: pets[0]?.petSize ?? last?.petSize ?? "medium",
         service: pickerService,
         petName: pets[0]?.petName ?? last?.petName,
-        address: last?.address,
-        city: last?.city,
-        zipCode: last?.zipCode,
+        address: serviceAddress.trim() || last?.address,
+        city: serviceCity.trim() || last?.city,
+        zipCode: serviceZip.trim() || last?.zipCode,
       }),
     });
     setApptBusy(null);
@@ -281,6 +287,11 @@ export default function ClientHub() {
         petProfile: {
           pets: pets.filter((p) => p.petName.trim()),
           notes: dogNotes,
+        },
+        serviceAddress: {
+          address: serviceAddress,
+          city: serviceCity,
+          zipCode: serviceZip,
         },
       }),
     });
@@ -619,6 +630,48 @@ export default function ClientHub() {
               >
                 + Add another pet
               </button>
+
+              <div className="pt-2 border-t border-gray-100 space-y-3">
+                <h3 className="font-semibold text-gray-900 text-sm">Service address</h3>
+                <p className="text-xs text-gray-500">
+                  Where we come for grooming. Licky can also save this when you chat with him.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Street address
+                  </label>
+                  <input
+                    value={serviceAddress}
+                    onChange={(e) => setServiceAddress(e.target.value)}
+                    placeholder="123 Main St"
+                    autoComplete="street-address"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">City</label>
+                    <input
+                      value={serviceCity}
+                      onChange={(e) => setServiceCity(e.target.value)}
+                      placeholder="Irvine"
+                      autoComplete="address-level2"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">ZIP</label>
+                    <input
+                      value={serviceZip}
+                      onChange={(e) => setServiceZip(e.target.value)}
+                      placeholder="92618"
+                      autoComplete="postal-code"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Notes for your groomer

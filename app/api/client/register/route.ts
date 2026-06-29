@@ -1,28 +1,45 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { mergeAppointmentIds } from "@/lib/client/appointments";
+import { clientToSessionUser } from "@/lib/client/portal";
 import {
   getClientSession,
   hashClientPassword,
-  verifyClientPassword,
 } from "@/lib/payments/auth";
-import { createClient, findClientByEmail } from "@/lib/payments/store";
+import {
+  createClient,
+  findClientByEmail,
+  findClientByPhone,
+  updateClient,
+} from "@/lib/payments/store";
 import { createSquareCustomer, isSquareConfigured } from "@/lib/payments/square";
+import { readSchedulingData } from "@/lib/scheduling/store";
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
+  return digits;
+}
 
 export async function POST(request: Request) {
-  if (!isSquareConfigured()) {
-    return NextResponse.json(
-      { error: "Payment portal is not configured yet. Please contact us to pay by phone." },
-      { status: 503 }
-    );
-  }
-
-  const body = await request.json();
-  const { email, password, firstName, lastName, phone } = body as {
+  try {
+    const body = await request.json();
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    appointmentId,
+    lockInDiscount,
+  } = body as {
     email?: string;
     password?: string;
     firstName?: string;
     lastName?: string;
     phone?: string;
+    appointmentId?: string;
+    lockInDiscount?: boolean;
   };
 
   if (!email?.trim() || !password || !firstName?.trim() || !lastName?.trim() || !phone?.trim()) {
@@ -33,44 +50,73 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
-  const existing = await findClientByEmail(email);
-  if (existing) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPhone = normalizePhone(phone);
+
+  if (await findClientByEmail(normalizedEmail)) {
     return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
   }
+  if (normalizedPhone.length >= 10 && (await findClientByPhone(normalizedPhone))) {
+    return NextResponse.json(
+      { error: "An account with this phone number already exists" },
+      { status: 409 }
+    );
+  }
 
-  try {
-    const squareCustomerId = await createSquareCustomer({
-      email: email.trim(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-    });
+  let squareCustomerId = "";
+  if (isSquareConfigured()) {
+    try {
+      squareCustomerId = await createSquareCustomer({
+        email: normalizedEmail,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+      });
+    } catch (err) {
+      console.error("Square customer creation failed (continuing):", err);
+    }
+  }
 
-    const account = {
-      id: randomUUID(),
-      email: email.trim().toLowerCase(),
-      passwordHash: await hashClientPassword(password),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      squareCustomerId,
-      createdAt: new Date().toISOString(),
-    };
+  let appointmentIds: string[] = [];
+  if (appointmentId) {
+    const { appointments } = await readSchedulingData();
+    const ap = appointments.find((a) => a.id === appointmentId);
+    if (ap && normalizePhone(ap.phone) === normalizedPhone) {
+      appointmentIds = [appointmentId];
+    }
+  }
 
-    await createClient(account);
+  const account = {
+    id: randomUUID(),
+    email: normalizedEmail,
+    passwordHash: await hashClientPassword(password),
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
+    phone: phone.trim(),
+    squareCustomerId,
+    createdAt: new Date().toISOString(),
+    lockedInDiscount: lockInDiscount === true,
+    registrationComplete: true,
+    appointmentIds,
+    pendingLickyWelcome: lockInDiscount === true,
+    petProfile: { pets: [] },
+  };
 
-    const session = await getClientSession();
-    session.client = {
-      id: account.id,
-      email: account.email,
-      firstName: account.firstName,
-      lastName: account.lastName,
-    };
-    await session.save();
+  await createClient(account);
 
-    return NextResponse.json({ success: true, client: session.client });
+  const session = await getClientSession();
+  session.client = clientToSessionUser(account);
+  await session.save();
+
+  return NextResponse.json({
+    success: true,
+    client: session.client,
+    lockedInDiscount: account.lockedInDiscount,
+  });
   } catch (err) {
     console.error("Client registration failed:", err);
-    return NextResponse.json({ error: "Could not create account. Please try again." }, { status: 500 });
+    const message =
+      err instanceof Error ? err.message : "Registration failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ import ClientPortalShell from "./ClientPortalShell";
 
 export default function ClientLoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function ClientLoginForm() {
     const res = await fetch("/api/client/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     setLoading(false);
@@ -36,22 +36,25 @@ export default function ClientLoginForm() {
   }
 
   return (
-    <ClientPortalShell title="Client payment portal">
+    <ClientPortalShell title="Client portal">
       <div className="site-card p-8">
         <h1 className="site-heading-section text-2xl mb-2">Sign in</h1>
         <p className="text-gray-600 text-sm mb-6">
-          Pay for grooming services, save a card on file, and view your payment history.
+          Manage appointments, upload pet photos, pay online, and chat with Licky.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Email or phone
+            </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="username"
+              placeholder="you@email.com or (555) 555-5555"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl"
             />
           </div>

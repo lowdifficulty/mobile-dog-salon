@@ -22,6 +22,11 @@ export function hasRedisEnv(): boolean {
   return Boolean(url && token);
 }
 
+/** True on Vercel's serverless runtime — not local dev with pulled Vercel env vars. */
+export function isVercelServerless(): boolean {
+  return process.env.VERCEL === "1" && Boolean(process.env.VERCEL_REGION);
+}
+
 /** Where availability + appointments are stored for this process. */
 export function getPersistenceMode(): PersistenceMode {
   if (hasRedisEnv()) return "redis";

@@ -10,6 +10,7 @@ import {
 } from "@/lib/pricing";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import AddToCalendarButtons from "@/components/booking/AddToCalendarButtons";
+import PostBookingRegistration from "@/components/client/PostBookingRegistration";
 import BookingOptionButton, {
   DogSizeIcon,
 } from "@/components/booking/BookingOptionButton";
@@ -373,6 +374,14 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         <div className="max-w-md mx-auto">
           <AddToCalendarButtons details={calendarDetails} />
         </div>
+        {appointmentId && (
+          <PostBookingRegistration
+            appointmentId={appointmentId}
+            phone={data.phone}
+            firstName={splitName(data.fullName).firstName}
+            lastName={splitName(data.fullName).lastName}
+          />
+        )}
         {onClose && (
           <div className="mt-6 text-center">
             <button

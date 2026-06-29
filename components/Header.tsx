@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { NAV_ABOUT, NAV_COMPANY, NAV_SERVICES, ROUTES } from "@/lib/routes";
 import { isA2PVerificationPage } from "@/lib/a2p-page";
 import { useBooking } from "./BookingProvider";
+import ClientNavAuth from "./ClientNavAuth";
 
 function NavDropdown({
   label,
@@ -174,6 +175,7 @@ export default function Header() {
             >
               Careers
             </Link>
+            <ClientNavAuth variant="desktop" />
             {!hideBookingUi && (
               <button
                 type="button"
@@ -236,6 +238,8 @@ export default function Header() {
             >
               Careers
             </Link>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-2">Account</p>
+            <ClientNavAuth variant="mobile" onNavigate={closeMobile} />
             {!hideBookingUi && (
               <button
                 type="button"

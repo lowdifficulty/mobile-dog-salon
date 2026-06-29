@@ -1,0 +1,368 @@
+import "server-only";
+
+import {
+  cancelAppointment,
+  rescheduleAppointment,
+} from "@/lib/scheduling/appointment-actions";
+import {
+  getClientAppointment,
+  listClientAppointments,
+  mergeAppointmentIds,
+} from "@/lib/client/appointments";
+import { LA_COUNTY_SERVICE_AREAS } from "@/lib/client/licky-knowledge";
+import { getLickyAvailabilitySlots } from "@/lib/client/licky-availability";
+import {
+  buildAvailabilityResponse,
+  structuredFromText,
+  truncateLickyReply,
+  type LickyStructuredResponse,
+} from "@/lib/client/licky-response";
+import {
+  createAppointment,
+  type CreateAppointmentInput,
+} from "@/lib/scheduling/appointment-actions";
+import { updateClient } from "@/lib/payments/store";
+import {
+  formatPrice,
+  getListServicePrice,
+  getQuotedServicePrice,
+  getServiceLabel,
+  normalizePetSize,
+} from "@/lib/pricing";
+import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
+import type { GroomerId } from "@/lib/scheduling/types";
+import type { ClientAccount } from "@/lib/payments/types";
+
+export interface LickyActionContext {
+  account: ClientAccount;
+}
+
+const MAX_SLOTS_IN_REPLY = 24;
+
+function formatApptLine(ap: {
+  id: string;
+  startAt: string;
+  service: string;
+  petName: string;
+  groomerId: string;
+  status: string;
+}): string {
+  const when = new Date(ap.startAt).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `id=${ap.id} | ${when} | ${getServiceLabel(ap.service)} | pet: ${ap.petName || "—"} | groomer: ${groomerClientDisplayName(ap.groomerId as GroomerId)} (${ap.groomerId}) | status: ${ap.status}`;
+}
+
+export async function lickyListUpcoming(ctx: LickyActionContext): Promise<string> {
+  const appointments = await listClientAppointments(ctx.account);
+  const now = Date.now();
+  const upcoming = appointments.filter(
+    (ap) => ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now
+  );
+
+  if (!upcoming.length) {
+    return "No upcoming confirmed appointments on this account.";
+  }
+
+  return upcoming.map(formatApptLine).join("\n");
+}
+
+export async function lickyBuildAvailabilityResponse(params: {
+  service?: string;
+  days?: number;
+  groomer_id?: string;
+  offset?: number;
+}): Promise<LickyStructuredResponse> {
+  const groomerFilter = params.groomer_id?.trim().toLowerCase();
+  if (
+    groomerFilter &&
+    groomerFilter !== "melanie" &&
+    groomerFilter !== "diamond"
+  ) {
+    return structuredFromText("Groomer must be Melanie or Diamond.");
+  }
+
+  const data = await getLickyAvailabilitySlots({
+    service: params.service,
+    days: params.days,
+    groomerId: groomerFilter || undefined,
+  });
+
+  return buildAvailabilityResponse(data.slots, {
+    offset: params.offset ?? 0,
+    service: data.service,
+    days: data.days,
+    groomerId: data.groomerId,
+  });
+}
+
+export async function lickyBookAppointment(
+  ctx: LickyActionContext,
+  params: { slot_key: string; service?: string }
+): Promise<LickyStructuredResponse> {
+  const slotKey = params.slot_key?.trim();
+  const service = params.service?.trim() || "full-groom";
+
+  if (!slotKey) {
+    return structuredFromText("Pick a time button to book.");
+  }
+
+  const appointments = await listClientAppointments(ctx.account);
+  const last =
+    appointments.find((a) => a.address?.trim()) ?? appointments[0];
+
+  const pet = ctx.account.petProfile?.pets?.[0];
+  const petSize = pet?.petSize || last?.petSize || "medium";
+  const petName = pet?.petName || last?.petName || "";
+  const address = last?.address?.trim() ?? "";
+  const city = last?.city?.trim() ?? "";
+  const zipCode = last?.zipCode?.trim() ?? "";
+
+  if (!address) {
+    return {
+      reply: truncateLickyReply("Add your address under My dog first!"),
+      buttons: [],
+    };
+  }
+
+  const input: CreateAppointmentInput = {
+    slotKey,
+    petName,
+    petSize,
+    service,
+    firstName: ctx.account.firstName,
+    lastName: ctx.account.lastName,
+    email: ctx.account.email,
+    phone: ctx.account.phone,
+    smsOptIn: true,
+    address,
+    city,
+    zipCode,
+    notes: ctx.account.lockedInDiscount
+      ? "50% discount locked in. Booked via Licky chat."
+      : "Booked via Licky chat.",
+  };
+
+  const result = await createAppointment(input, `licky:${ctx.account.email}`);
+  if (!result.ok) {
+    return structuredFromText(result.error);
+  }
+
+  await updateClient(ctx.account.id, {
+    appointmentIds: mergeAppointmentIds(
+      ctx.account.appointmentIds,
+      result.appointment.id
+    ),
+  });
+
+  const when = new Date(result.appointment.startAt).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+  });
+
+  return structuredFromText(`Booked! ${when} See Appointments tab.`);
+}
+
+export async function lickyCheckAvailability(
+  _ctx: LickyActionContext,
+  params: {
+    service?: string;
+    days?: number;
+    groomer_id?: string;
+  }
+): Promise<string> {
+  const groomerFilter = params.groomer_id?.trim().toLowerCase();
+  if (
+    groomerFilter &&
+    groomerFilter !== "melanie" &&
+    groomerFilter !== "diamond"
+  ) {
+    return "Groomer id must be 'melanie' or 'diamond'.";
+  }
+
+  const { slots, days, service, groomerId, source, persistenceMode } =
+    await getLickyAvailabilitySlots({
+      service: params.service,
+      days: params.days,
+      groomerId: groomerFilter || undefined,
+    });
+
+  if (!slots.length) {
+    const groomerNote = groomerId
+      ? ` for ${groomerClientDisplayName(groomerId)}`
+      : "";
+    return `No open booking slots in the next ${days} days${groomerNote} for ${getServiceLabel(service)}. Calendar source: ${source} (${persistenceMode}). Groomers may add hours soon — try another day or groomer.`;
+  }
+
+  const lines = slots.slice(0, MAX_SLOTS_IN_REPLY).map(
+    (s) =>
+      `${s.date} ${s.displayTime} — ${s.groomerName} | slot_key: ${s.slotKey}`
+  );
+
+  const more =
+    slots.length > MAX_SLOTS_IN_REPLY
+      ? `\n…and ${slots.length - MAX_SLOTS_IN_REPLY} more slots. Ask for a specific groomer or date to narrow down.`
+      : "";
+
+  const sourceNote =
+    source === "fallback"
+      ? "\n(Note: showing standard booking windows — groomer live calendar is empty in storage.)"
+      : "";
+
+  return `Open slots for ${getServiceLabel(service)} (next ${days} days, ${slots.length} total):\n${lines.join("\n")}${more}${sourceNote}`;
+}
+
+export async function lickyGetPricing(
+  ctx: LickyActionContext,
+  params: { pet_size?: string; service?: string }
+): Promise<string> {
+  const petSize = params.pet_size?.trim() || ctx.account.petProfile?.pets?.[0]?.petSize || "small";
+  const service = params.service?.trim() || "full-groom";
+  const tier = normalizePetSize(petSize);
+  const list = getListServicePrice(tier, service);
+  if (list == null) {
+    return "I couldn't find pricing for that size and service. Try small/medium/large and full-groom or bath-brush.";
+  }
+
+  const lockedIn = ctx.account.lockedInDiscount;
+  const discounted = getQuotedServicePrice(tier, service, true);
+  const label = getServiceLabel(service);
+
+  if (lockedIn) {
+    return `${label} for a ${tier} dog: your locked-in rate is ${formatPrice(discounted ?? list / 2)} (list price ${formatPrice(list)}). This discount stays on your account for future visits.`;
+  }
+
+  return `${label} for a ${tier} dog: list price ${formatPrice(list)}. New clients who book with a phone number often get ~50% off (${formatPrice(discounted ?? list / 2)}). Complete registration after your first booking to lock that discount forever.`;
+}
+
+export async function lickyCancelAppointment(
+  ctx: LickyActionContext,
+  params: { appointment_id: string; confirmed?: boolean }
+): Promise<string> {
+  const appointmentId = params.appointment_id?.trim();
+  if (!appointmentId) {
+    return "appointment_id is required.";
+  }
+
+  const appointment = await getClientAppointment(ctx.account, appointmentId);
+  if (!appointment) {
+    return "I couldn't find that appointment on your account. Use list_upcoming_appointments to see valid ids.";
+  }
+
+  if (appointment.status === "cancelled") {
+    return "That appointment is already cancelled.";
+  }
+
+  if (!params.confirmed) {
+    return `Ready to cancel: ${formatApptLine(appointment)}. Ask the client to confirm, then call again with confirmed=true.`;
+  }
+
+  const result = await cancelAppointment(
+    appointmentId,
+    `licky:client:${ctx.account.email}`
+  );
+
+  if (!result.ok) {
+    return `Could not cancel: ${result.error}`;
+  }
+
+  return `Cancelled successfully: ${formatApptLine(result.appointment)}`;
+}
+
+export async function lickyRescheduleAppointment(
+  ctx: LickyActionContext,
+  params: { appointment_id: string; slot_key: string; confirmed?: boolean }
+): Promise<string> {
+  const appointmentId = params.appointment_id?.trim();
+  const slotKey = params.slot_key?.trim();
+
+  if (!appointmentId || !slotKey) {
+    return "appointment_id and slot_key are required. Use check_availability to get slot_key values.";
+  }
+
+  const appointment = await getClientAppointment(ctx.account, appointmentId);
+  if (!appointment) {
+    return "I couldn't find that appointment on your account.";
+  }
+
+  if (!params.confirmed) {
+    return `Ready to reschedule ${appointmentId} to slot ${slotKey}. Confirm with the client, then call again with confirmed=true.`;
+  }
+
+  const result = await rescheduleAppointment(
+    appointmentId,
+    slotKey,
+    `licky:client:${ctx.account.email}`
+  );
+
+  if (!result.ok) {
+    return `Could not reschedule: ${result.error}`;
+  }
+
+  return `Rescheduled successfully:\n${formatApptLine(result.appointment)}`;
+}
+
+export async function lickyGetServiceArea(): Promise<string> {
+  return [
+    "Orange County: we serve the full county (Anaheim, Irvine, Huntington Beach, Laguna, Mission Viejo, San Clemente, and all OC cities on our Locations page).",
+    "LA County (select areas): " + LA_COUNTY_SERVICE_AREAS.join(", "),
+    "Mobile service — we come to the client's home. Book online or call to confirm a specific address.",
+  ].join("\n");
+}
+
+export async function executeLickyTool(
+  ctx: LickyActionContext,
+  name: string,
+  args: Record<string, unknown>
+): Promise<string> {
+  switch (name) {
+    case "list_upcoming_appointments":
+      return lickyListUpcoming(ctx);
+    case "check_availability":
+      return lickyCheckAvailability(ctx, {
+        service: typeof args.service === "string" ? args.service : undefined,
+        days:
+          typeof args.days === "number" && Number.isFinite(args.days)
+            ? args.days
+            : undefined,
+        groomer_id: typeof args.groomer_id === "string" ? args.groomer_id : undefined,
+      });
+    case "get_pricing":
+      return lickyGetPricing(ctx, {
+        pet_size: String(args.pet_size ?? ""),
+        service: String(args.service ?? ""),
+      });
+    case "get_service_area":
+      return lickyGetServiceArea();
+    case "cancel_appointment":
+      return lickyCancelAppointment(ctx, {
+        appointment_id: String(args.appointment_id ?? ""),
+        confirmed: Boolean(args.confirmed),
+      });
+    case "reschedule_appointment":
+      return lickyRescheduleAppointment(ctx, {
+        appointment_id: String(args.appointment_id ?? ""),
+        slot_key: String(args.slot_key ?? ""),
+        confirmed: Boolean(args.confirmed),
+      });
+    case "book_appointment":
+      return truncateLickyReply(
+        (
+          await lickyBookAppointment(ctx, {
+            slot_key: String(args.slot_key ?? ""),
+            service: typeof args.service === "string" ? args.service : undefined,
+          })
+        ).reply
+      );
+    default:
+      return `Unknown tool: ${name}`;
+  }
+}

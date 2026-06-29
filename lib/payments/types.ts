@@ -1,3 +1,9 @@
+export interface ClientPetProfile {
+  petName: string;
+  petSize: string;
+  notes?: string;
+}
+
 export interface ClientAccount {
   id: string;
   email: string;
@@ -7,6 +13,16 @@ export interface ClientAccount {
   phone: string;
   squareCustomerId: string;
   createdAt: string;
+  /** True after completing post-booking registration — locks 50% discount perk. */
+  lockedInDiscount?: boolean;
+  registrationComplete?: boolean;
+  appointmentIds?: string[];
+  petProfile?: {
+    pets: ClientPetProfile[];
+    notes?: string;
+  };
+  /** Show Licky welcome once after first registration login. */
+  pendingLickyWelcome?: boolean;
 }
 
 export interface ClientSessionUser {
@@ -14,6 +30,9 @@ export interface ClientSessionUser {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  lockedInDiscount?: boolean;
+  pendingLickyWelcome?: boolean;
 }
 
 export interface ClientsData {

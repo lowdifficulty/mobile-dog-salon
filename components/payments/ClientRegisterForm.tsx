@@ -23,7 +23,13 @@ export default function ClientRegisterForm() {
     const res = await fetch("/api/client/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName, email, phone, password }),
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        email,
+        phone,
+        password,
+      }),
     });
 
     setLoading(false);
@@ -39,11 +45,11 @@ export default function ClientRegisterForm() {
   }
 
   return (
-    <ClientPortalShell title="Client payment portal">
+    <ClientPortalShell title="Client portal">
       <div className="site-card p-8">
         <h1 className="site-heading-section text-2xl mb-2">Create account</h1>
         <p className="text-gray-600 text-sm mb-6">
-          Register to pay online with Square and keep cards on file for faster checkout.
+          Manage appointments, share pet photos, pay online, and chat with Licky.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,8 +68,8 @@ export default function ClientRegisterForm() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Last name</label>
               <input
                 type="text"
-                value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                value={lastName}
                 required
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl"
               />

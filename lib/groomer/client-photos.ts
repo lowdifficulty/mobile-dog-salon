@@ -18,6 +18,7 @@ const LOCAL_FILE = path.join(process.cwd(), "data", "client-photos.json");
 interface StoredClientPhoto {
   leadId: string;
   groomerId: GroomerId;
+  clientId?: string;
   mimeType: string;
   data: string;
   petName?: string;
@@ -74,6 +75,10 @@ async function deleteStoredPhoto(photoId: string): Promise<void> {
 
 export function clientPhotoUrl(photoId: string): string {
   return `/api/groomer/clients/photos/${photoId}`;
+}
+
+export function clientPortalPhotoUrl(photoId: string): string {
+  return `/api/client/photos/${photoId}`;
 }
 
 export async function addClientPhoto(
@@ -193,4 +198,98 @@ export async function getClientPhotoBytes(
     mimeType: stored.mimeType,
     bytes: Buffer.from(stored.data, "base64"),
   };
+}
+
+export async function getClientPhotoBytesForPortal(
+  photoId: string,
+  clientId: string
+): Promise<
+  | { ok: true; mimeType: string; bytes: Buffer }
+  | { ok: false; error: string; status: number }
+> {
+  const stored = await readStoredPhoto(photoId);
+  if (!stored) {
+    return { ok: false, error: "Photo not found", status: 404 };
+  }
+  if (stored.clientId !== clientId) {
+    return { ok: false, error: "Not your photo", status: 403 };
+  }
+
+  return {
+    ok: true,
+    mimeType: stored.mimeType,
+    bytes: Buffer.from(stored.data, "base64"),
+  };
+}
+
+export async function addClientPortalPhoto(
+  clientId: string,
+  leadId: string,
+  groomerId: GroomerId,
+  file: File,
+  petName?: string,
+  caption?: string
+): Promise<
+  { ok: true; photo: ClientPhoto } | { ok: false; error: string; status: number }
+> {
+  if (!ALLOWED_TYPES.has(file.type)) {
+    return { ok: false, error: "Use a JPEG, PNG, or WebP image.", status: 400 };
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (bytes.length > MAX_BYTES) {
+    return { ok: false, error: "Image must be 4 MB or smaller.", status: 400 };
+  }
+
+  const lead = await getLeadById(leadId);
+  if (!lead) {
+    return { ok: false, error: "Client record not found", status: 404 };
+  }
+
+  const photos = lead.photos ?? [];
+  if (photos.length >= MAX_PHOTOS_PER_LEAD) {
+    return {
+      ok: false,
+      error: `Maximum ${MAX_PHOTOS_PER_LEAD} photos.`,
+      status: 400,
+    };
+  }
+
+  const photoId = randomUUID();
+  const createdAt = new Date().toISOString();
+  const trimmedPetName = petName?.trim() || undefined;
+  const trimmedCaption = caption?.trim() || undefined;
+
+  await writeStoredPhoto(photoId, {
+    leadId,
+    groomerId,
+    clientId,
+    mimeType: file.type,
+    data: bytes.toString("base64"),
+    petName: trimmedPetName,
+    caption: trimmedCaption,
+    createdAt,
+  });
+
+  const meta: ClientPhoto = {
+    id: photoId,
+    petName: trimmedPetName,
+    caption: trimmedCaption,
+    createdAt,
+  };
+
+  const data = await readLeadsData();
+  const index = data.leads.findIndex((l) => l.id === leadId);
+  if (index < 0) {
+    return { ok: false, error: "Client record not found", status: 404 };
+  }
+
+  data.leads[index] = {
+    ...data.leads[index],
+    photos: [meta, ...(data.leads[index].photos ?? [])],
+    updatedAt: createdAt,
+  };
+  await writeLeadsData(data);
+
+  return { ok: true, photo: meta };
 }

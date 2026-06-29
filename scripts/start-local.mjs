@@ -61,6 +61,14 @@ async function main() {
   console.log("Building... (about 1-2 minutes, then browser opens automatically)");
   await run(npm, ["run", "build"]);
 
+  const alreadyRunning = await waitForServer(PORT, 3);
+  if (alreadyRunning) {
+    console.log(`${localUrl} is already running (started during build).`);
+    console.log("If groomer tabs look outdated, hard-refresh (Ctrl+Shift+R) or clear site data for localhost.");
+    openBrowser(localUrl);
+    return;
+  }
+
   console.log(`Starting ${localUrl} ...`);
   const child = spawn(npm, ["start"], {
     stdio: "inherit",

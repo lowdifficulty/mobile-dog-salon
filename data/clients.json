@@ -1,3 +1,38 @@
 {
-  "clients": []
+  "clients": [
+    {
+      "id": "1f7ad8d2-3078-4615-8480-f329f11e612d",
+      "email": "devtest@example.com",
+      "passwordHash": "$2b$10$cbgqg7CQrfczF.IeN6tMJuvfZb.9NKIUXrb4XyxaBwiWvMU.ObsVe",
+      "firstName": "Dev",
+      "lastName": "Test",
+      "phone": "7145550199",
+      "squareCustomerId": "",
+      "createdAt": "2026-06-29T18:44:02.938Z",
+      "lockedInDiscount": false,
+      "registrationComplete": true,
+      "appointmentIds": [],
+      "pendingLickyWelcome": false,
+      "petProfile": {
+        "pets": []
+      }
+    },
+    {
+      "id": "a79e58c4-7390-4137-8824-72999d2693d9",
+      "email": "mattlewis06@gmail.com",
+      "passwordHash": "$2b$10$qhbi6Kmvr.aNi2JhYzTkQO8J4FRZ1v2YF3Bph3sGQ2uaTnnXPkCHC",
+      "firstName": "Matthew",
+      "lastName": "Lewis",
+      "phone": "9493863351",
+      "squareCustomerId": "",
+      "createdAt": "2026-06-29T18:45:20.116Z",
+      "lockedInDiscount": false,
+      "registrationComplete": true,
+      "appointmentIds": [],
+      "pendingLickyWelcome": false,
+      "petProfile": {
+        "pets": []
+      }
+    }
+  ]
 }

@@ -5,6 +5,7 @@ import { getRedisClient } from "./redis-client";
 import {
   assertWritablePersistence,
   getPersistenceMode,
+  isVercelServerless,
   persistenceStatus,
 } from "./persistence";
 import { appendAvailabilityHistory } from "./history";
@@ -68,7 +69,11 @@ export async function readSchedulingData(): Promise<SchedulingData> {
     return empty;
   }
 
-  if (process.env.VERCEL) {
+  if (process.env.VERCEL && !isVercelServerless()) {
+    return readFromLocalFile();
+  }
+
+  if (isVercelServerless()) {
     return emptySchedulingData();
   }
 

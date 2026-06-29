@@ -8,8 +8,9 @@ import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
 import LeadsPanel from "@/components/leads/LeadsPanel";
 import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
+import LickyTrainingPanel from "./LickyTrainingPanel";
 
-type Tab = "contacts" | "analytics" | "team-calendar" | "qa" | "payments";
+type Tab = "contacts" | "analytics" | "team-calendar" | "qa" | "payments" | "licky";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     { id: "team-calendar", label: "Team calendar" },
     { id: "qa", label: "QA" },
     { id: "payments", label: "Payments Beta" },
+    { id: "licky", label: "Licky bot" },
   ];
 
   return (
@@ -61,6 +63,7 @@ export default function AdminDashboard() {
       )}
       {tab === "qa" && <QaDiagnosticsPanel />}
       {tab === "payments" && <StaffPaymentsPanel />}
+      {tab === "licky" && <LickyTrainingPanel />}
     </SchedulingShell>
   );
 }

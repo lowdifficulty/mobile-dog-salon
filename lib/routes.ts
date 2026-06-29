@@ -23,8 +23,11 @@ export const ROUTES = {
   privacy: "/privacy-policy",
   terms: "/terms-and-conditions",
   groomerLogin: "/groomer/login",
-  clientPortal: "/client/login",
+  clientLogin: "/client/login",
+  clientHub: "/client/portal",
   clientRegister: "/client/register",
+  /** @deprecated use clientLogin */
+  clientPortal: "/client/login",
 } as const;
 
 export const NAV_ABOUT = [
@@ -51,7 +54,6 @@ export const NAV_COMPANY = [
   { label: "Franchise", href: ROUTES.franchise },
   { label: "Contact", href: ROUTES.contact },
   { label: "Book Online", href: ROUTES.book },
-  { label: "Client Payments", href: ROUTES.clientPortal },
   { label: "Staff Login", href: ROUTES.groomerLogin },
 ];
 

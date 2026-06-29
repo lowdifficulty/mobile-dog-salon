@@ -1,9 +1,14 @@
-import ClientPortal from "@/components/payments/ClientPortal";
+import ClientHub from "@/components/client/ClientHub";
+import { Suspense } from "react";
 
 export const metadata = {
-  title: "Payment Portal | Mobile Dog Salon",
+  title: "Client Portal | Mobile Dog Salon",
 };
 
 export default function ClientPortalPage() {
-  return <ClientPortal />;
+  return (
+    <Suspense fallback={<p className="p-8 text-gray-500">Loading…</p>}>
+      <ClientHub />
+    </Suspense>
+  );
 }

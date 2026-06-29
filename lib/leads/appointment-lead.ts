@@ -9,7 +9,7 @@ import {
 } from "./store";
 import { patchLeadDetails, type LeadDetailsPatch } from "./patch-lead";
 import { readSchedulingData } from "@/lib/scheduling/store";
-import type { Appointment } from "@/lib/scheduling/types";
+import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import type { Lead } from "./types";
 
 export interface LeadFormLookup {
@@ -26,7 +26,7 @@ export interface LeadFormLookup {
   zipCode: string;
 }
 
-function appointmentToFormFields(appointment: Appointment): Omit<LeadFormLookup, "leadId"> {
+export function appointmentToFormFields(appointment: Appointment): Omit<LeadFormLookup, "leadId"> {
   return {
     phone: appointment.phone ?? "",
     firstName: appointment.firstName ?? "",
@@ -182,4 +182,63 @@ export async function addNoteForAppointment(
   }
 
   return { ok: true, lead: updated };
+}
+
+export async function patchLeadForAppointmentByGroomer(
+  appointmentId: string,
+  patch: LeadDetailsPatch,
+  groomerId: GroomerId,
+  actor: string
+): Promise<{ ok: true; lead: Lead } | { ok: false; error: string; status: number }> {
+  const scheduling = await readSchedulingData();
+  const appointment = scheduling.appointments.find((a) => a.id === appointmentId);
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.groomerId !== groomerId) {
+    return { ok: false, error: "Not your client", status: 403 };
+  }
+
+  return patchLeadForAppointment(appointmentId, patch, actor);
+}
+
+export async function ensureLeadForGroomerAppointment(
+  appointmentId: string,
+  groomerId: GroomerId
+): Promise<
+  { ok: true; leadId: string } | { ok: false; error: string; status: number }
+> {
+  const scheduling = await readSchedulingData();
+  const appointment = scheduling.appointments.find((a) => a.id === appointmentId);
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.groomerId !== groomerId) {
+    return { ok: false, error: "Not your client", status: 403 };
+  }
+
+  let lead = await findLeadForAppointment(appointment);
+  if (!lead) {
+    const fields = appointmentToFormFields(appointment);
+    lead = await upsertLead({
+      funnelStep: "scheduled",
+      source: "booking",
+      appointmentId: appointment.id,
+      appointmentStartAt: appointment.startAt,
+      groomerId: appointment.groomerId,
+      scheduledAt: appointment.createdAt,
+      phone: fields.phone,
+      firstName: fields.firstName,
+      lastName: fields.lastName,
+      email: fields.email,
+      petName: fields.petName,
+      petSize: fields.petSize,
+      service: fields.service,
+      address: fields.address,
+      city: fields.city,
+      zipCode: fields.zipCode,
+    });
+  }
+
+  return { ok: true, leadId: lead.id };
 }

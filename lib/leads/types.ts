@@ -57,6 +57,13 @@ export interface LeadNote {
   createdAt: string;
 }
 
+export interface ClientPhoto {
+  id: string;
+  petName?: string;
+  caption?: string;
+  createdAt: string;
+}
+
 /** FU = follow up (purple when scheduled, yellow when abandoned). Chill = on hold (blue). */
 export type LeadFollowUpMode = "fu" | "chill";
 
@@ -97,6 +104,7 @@ export interface Lead {
   listStatus?: LeadListStatus;
   lastActiveAt?: string;
   notes: LeadNote[];
+  photos?: ClientPhoto[];
   source: "booking" | "contact" | "franchise";
   createdAt: string;
   updatedAt: string;

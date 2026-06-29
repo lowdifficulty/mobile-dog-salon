@@ -6,6 +6,7 @@ import { appointmentPacificDate } from "@/lib/leads/filters";
 import { normalizePhone } from "@/lib/leads/normalize";
 import { readLeadsData } from "@/lib/leads/store";
 import type { Lead, LeadNote } from "@/lib/leads/types";
+import { clientPhotoUrl } from "@/lib/groomer/client-photos";
 import { enrichPaymentsWithClients } from "@/lib/payments/staff";
 import { isSquareConfigured, listRecentPayments } from "@/lib/payments/square";
 import { readClientsData } from "@/lib/payments/store";
@@ -32,6 +33,14 @@ export interface GroomerClientPayment {
   note?: string;
 }
 
+export interface GroomerClientPhoto {
+  id: string;
+  url: string;
+  petName?: string;
+  caption?: string;
+  createdAt: string;
+}
+
 export interface GroomerClientRecord {
   key: string;
   leadId: string | null;
@@ -47,6 +56,7 @@ export interface GroomerClientRecord {
   discountActive: boolean;
   pets: { petName: string; petSize: string }[];
   notes: LeadNote[];
+  photos: GroomerClientPhoto[];
   appointments: GroomerClientAppointment[];
   payments: GroomerClientPayment[];
   nextAppointmentAt: string | null;
@@ -274,6 +284,13 @@ export async function listGroomerActiveClients(
       discountActive,
       pets: mergePets(sorted),
       notes: lead?.notes ?? [],
+      photos: (lead?.photos ?? []).map((photo) => ({
+        id: photo.id,
+        url: clientPhotoUrl(photo.id),
+        petName: photo.petName,
+        caption: photo.caption,
+        createdAt: photo.createdAt,
+      })),
       appointments: [...upcoming, ...past.reverse()],
       payments,
       nextAppointmentAt: upcoming[0]?.startAt ?? null,

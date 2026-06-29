@@ -7,6 +7,9 @@ import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import type { GroomerClientRecord } from "@/lib/groomer/active-clients";
 import type { GroomerId } from "@/lib/scheduling/types";
+import GroomerClientEditor, {
+  type GroomerClientFormValues,
+} from "./GroomerClientEditor";
 
 function formatWhen(startAt: string) {
   return new Date(startAt).toLocaleString("en-US", {
@@ -74,6 +77,7 @@ export default function GroomerActiveClientsPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
@@ -93,6 +97,40 @@ export default function GroomerActiveClientsPanel({
   useEffect(() => {
     loadClients();
   }, [loadClients, groomerId]);
+
+  async function saveClient(client: GroomerClientRecord, values: GroomerClientFormValues) {
+    setSavingKey(client.key);
+    setError("");
+    try {
+      const res = await fetch("/api/groomer/clients", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: client.anchorAppointmentId,
+          phone: values.phone,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          service: values.service,
+          address: values.address,
+          city: values.city,
+          zipCode: values.zipCode,
+          pets: values.pets.filter((pet) => pet.petName.trim() || pet.petSize),
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? "Failed");
+      }
+      setEditingKey(null);
+      await loadClients();
+      setExpandedKey(client.key);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save client.");
+    } finally {
+      setSavingKey(null);
+    }
+  }
 
   async function addNote(client: GroomerClientRecord) {
     const text = noteDrafts[client.key]?.trim();
@@ -149,6 +187,7 @@ export default function GroomerActiveClientsPanel({
         <ul className="space-y-3">
           {clients.map((client) => {
             const expanded = expandedKey === client.key;
+            const editing = editingKey === client.key;
             const busy = savingKey === client.key;
 
             return (
@@ -205,10 +244,29 @@ export default function GroomerActiveClientsPanel({
 
                 {expanded && (
                   <div className="border-t border-gray-100 px-4 py-4 sm:px-5 space-y-5 bg-gray-50/50">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                    {editing ? (
+                      <GroomerClientEditor
+                        client={client}
+                        busy={busy}
+                        onSave={(values) => saveClient(client, values)}
+                        onCancel={() => setEditingKey(null)}
+                        onPhotoUploaded={loadClients}
+                        onPhotoDeleted={loadClients}
+                      />
+                    ) : (
+                      <>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                         Client information
                       </p>
+                      <button
+                        type="button"
+                        onClick={() => setEditingKey(client.key)}
+                        className="text-sm font-semibold text-brand hover:text-accent"
+                      >
+                        Edit client & photos
+                      </button>
+                    </div>
                       <div className="grid sm:grid-cols-2 gap-3 text-sm rounded-lg border border-gray-100 bg-white px-4 py-3">
                         <p>
                           <span className="text-gray-400">Name:</span>{" "}
@@ -257,7 +315,34 @@ export default function GroomerActiveClientsPanel({
                           </p>
                         )}
                       </div>
-                    </div>
+
+                    {client.photos.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                          Pet photos
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {client.photos.map((photo) => (
+                            <div
+                              key={photo.id}
+                              className="rounded-lg border border-gray-100 bg-white overflow-hidden"
+                            >
+                              <img
+                                src={photo.url}
+                                alt={photo.petName ?? photo.caption ?? "Pet photo"}
+                                className="w-full h-28 object-cover"
+                              />
+                              <div className="p-2 text-xs text-gray-600">
+                                {photo.petName && (
+                                  <p className="font-semibold">{photo.petName}</p>
+                                )}
+                                {photo.caption && <p>{photo.caption}</p>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
@@ -387,6 +472,8 @@ export default function GroomerActiveClientsPanel({
                         </button>
                       </div>
                     </div>
+                      </>
+                    )}
                   </div>
                 )}
               </li>

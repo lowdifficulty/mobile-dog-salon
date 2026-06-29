@@ -132,6 +132,7 @@ export function withLeadDefaults(lead: Lead): Lead {
   return {
     ...lead,
     notes: lead.notes ?? [],
+    photos: lead.photos ?? [],
     followUpMode: lead.followUpMode ?? "fu",
     visitOutcome: lead.visitOutcome ?? "incomplete",
     listStatus: lead.listStatus ?? "active",

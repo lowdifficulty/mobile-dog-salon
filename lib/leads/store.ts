@@ -214,6 +214,7 @@ export async function updateLeadFields(
       | "email"
       | "petName"
       | "petSize"
+      | "pets"
       | "service"
       | "address"
       | "city"
@@ -261,6 +262,13 @@ export async function updateLeadFields(
   }
   if (patch.petSize !== undefined) {
     lead.petSize = patch.petSize;
+  }
+  if (patch.pets !== undefined) {
+    lead.pets = patch.pets;
+    if (patch.pets.length > 0) {
+      lead.petName = patch.pets[0].petName;
+      lead.petSize = patch.pets[0].petSize;
+    }
   }
   if (patch.service !== undefined) {
     lead.service = patch.service;

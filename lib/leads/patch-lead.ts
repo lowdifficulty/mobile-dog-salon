@@ -3,6 +3,7 @@ import "server-only";
 import { normalizePhone } from "./normalize";
 import { getLeadById, updateLeadFields } from "./store";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
+import type { GroomerId } from "@/lib/scheduling/types";
 import type { Lead } from "./types";
 
 export interface LeadDetailsPatch {
@@ -12,6 +13,7 @@ export interface LeadDetailsPatch {
   email?: string;
   petName?: string;
   petSize?: string;
+  pets?: { petName: string; petSize: string }[];
   service?: string;
   address?: string;
   city?: string;
@@ -46,36 +48,56 @@ export function validateLeadDetailsPatch(
   return { ok: true };
 }
 
-async function syncLeadToAppointment(lead: Lead, actor: string): Promise<void> {
-  if (!lead.appointmentId) return;
-
+async function syncLeadContactToMatchingAppointments(
+  lead: Lead,
+  actor: string
+): Promise<void> {
   const data = await readSchedulingData();
-  const appointment = data.appointments.find((a) => a.id === lead.appointmentId);
-  if (!appointment || appointment.status === "cancelled") return;
+  const phone = normalizePhone(lead.phone);
+  const matchIds = new Set<string>();
+  if (lead.appointmentId) matchIds.add(lead.appointmentId);
 
-  if (lead.phone) appointment.phone = lead.phone;
-  if (lead.firstName) appointment.firstName = lead.firstName;
-  if (lead.lastName) appointment.lastName = lead.lastName;
-  if (lead.email) appointment.email = lead.email;
-  if (lead.petName !== undefined) appointment.petName = lead.petName;
-  if (lead.petSize) appointment.petSize = lead.petSize;
-  if (lead.service) appointment.service = lead.service;
-  if (lead.address) appointment.address = lead.address;
-  if (lead.city) appointment.city = lead.city;
-  if (lead.zipCode) appointment.zipCode = lead.zipCode;
+  let changed = false;
+  for (const appointment of data.appointments) {
+    if (appointment.status === "cancelled") continue;
+    const phoneMatch = phone.length >= 10 && normalizePhone(appointment.phone) === phone;
+    if (!phoneMatch && !matchIds.has(appointment.id)) continue;
 
-  if (lead.pets?.length) {
-    appointment.additionalPets = lead.pets.slice(1).map((pet) => ({
-      petName: pet.petName,
-      petSize: pet.petSize,
-    }));
+    if (lead.phone) appointment.phone = lead.phone;
+    if (lead.firstName !== undefined) appointment.firstName = lead.firstName;
+    if (lead.lastName !== undefined) appointment.lastName = lead.lastName;
+    if (lead.email !== undefined) appointment.email = lead.email;
+    if (lead.address !== undefined) appointment.address = lead.address;
+    if (lead.city !== undefined) appointment.city = lead.city;
+    if (lead.zipCode !== undefined) appointment.zipCode = lead.zipCode;
+    if (lead.service) appointment.service = lead.service;
+
+    if (lead.pets?.length) {
+      appointment.petName = lead.pets[0].petName;
+      appointment.petSize = lead.pets[0].petSize;
+      appointment.additionalPets = lead.pets.slice(1).map((pet) => ({
+        petName: pet.petName,
+        petSize: pet.petSize,
+      }));
+    } else if (lead.petName !== undefined || lead.petSize !== undefined) {
+      if (lead.petName !== undefined) appointment.petName = lead.petName;
+      if (lead.petSize !== undefined) appointment.petSize = lead.petSize;
+    }
+
+    changed = true;
   }
 
-  await writeSchedulingData(data, {
-    action: "appointment_reschedule",
-    actor,
-    groomerId: appointment.groomerId,
-  });
+  if (changed) {
+    const groomerId =
+      lead.groomerId === "melanie" || lead.groomerId === "diamond"
+        ? lead.groomerId
+        : undefined;
+    await writeSchedulingData(data, {
+      action: "appointment_reschedule",
+      actor,
+      groomerId,
+    });
+  }
 }
 
 export async function patchLeadDetails(
@@ -102,8 +124,22 @@ export async function patchLeadDetails(
     normalizedPatch.lastName = last;
   }
 
+  if (patch.pets !== undefined) {
+    normalizedPatch.pets = patch.pets
+      .map((pet) => ({
+        petName: pet.petName?.trim() ?? "",
+        petSize: pet.petSize?.trim() ?? "medium",
+      }))
+      .filter((pet) => pet.petName || pet.petSize);
+    if (normalizedPatch.pets.length > 0) {
+      normalizedPatch.petName = normalizedPatch.pets[0].petName;
+      normalizedPatch.petSize = normalizedPatch.pets[0].petSize;
+    }
+  }
+
   const lead = await updateLeadFields(leadId, {
     ...normalizedPatch,
+    pets: normalizedPatch.pets,
     fullName:
       normalizedPatch.firstName !== undefined || normalizedPatch.lastName !== undefined
         ? [normalizedPatch.firstName, normalizedPatch.lastName].filter(Boolean).join(" ")
@@ -113,7 +149,7 @@ export async function patchLeadDetails(
     return { ok: false, error: "Lead not found", status: 404 };
   }
 
-  await syncLeadToAppointment(lead, actor);
+  await syncLeadContactToMatchingAppointments(lead, actor);
   const refreshed = (await getLeadById(leadId)) ?? lead;
 
   return { ok: true, lead: refreshed };

@@ -31,12 +31,14 @@ export async function listClientAppointments(
       (ap) => ap.status === "confirmed" && clientOwnsAppointment(client, ap)
     )
     .sort((a, b) => {
-      const aUpcoming = new Date(a.startAt).getTime() >= now;
-      const bUpcoming = new Date(b.startAt).getTime() >= now;
-      if (aUpcoming && bUpcoming) return a.startAt.localeCompare(b.startAt);
+      const aStart = a.startAt ?? "";
+      const bStart = b.startAt ?? "";
+      const aUpcoming = aStart ? new Date(aStart).getTime() >= now : false;
+      const bUpcoming = bStart ? new Date(bStart).getTime() >= now : false;
+      if (aUpcoming && bUpcoming) return aStart.localeCompare(bStart);
       if (aUpcoming) return -1;
       if (bUpcoming) return 1;
-      return b.startAt.localeCompare(a.startAt);
+      return bStart.localeCompare(aStart);
     });
 }
 

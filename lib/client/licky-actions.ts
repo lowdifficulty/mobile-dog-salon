@@ -129,7 +129,7 @@ export async function lickyBookAppointment(
     return structuredFromText("Pick a time button to book.");
   }
 
-  const appointments = await listClientAppointments(ctx.account);
+  const appointments = await listClientAppointments(ctx.account).catch(() => []);
   const savedAddress = getClientServiceAddress(ctx.account, appointments);
 
   const pet = ctx.account.petProfile?.pets?.[0];
@@ -138,9 +138,14 @@ export async function lickyBookAppointment(
   const petName = pet?.petName || last?.petName || "";
 
   if (!savedAddress) {
-    await updateClient(ctx.account.id, {
-      pendingLickyBooking: { slotKey, service, fromFallback: params.fromFallback },
-    });
+    try {
+      await updateClient(ctx.account.id, {
+        pendingLickyBooking: { slotKey, service, fromFallback: params.fromFallback },
+      });
+    } catch (err) {
+      console.error("Licky pending booking save failed:", err);
+      return structuredFromText("Couldn't hold that time — try again in a moment.");
+    }
     return structuredFromText(
       "What's your service address? Street, city, and zip — e.g. 123 Main St, Irvine, 92618"
     );

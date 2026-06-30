@@ -123,6 +123,24 @@ export async function createLickyReply(
   context?: string,
   actionCtx?: LickyActionContext
 ): Promise<LickyStructuredResponse> {
+  try {
+    return await createLickyReplyInner(messages, context, actionCtx);
+  } catch (err) {
+    console.error("createLickyReply error:", err);
+    try {
+      return await createFallbackReply(messages, context, actionCtx);
+    } catch (fallbackErr) {
+      console.error("createLickyReply fallback error:", fallbackErr);
+      return structuredFromText("Hi! What can I help with today?");
+    }
+  }
+}
+
+async function createLickyReplyInner(
+  messages: ChatMessage[],
+  context?: string,
+  actionCtx?: LickyActionContext
+): Promise<LickyStructuredResponse> {
   const lastUser =
     messages
       .filter((m) => m.role === "user")
@@ -202,7 +220,14 @@ export async function createLickyReply(
         let availabilityUi: LickyStructuredResponse | null = null;
 
         for (const call of toolCalls) {
-          if (call.type !== "function") continue;
+          if (call.type !== "function" || !call.function) {
+            chatMessages.push({
+              role: "tool",
+              tool_call_id: call.id,
+              content: "Unsupported tool call",
+            });
+            continue;
+          }
           let args: Record<string, unknown> = {};
           try {
             args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;

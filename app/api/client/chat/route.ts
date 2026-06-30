@@ -56,7 +56,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const appointments = await listClientAppointments(account);
+    const appointments = await listClientAppointments(account).catch((err) => {
+      console.error("Licky chat: could not load appointments", err);
+      return [];
+    });
     const now = Date.now();
     const upcoming = appointments.filter(
       (ap) =>

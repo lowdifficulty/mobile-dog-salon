@@ -43,6 +43,15 @@ export default function LickyChatWidget({
   }, [showWelcome]);
 
   useEffect(() => {
+    function onWelcome() {
+      setOpen(true);
+      setWelcomeStep(true);
+    }
+    window.addEventListener("licky-welcome", onWelcome);
+    return () => window.removeEventListener("licky-welcome", onWelcome);
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open, welcomeStep, busy]);
 
@@ -65,10 +74,7 @@ export default function LickyChatWidget({
     });
     const data = (await res.json()) as ChatApiResponse;
     if (!res.ok) {
-      const msg =
-        res.status === 401
-          ? "Please log in again to chat with Licky."
-          : data.reply || data.error || "Something went wrong.";
+      const msg = data.reply || data.error || "Something went wrong.";
       return { reply: msg, buttons: [] };
     }
     return data;
@@ -151,6 +157,11 @@ export default function LickyChatWidget({
   function finishWelcome() {
     setWelcomeStep(false);
     onWelcomeComplete?.();
+    void fetch("/api/client/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clearLickyWelcome: true }),
+    }).catch(() => {});
   }
 
   return (
@@ -198,7 +209,7 @@ export default function LickyChatWidget({
               <>
                 {messages.length === 0 && (
                   <p className="text-sm text-gray-500 text-center py-4">
-                    Ask Licky anything — grooming tips, pricing, your visits, and more.
+                    Ask Licky anything — grooming tips, pricing, open times, and more.
                   </p>
                 )}
                 {messages.map((msg, i) => (

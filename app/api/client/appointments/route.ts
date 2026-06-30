@@ -8,6 +8,7 @@ import { mergeAppointmentIds, listClientAppointments } from "@/lib/client/appoin
 import { getClientServiceAddress } from "@/lib/client/licky-address";
 import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
 import { requireClient } from "@/lib/payments/auth";
+import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
 import { findClientById, updateClient } from "@/lib/payments/store";
 
 export async function GET() {
@@ -81,7 +82,10 @@ export async function POST(request: Request) {
     const result = await createAppointment(
       input,
       `client:${account.email}`,
-      { overrideAvailability: isLocalhostRequest(request) }
+      {
+        overrideAvailability: isLocalhostRequest(request),
+        holdOwnerId: await getOrCreateHoldOwnerId(),
+      }
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

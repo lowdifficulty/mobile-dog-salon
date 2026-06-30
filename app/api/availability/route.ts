@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
+import { getBlockedSlotKeys } from "@/lib/scheduling/slot-holds";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import {
   buildFallbackRangeDays,
@@ -24,6 +26,23 @@ export async function GET(request: Request) {
 
   const devAllSlots = isLocalhostRequest(request);
   const data = await readSchedulingData();
+  const holdOwnerId = devAllSlots ? undefined : await getOrCreateHoldOwnerId().catch(() => undefined);
+  const blockedSlotKeys = devAllSlots ? new Set<string>() : await getBlockedSlotKeys(holdOwnerId);
+
+  function filterBlocked<T extends { slotKey: string }>(slots: T[]): T[] {
+    if (!blockedSlotKeys.size) return slots;
+    return slots.filter((s) => !blockedSlotKeys.has(s.slotKey));
+  }
+
+  function filterRangeDays(
+    days: ReturnType<typeof getRangeAvailability>
+  ): ReturnType<typeof getRangeAvailability> {
+    if (!blockedSlotKeys.size) return days;
+    return days.map((day) => ({
+      ...day,
+      slots: filterBlocked(day.slots),
+    }));
+  }
 
   if (from && daysParam) {
     const dayCount = Number(daysParam);
@@ -34,12 +53,14 @@ export async function GET(request: Request) {
       const rangeDays = buildFallbackRangeDays(from, dayCount);
       return NextResponse.json({ from, days: rangeDays, devAllSlots: true });
     }
-    const rangeDays = getRangeAvailability(
-      from,
-      dayCount,
-      data.availability,
-      data.appointments,
-      service
+    const rangeDays = filterRangeDays(
+      getRangeAvailability(
+        from,
+        dayCount,
+        data.availability,
+        data.appointments,
+        service
+      )
     );
     return NextResponse.json({ from, days: rangeDays });
   }
@@ -50,11 +71,13 @@ export async function GET(request: Request) {
       const days = buildFallbackWeekDays(weekStart);
       return NextResponse.json({ weekStart, days, devAllSlots: true });
     }
-    const days = getWeekAvailability(
-      weekStart,
-      data.availability,
-      data.appointments,
-      service
+    const days = filterRangeDays(
+      getWeekAvailability(
+        weekStart,
+        data.availability,
+        data.appointments,
+        service
+      )
     );
     return NextResponse.json({ weekStart, days });
   }
@@ -93,11 +116,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ slots: day?.slots ?? [], devAllSlots: true });
   }
 
-  const slots = getAvailableSlotsForDate(
-    date,
-    data.availability,
-    data.appointments,
-    service
+  const slots = filterBlocked(
+    getAvailableSlotsForDate(
+      date,
+      data.availability,
+      data.appointments,
+      service
+    )
   );
 
   return NextResponse.json({ slots });

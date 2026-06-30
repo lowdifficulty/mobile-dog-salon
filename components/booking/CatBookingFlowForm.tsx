@@ -28,6 +28,7 @@ import {
   formatPetsList,
   type BookingPet,
 } from "@/lib/booking/pets";
+import { holdBookingSlot } from "@/lib/booking/slot-hold-client";
 import {
   bookingInputClass,
   getDevSkipBookableDate,
@@ -77,6 +78,7 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
   const [appointmentId, setAppointmentId] = useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [slotHoldError, setSlotHoldError] = useState("");
   const [isLocalhost, setIsLocalhost] = useState(false);
 
   const discountActive = true;
@@ -125,7 +127,15 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
     });
   };
 
-  const selectSlot = (slot: AvailableSlot) => {
+  const selectSlot = async (slot: AvailableSlot) => {
+    setSlotHoldError("");
+    if (!isLocalhost) {
+      const hold = await holdBookingSlot(slot.slotKey);
+      if (!hold.ok) {
+        setSlotHoldError(hold.error);
+        return;
+      }
+    }
     setData((prev) => ({
       ...prev,
       slotKey: slot.slotKey,
@@ -432,9 +442,15 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
                 update("slotKey", "");
                 update("preferredTime", "");
                 update("groomerName", "");
+                setSlotHoldError("");
               }}
               onSelectSlot={selectSlot}
             />
+            {slotHoldError ? (
+              <p className="text-sm text-red-600" role="alert">
+                {slotHoldError}
+              </p>
+            ) : null}
             {isLocalhost && (
               <button
                 type="button"
@@ -450,6 +466,11 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
         {step === 3 && (
           <div className="space-y-4">
             {appointmentSummary()}
+            {!isLocalhost && data.slotKey ? (
+              <p className="text-xs text-brand-bright font-medium">
+                Your time is held for 10 minutes while you finish booking.
+              </p>
+            ) : null}
             <div className="space-y-3">
               <h3 className="text-base font-bold text-gray-900">Address</h3>
               <div>

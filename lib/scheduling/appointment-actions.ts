@@ -12,6 +12,7 @@ import {
   slotToISO,
 } from "@/lib/scheduling/slots";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
+import { consumeSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -43,6 +44,10 @@ export interface AppointmentMutationOptions {
   groomerId?: GroomerId;
   overrideAvailability?: boolean;
   allowSameDay?: boolean;
+  /** Session owner id — required for customer bookings when holds are enabled. */
+  holdOwnerId?: string;
+  /** Staff/admin bookings skip hold checks. */
+  skipHold?: boolean;
 }
 
 function clearReminderFlags(appointment: Appointment): void {
@@ -153,6 +158,14 @@ export async function createAppointment(
     return { ok: false, error: "That time slot is no longer available", status: 409 };
   }
 
+  const slotKeyForHold = input.slotKey ?? `${groomerId}|${date}|${time}`;
+  if (!options?.skipHold) {
+    const holdCheck = await validateSlotHold(options?.holdOwnerId, slotKeyForHold);
+    if (!holdCheck.ok) {
+      return { ok: false, error: holdCheck.error, status: 409 };
+    }
+  }
+
   const emailTrimmed = String(input.email ?? "").trim();
   const bookingEmail =
     emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
@@ -188,6 +201,10 @@ export async function createAppointment(
     actor,
     groomerId,
   });
+
+  if (!options?.skipHold) {
+    await consumeSlotHold(options?.holdOwnerId, slotKeyForHold);
+  }
 
   return { ok: true, appointment };
 }

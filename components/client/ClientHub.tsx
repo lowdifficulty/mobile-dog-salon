@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ClientPortalShell from "@/components/payments/ClientPortalShell";
 import SquareCardField from "@/components/payments/SquareCardField";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
-import LickyChatWidget from "@/components/client/LickyChatWidget";
 import { PET_SIZES } from "@/lib/constants";
 import { formatPrice } from "@/lib/pricing";
 import type { AvailableSlot } from "@/lib/scheduling/types";
@@ -120,6 +119,12 @@ export default function ClientHub() {
     );
     setLoading(false);
   }, [router, welcomeParam]);
+
+  useEffect(() => {
+    if (showLickyWelcome) {
+      window.dispatchEvent(new CustomEvent("licky-welcome"));
+    }
+  }, [showLickyWelcome]);
 
   const loadAppointments = useCallback(async () => {
     const res = await fetch("/api/client/appointments");
@@ -862,11 +867,6 @@ export default function ClientHub() {
           </div>
         )}
       </ClientPortalShell>
-
-      <LickyChatWidget
-        showWelcome={showLickyWelcome}
-        onWelcomeComplete={() => void clearLickyWelcome()}
-      />
     </>
   );
 }

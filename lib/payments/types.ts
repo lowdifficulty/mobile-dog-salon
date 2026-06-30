@@ -34,6 +34,7 @@ export interface ClientAccount {
     slotKey: string;
     service: string;
     fromFallback?: boolean;
+    holdId?: string;
   } | null;
 }
 

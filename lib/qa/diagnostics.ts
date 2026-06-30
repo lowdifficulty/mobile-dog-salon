@@ -1,5 +1,6 @@
 import "server-only";
 import twilio from "twilio";
+import { slotHoldsStatus, testSlotHoldSystem } from "@/lib/scheduling/slot-holds";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { getAvailableSlotsForDate } from "@/lib/scheduling/slots";
 import { persistenceStatus } from "@/lib/scheduling/persistence";
@@ -391,7 +392,37 @@ async function checkScheduling(): Promise<QaCheckResult[]> {
     },
   };
 
-  return [melanie, diamond, slotsCheck, bookingCheck];
+  return [melanie, diamond, slotsCheck, bookingCheck, await checkSlotHolds()];
+}
+
+async function checkSlotHolds(): Promise<QaCheckResult> {
+  const status = slotHoldsStatus();
+  const test = await testSlotHoldSystem();
+
+  if (!status.supported) {
+    return {
+      id: "slot_holds",
+      label: "Slot holds (booking timer)",
+      status: "not_working",
+      message: status.message,
+      details: {
+        backend: status.backend,
+        ttlSeconds: status.ttlSeconds,
+      },
+    };
+  }
+
+  return {
+    id: "slot_holds",
+    label: "Slot holds (booking timer)",
+    status: test.ok ? "working" : "not_working",
+    message: test.ok ? test.message : `${test.message} (${status.backend})`,
+    details: {
+      backend: status.backend,
+      ttlSeconds: status.ttlSeconds,
+      ...(test.details ?? {}),
+    },
+  };
 }
 
 export async function runQaDiagnostics(

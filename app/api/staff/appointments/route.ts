@@ -50,6 +50,7 @@ export async function POST(request: Request) {
       ...groomerOptions,
       overrideAvailability: body.overrideAvailability ?? true,
       allowSameDay: true,
+      skipHold: true,
     });
 
     if (!result.ok) {

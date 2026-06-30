@@ -32,7 +32,8 @@ function payloadBoolean(payload: Record<string, unknown> | undefined, key: strin
 }
 
 export async function buildAvailabilityActionResponse(
-  payload?: Record<string, unknown>
+  payload?: Record<string, unknown>,
+  holdOwnerId?: string
 ): Promise<LickyStructuredResponse> {
   const service = payloadString(payload, "service") || "full-groom";
   const days = payloadNumber(payload, "days");
@@ -43,6 +44,7 @@ export async function buildAvailabilityActionResponse(
     service,
     days,
     groomerId: groomerId || undefined,
+    holdOwnerId,
   });
 
   return buildAvailabilityResponse(data.slots, {
@@ -62,7 +64,7 @@ export async function handleLickyClientAction(
   switch (action.type) {
     case "show_availability":
     case "show_more_availability":
-      return buildAvailabilityActionResponse(action.payload);
+      return buildAvailabilityActionResponse(action.payload, ctx.holdOwnerId);
 
     case "book_slot":
       const slotKey = payloadString(action.payload, "slotKey");

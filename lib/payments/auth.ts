@@ -4,8 +4,14 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import type { ClientSessionUser } from "./types";
 
+import type { LickyGuestState } from "@/lib/client/licky-guest-types";
+
 export interface ClientSessionData {
   client?: ClientSessionUser;
+  /** Guest Licky chat state when not logged in. */
+  lickyGuest?: LickyGuestState;
+  /** Anonymous id for temporary slot holds during booking. */
+  slotHoldOwnerId?: string;
 }
 
 export function getClientSessionOptions() {

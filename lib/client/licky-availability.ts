@@ -1,6 +1,7 @@
 import "server-only";
 
 import { buildFallbackRangeDays } from "@/lib/scheduling/fallback-availability";
+import { getBlockedSlotKeys } from "@/lib/scheduling/slot-holds";
 import { getSchedulingPersistenceStatus } from "@/lib/scheduling/store";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import {
@@ -27,6 +28,7 @@ export async function getLickyAvailabilitySlots(options: {
   service?: string;
   days?: number;
   groomerId?: string;
+  holdOwnerId?: string;
 }): Promise<{
   slots: AvailableSlot[];
   from: string;
@@ -62,6 +64,11 @@ export async function getLickyAvailabilitySlots(options: {
   let slots = range.flatMap((day) => day.slots);
   if (groomerId) {
     slots = slots.filter((s) => s.groomerId === groomerId);
+  }
+
+  const blocked = await getBlockedSlotKeys(options.holdOwnerId);
+  if (blocked.size) {
+    slots = slots.filter((s) => !blocked.has(s.slotKey));
   }
 
   return {

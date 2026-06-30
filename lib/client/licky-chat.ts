@@ -6,6 +6,7 @@ import {
   lickyBuildAvailabilityResponse,
   type LickyActionContext,
 } from "@/lib/client/licky-actions";
+import { getPendingLickyBooking } from "@/lib/client/licky-guest-helpers";
 import { buildLickyKnowledgeBlock } from "@/lib/client/licky-knowledge";
 import { getLickyCustomTrainingText } from "@/lib/client/licky-config-store";
 import { LICKY_TOOLS } from "@/lib/client/licky-tools";
@@ -24,7 +25,7 @@ When the client wants an appointment or open times, call check_availability imme
 
 Use tools for availability, pricing, appointments, service area. Never list times in text — check_availability shows buttons.
 
-If they pick a time but have no service address on file, ask for street, city, and zip, then use save_client_address.
+If they pick a time but have no service address on file, ask for street, city, and zip, then use save_client_address. Guests also need name and mobile number before booking.
 
 Confirm before cancel/reschedule. Booking blocks are ~3-hour windows. No medical advice.`;
 
@@ -59,47 +60,50 @@ const PRICING_BUTTONS: LickyButton[] = [
 
 async function createFallbackReply(
   messages: ChatMessage[],
-  context?: string,
-  actionCtx?: LickyActionContext
+  context: string,
+  actionCtx: LickyActionContext
 ): Promise<LickyStructuredResponse> {
   const last = messages.filter((m) => m.role === "user").pop()?.content.toLowerCase() ?? "";
 
-  if (actionCtx) {
-    if (/availability|open slot|when can|what times|schedule|book|appointment|an appt/.test(last)) {
-      const groomer =
-        last.includes("melanie")
-          ? "melanie"
-          : last.includes("diamond") || last.includes("sarah")
-            ? "diamond"
-            : undefined;
-      const service = last.includes("bath") ? "bath-brush" : "full-groom";
-      return lickyBuildAvailabilityResponse({
-        service,
-        days: 14,
-        groomer_id: groomer,
-      });
-    }
+  if (/availability|open slot|when can|what times|schedule|book|appointment|an appt/.test(last)) {
+    const groomer =
+      last.includes("melanie")
+        ? "melanie"
+        : last.includes("diamond") || last.includes("sarah")
+          ? "diamond"
+          : undefined;
+    const service = last.includes("bath") ? "bath-brush" : "full-groom";
+    return lickyBuildAvailabilityResponse({
+      service,
+      days: 14,
+      groomer_id: groomer,
+      holdOwnerId: actionCtx.holdOwnerId,
+    });
+  }
 
-    if (/price|cost|how much|pricing/.test(last)) {
-      const text = truncateLickyReply(
-        await executeLickyTool(actionCtx, "get_pricing", {})
-      );
-      return { reply: text, buttons: PRICING_BUTTONS };
-    }
+  if (/price|cost|how much|pricing/.test(last)) {
+    const text = truncateLickyReply(
+      await executeLickyTool(actionCtx, "get_pricing", {})
+    );
+    return { reply: text, buttons: PRICING_BUTTONS };
+  }
 
-    if (/service area|do you come|county|my area/.test(last)) {
-      return structuredFromText(
-        await executeLickyTool(actionCtx, "get_service_area", {})
-      );
-    }
+  if (/service area|do you come|county|my area/.test(last)) {
+    return structuredFromText(
+      await executeLickyTool(actionCtx, "get_service_area", {})
+    );
+  }
 
-    if (/cancel/.test(last)) {
-      return structuredFromText("Say yes to cancel, or use Appointments tab.");
-    }
+  if (/cancel/.test(last)) {
+    return structuredFromText(
+      actionCtx.loggedIn
+        ? "Say yes to cancel, or use Appointments tab."
+        : "Log in at /client/login to cancel a visit."
+    );
   }
 
   if (/when|next appointment|upcoming/.test(last)) {
-    const upcoming = context?.match(/Upcoming appointments[\s\S]*?(?:\nPets|$)/)?.[0];
+    const upcoming = context.match(/Upcoming appointments[\s\S]*?(?:\nPets|$)/)?.[0];
     if (upcoming?.includes("id=")) {
       return structuredFromText("Check Appointments tab for your visit details!");
     }
@@ -107,7 +111,7 @@ async function createFallbackReply(
   }
 
   if (/hi|hello|hey/.test(last)) {
-    const name = context?.match(/Client: (\S+)/)?.[1];
+    const name = context.match(/Client: (\S+)/)?.[1];
     return structuredFromText(
       name ? `Hi ${name}! What can I help with today?` : "Hi! What can I help with today?"
     );
@@ -120,8 +124,8 @@ async function createFallbackReply(
 
 export async function createLickyReply(
   messages: ChatMessage[],
-  context?: string,
-  actionCtx?: LickyActionContext
+  context: string,
+  actionCtx: LickyActionContext
 ): Promise<LickyStructuredResponse> {
   try {
     return await createLickyReplyInner(messages, context, actionCtx);
@@ -138,8 +142,8 @@ export async function createLickyReply(
 
 async function createLickyReplyInner(
   messages: ChatMessage[],
-  context?: string,
-  actionCtx?: LickyActionContext
+  context: string,
+  actionCtx: LickyActionContext
 ): Promise<LickyStructuredResponse> {
   const lastUser =
     messages
@@ -156,10 +160,9 @@ async function createLickyReplyInner(
   );
 
   if (
-    actionCtx &&
     wantsAppointment &&
     notOtherTopic &&
-    !actionCtx.account.pendingLickyBooking?.slotKey
+    !getPendingLickyBooking(actionCtx)?.slotKey
   ) {
     const groomer = lastUser.includes("melanie")
       ? "melanie"
@@ -171,11 +174,12 @@ async function createLickyReplyInner(
       service,
       days: 14,
       groomer_id: groomer,
+      holdOwnerId: actionCtx.holdOwnerId,
     });
   }
 
   const client = getOpenAIClient();
-  if (!client || !actionCtx) {
+  if (!client) {
     return createFallbackReply(messages, context, actionCtx);
   }
 
@@ -244,6 +248,7 @@ async function createLickyReplyInner(
                   : undefined,
               groomer_id: typeof args.groomer_id === "string" ? args.groomer_id : undefined,
               offset: 0,
+              holdOwnerId: actionCtx.holdOwnerId,
             });
             chatMessages.push({
               role: "tool",

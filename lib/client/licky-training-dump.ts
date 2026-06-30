@@ -59,7 +59,7 @@ function slotSummary(slots: Awaited<ReturnType<typeof getLickyAvailabilitySlots>
 export async function buildLickyTrainingDump() {
   const persistence = getSchedulingPersistenceStatus();
   const data = await readSchedulingData();
-  const mockCtx = { account: trainingMockAccount() };
+  const mockCtx = { account: trainingMockAccount(), loggedIn: true, holdOwnerId: "training" };
 
   const fullGroom14 = await getLickyAvailabilitySlots({ service: "full-groom", days: 14 });
   const bath14 = await getLickyAvailabilitySlots({ service: "bath-brush", days: 14 });

@@ -15,6 +15,8 @@ import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
+import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
+import { consumeSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -102,6 +104,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
   }
 
+  const holdOwnerId = await getOrCreateHoldOwnerId();
+  if (!devBooking) {
+    const holdCheck = await validateSlotHold(holdOwnerId, slotKey);
+    if (!holdCheck.ok) {
+      return NextResponse.json({ error: holdCheck.error }, { status: 409 });
+    }
+  }
+
   const appointment: Appointment = {
     id: randomUUID(),
     groomerId,
@@ -133,6 +143,10 @@ export async function POST(request: Request) {
     actor: bookingEmail,
     groomerId,
   });
+
+  if (!devBooking) {
+    await consumeSlotHold(holdOwnerId, slotKey);
+  }
 
   try {
     await upsertLead({

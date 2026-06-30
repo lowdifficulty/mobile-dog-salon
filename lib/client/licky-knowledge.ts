@@ -76,5 +76,14 @@ export function buildLickyKnowledgeBlock(): string {
     "SERVICES",
     "- full-groom: Full Groom and Haircut (bath, haircut, nails, ears, hygiene)",
     "- bath-brush: Bath & Brush (bath, brush, nails, ears, hygiene)",
+    "",
+    "COMMON FAQ",
+    "- Full spa groom includes bath, blow dry, brush out, ear cleaning, nail trim, and breed-specific haircut.",
+    "- We groom cats too — mobile, gentle, one-on-one.",
+    "- Most full grooms take 60–90 minutes depending on size, coat, and temperament.",
+    "- We use all-natural, pet-safe shampoos; hypoallergenic options on request.",
+    "- Nail trims every 3–4 weeks for most dogs; we trim and file.",
+    "- Book online at /book, via this chat, or call/text " + PHONE_NUMBER + ".",
+    "- Same-day appointments are not available through self-booking.",
   ].join("\n");
 }

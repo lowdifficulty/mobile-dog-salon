@@ -49,9 +49,10 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
   if (!ctx.loggedIn || !ctx.account) {
     const lines = [
       "Visitor is not logged in.",
-      "Answer questions about grooming, pricing, service area, and show open times.",
-      "To book from chat: collect service address, then name and mobile number.",
-      "For cancel/reschedule or saved account details, suggest logging in at /client/login.",
+      "Answer any questions about Mobile Dog Salon using knowledge and tools.",
+      "Book conversationally: find_slot or check_availability → collect address/phone with save_* tools → book_appointment when they confirm.",
+      "Use get_booking_status to see what's already known from this chat.",
+      "For cancel/reschedule or saved account history, suggest /client/login.",
     ];
     if (ctx.guest?.serviceAddress) {
       lines.push(

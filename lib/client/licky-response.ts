@@ -1,6 +1,9 @@
 import type { AvailableSlot } from "@/lib/scheduling/types";
 
-export const LICKY_MAX_CHARS = 100;
+export const LICKY_MAX_CHARS = 500;
+
+/** Tool results sent back to the model — keep full detail. */
+export const LICKY_TOOL_RESULT_MAX = 8000;
 
 export type LickyButtonAction =
   | "book_slot"
@@ -19,10 +22,16 @@ export interface LickyStructuredResponse {
   buttons?: LickyButton[];
 }
 
-export function truncateLickyReply(text: string): string {
+export function truncateLickyReply(text: string, max = LICKY_MAX_CHARS): string {
   const t = text.replace(/\s+/g, " ").trim();
-  if (t.length <= LICKY_MAX_CHARS) return t;
-  return t.slice(0, LICKY_MAX_CHARS - 1) + "…";
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1) + "…";
+}
+
+export function truncateToolResult(text: string): string {
+  const t = text.trim();
+  if (t.length <= LICKY_TOOL_RESULT_MAX) return t;
+  return t.slice(0, LICKY_TOOL_RESULT_MAX - 20) + "\n…(truncated)";
 }
 
 export function formatSlotButtonLabel(slot: AvailableSlot): string {

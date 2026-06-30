@@ -17,6 +17,8 @@ import {
   truncateLickyReply,
   type LickyStructuredResponse,
 } from "@/lib/client/licky-response";
+import { summarizeBookingReadiness } from "@/lib/client/licky-conversation";
+import { formatSlotLine, rankSlotsForPreference } from "@/lib/client/licky-slot-match";
 import {
   createAppointment,
   type AppointmentMutationOptions,
@@ -168,14 +170,51 @@ export async function lickyBuildAvailabilityResponse(params: {
 
 export async function lickyBookAppointment(
   ctx: LickyActionContext,
-  params: { slot_key: string; service?: string; fromFallback?: boolean },
+  params: {
+    slot_key: string;
+    service?: string;
+    fromFallback?: boolean;
+    full_address?: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    pet_name?: string;
+    pet_size?: string;
+  },
   request?: Request
 ): Promise<LickyStructuredResponse> {
   const slotKey = params.slot_key?.trim();
   const service = params.service?.trim() || "full-groom";
 
   if (!slotKey) {
-    return structuredFromText("Pick a time button to book.");
+    return structuredFromText("Tell me which time works, or pick a slot from the list.");
+  }
+
+  if (params.full_address?.trim()) {
+    const parsed = parseClientAddressMessage(params.full_address);
+    if (parsed) await saveServiceAddressToCtx(ctx, parsed);
+  }
+
+  if (!ctx.loggedIn) {
+    const contactFromParams =
+      params.first_name?.trim() || params.phone?.trim()
+        ? {
+            firstName: params.first_name?.trim() || "Guest",
+            lastName: params.last_name?.trim() || "",
+            phone: params.phone?.trim() || "",
+          }
+        : null;
+    if (contactFromParams?.phone) {
+      await saveContactToCtx(ctx, contactFromParams);
+    }
+    if (params.pet_size?.trim()) {
+      await ctx.saveGuest?.({
+        petSize: normalizePetSize(params.pet_size) || params.pet_size,
+      });
+    }
+    if (params.pet_name?.trim()) {
+      await ctx.saveGuest?.({ petName: params.pet_name.trim() });
+    }
   }
 
   const savedAddress = await getServiceAddressFromCtx(ctx);
@@ -189,12 +228,14 @@ export async function lickyBookAppointment(
 
   if (!savedAddress) {
     return structuredFromText(
-      `Held for ${holdMinutesLabel()}! What's your service address? Street, city, and zip.`
+      `I've held that time for ${holdMinutesLabel()}. What's your service address — street, city, and zip?`
     );
   }
 
   if (!ctx.loggedIn && !hasValidContact(ctx)) {
-    return structuredFromText("Got your address! Your name and mobile number to confirm?");
+    return structuredFromText(
+      "Got your address! What name and mobile number should I put on the booking?"
+    );
   }
 
   const { address, city, zipCode } = savedAddress;
@@ -255,7 +296,111 @@ export async function lickyBookAppointment(
   const suffix = ctx.loggedIn
     ? " See Appointments tab."
     : " Log in at /client/login to manage visits.";
-  return structuredFromText(`Booked! ${when}${suffix}`);
+  return structuredFromText(`You're all set! ${when}${suffix}`);
+}
+
+export async function lickyFindSlot(
+  ctx: LickyActionContext,
+  params: {
+    preference?: string;
+    service?: string;
+    groomer_id?: string;
+    date?: string;
+  }
+): Promise<{ text: string; slots: Awaited<ReturnType<typeof getLickyAvailabilitySlots>>["slots"]; service: string; fromFallback: boolean }> {
+  const groomerFilter = params.groomer_id?.trim().toLowerCase();
+  const service = params.service?.trim() || "full-groom";
+
+  const data = await getLickyAvailabilitySlots({
+    service,
+    days: 14,
+    groomerId:
+      groomerFilter === "melanie" || groomerFilter === "diamond"
+        ? groomerFilter
+        : undefined,
+    holdOwnerId: ctx.holdOwnerId,
+  });
+
+  if (!data.slots.length) {
+    return {
+      text: `No open slots in the next 14 days for ${getServiceLabel(service)}. Try another groomer or service.`,
+      slots: [],
+      service,
+      fromFallback: data.source === "fallback",
+    };
+  }
+
+  const matched = rankSlotsForPreference(data.slots, {
+    preference: params.preference,
+    groomerId:
+      groomerFilter === "melanie" || groomerFilter === "diamond"
+        ? groomerFilter
+        : undefined,
+    date: params.date,
+    limit: 5,
+  });
+
+  const lines = matched.map(formatSlotLine);
+  const pref = params.preference?.trim() ? ` for "${params.preference}"` : "";
+
+  return {
+    text: [
+      `Best matches${pref} (${matched.length}):`,
+      ...lines,
+      "Use slot_key with book_appointment when the client confirms a time.",
+    ].join("\n"),
+    slots: matched,
+    service,
+    fromFallback: data.source === "fallback",
+  };
+}
+
+export async function lickyGetBookingStatus(ctx: LickyActionContext): Promise<string> {
+  return summarizeBookingReadiness(ctx);
+}
+
+export async function lickySaveGuestContact(
+  ctx: LickyActionContext,
+  params: {
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    pet_name?: string;
+    pet_size?: string;
+  }
+): Promise<string> {
+  if (ctx.loggedIn) {
+    return "Client is logged in — name and phone come from their account.";
+  }
+
+  const phone = params.phone?.trim() ?? "";
+  const firstName = params.first_name?.trim() || ctx.guest?.firstName || "";
+  const lastName = params.last_name?.trim() || ctx.guest?.lastName || "";
+
+  if (phone.replace(/\D/g, "").length >= 10) {
+    await saveContactToCtx(ctx, {
+      firstName: firstName || "Guest",
+      lastName,
+      phone,
+    });
+  } else if (firstName) {
+    await ctx.saveGuest?.({ firstName, lastName });
+  }
+
+  const guestPatch: Record<string, string> = {};
+  if (params.pet_name?.trim()) guestPatch.petName = params.pet_name.trim();
+  if (params.pet_size?.trim()) {
+    guestPatch.petSize = normalizePetSize(params.pet_size) || params.pet_size;
+  }
+  if (Object.keys(guestPatch).length) {
+    await ctx.saveGuest?.(guestPatch);
+  }
+
+  if (!phone.replace(/\D/g, "").match(/\d{10}/) && !firstName) {
+    return "Need at least a name and 10-digit mobile number.";
+  }
+
+  return summarizeBookingReadiness(ctx);
 }
 
 export async function lickySaveClientAddress(
@@ -495,6 +640,8 @@ export async function executeLickyTool(
   args: Record<string, unknown>
 ): Promise<string> {
   switch (name) {
+    case "get_booking_status":
+      return lickyGetBookingStatus(ctx);
     case "list_upcoming_appointments":
       return lickyListUpcoming(ctx);
     case "check_availability":
@@ -506,6 +653,15 @@ export async function executeLickyTool(
             : undefined,
         groomer_id: typeof args.groomer_id === "string" ? args.groomer_id : undefined,
       });
+    case "find_slot": {
+      const result = await lickyFindSlot(ctx, {
+        preference: typeof args.preference === "string" ? args.preference : undefined,
+        service: typeof args.service === "string" ? args.service : undefined,
+        groomer_id: typeof args.groomer_id === "string" ? args.groomer_id : undefined,
+        date: typeof args.date === "string" ? args.date : undefined,
+      });
+      return result.text;
+    }
     case "get_pricing":
       return lickyGetPricing(ctx, {
         pet_size: String(args.pet_size ?? ""),
@@ -524,15 +680,32 @@ export async function executeLickyTool(
         slot_key: String(args.slot_key ?? ""),
         confirmed: Boolean(args.confirmed),
       });
+    case "save_guest_contact":
+      return lickySaveGuestContact(ctx, {
+        first_name: typeof args.first_name === "string" ? args.first_name : undefined,
+        last_name: typeof args.last_name === "string" ? args.last_name : undefined,
+        phone: typeof args.phone === "string" ? args.phone : undefined,
+        pet_name: typeof args.pet_name === "string" ? args.pet_name : undefined,
+        pet_size: typeof args.pet_size === "string" ? args.pet_size : undefined,
+      });
     case "book_appointment":
-      return truncateLickyReply(
-        (
-          await lickyBookAppointment(ctx, {
+      return (
+        await lickyBookAppointment(
+          ctx,
+          {
             slot_key: String(args.slot_key ?? ""),
             service: typeof args.service === "string" ? args.service : undefined,
-          })
-        ).reply
-      );
+            full_address:
+              typeof args.full_address === "string" ? args.full_address : undefined,
+            first_name: typeof args.first_name === "string" ? args.first_name : undefined,
+            last_name: typeof args.last_name === "string" ? args.last_name : undefined,
+            phone: typeof args.phone === "string" ? args.phone : undefined,
+            pet_name: typeof args.pet_name === "string" ? args.pet_name : undefined,
+            pet_size: typeof args.pet_size === "string" ? args.pet_size : undefined,
+          },
+          ctx.request
+        )
+      ).reply;
     case "save_client_address":
       return lickySaveClientAddress(ctx, {
         full_address: typeof args.full_address === "string" ? args.full_address : undefined,

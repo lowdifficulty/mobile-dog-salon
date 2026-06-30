@@ -4,8 +4,7 @@ import {
   lickyChatStatus,
   type ChatMessage,
 } from "@/lib/client/licky-chat";
-import { lickyCompletePendingBooking } from "@/lib/client/licky-actions";
-import { getPendingLickyBooking } from "@/lib/client/licky-guest-helpers";
+import { syncConversationToCtx } from "@/lib/client/licky-conversation";
 import { handleLickyClientAction, type LickyClientAction } from "@/lib/client/licky-ui-handler";
 import {
   buildLickyContextLines,
@@ -14,9 +13,11 @@ import {
 
 export async function POST(request: Request) {
   try {
-    const { ctx } = await resolveLickyContext();
+    const { ctx: baseCtx } = await resolveLickyContext();
     const body = await request.json();
     const action = body.action as LickyClientAction | undefined;
+
+    const ctx = { ...baseCtx, request };
 
     if (action?.type) {
       const response = await handleLickyClientAction(action, ctx, request);
@@ -28,17 +29,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
     }
 
-    const lastUserMessage = messages.filter((m) => m.role === "user").pop()?.content ?? "";
-    if (getPendingLickyBooking(ctx)?.slotKey && lastUserMessage.trim()) {
-      const pendingResponse = await lickyCompletePendingBooking(
-        ctx,
-        lastUserMessage,
-        request
-      );
-      if (pendingResponse) {
-        return NextResponse.json({ ...pendingResponse, ...lickyChatStatus() });
-      }
-    }
+    ctx.conversationMessages = messages;
+    await syncConversationToCtx(ctx, messages);
 
     const context = await buildLickyContextLines(ctx);
     const response = await createLickyReply(messages, context, ctx);
@@ -49,7 +41,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "Chat failed",
-        reply: "Woof! I hit a snag. Try again in a moment.",
+        reply: "Sorry, I hit a snag. Try again or call (949) 755-8994.",
       },
       { status: 500 }
     );

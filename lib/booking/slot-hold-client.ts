@@ -4,6 +4,7 @@ export async function holdBookingSlot(
 ): Promise<{ ok: true; expiresAt?: string } | { ok: false; error: string }> {
   const res = await fetch("/api/book/hold", {
     method: "POST",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slotKey }),
   });
@@ -23,6 +24,7 @@ export async function holdBookingSlot(
 export async function releaseBookingSlot(slotKey: string): Promise<void> {
   await fetch("/api/book/hold", {
     method: "DELETE",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slotKey }),
   }).catch(() => {});

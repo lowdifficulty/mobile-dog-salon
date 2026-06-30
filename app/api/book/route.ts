@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
 import {
   isBookableDate,
@@ -16,10 +17,27 @@ import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
 import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
-import { consumeSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
+import {
+  consumeSlotHold,
+  createSlotHold,
+  validateSlotHold,
+} from "@/lib/scheduling/slot-holds";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
+  try {
+    return await handleBookPost(request);
+  } catch (err) {
+    console.error("Book API error:", err);
+    const message =
+      err instanceof PersistenceNotConfiguredError
+        ? "Booking is temporarily unavailable. Please call (949) 755-8994."
+        : "Could not complete booking. Please try again or call (949) 755-8994.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+async function handleBookPost(request: Request) {
   const body = await request.json();
 
   const {
@@ -38,6 +56,7 @@ export async function POST(request: Request) {
     city,
     zipCode,
     notes,
+    fromFallback,
   } = body;
 
   const phoneTrimmed = phone?.trim() ?? "";
@@ -84,8 +103,9 @@ export async function POST(request: Request) {
 
   const data = await readSchedulingData();
   const devBooking = isLocalhostRequest(request);
+  const relaxAvailability = devBooking || Boolean(fromFallback);
 
-  if (!devBooking) {
+  if (!relaxAvailability) {
     const dayAvail = data.availability.find(
       (a) => a.groomerId === groomerId && a.date === date
     );
@@ -106,7 +126,13 @@ export async function POST(request: Request) {
 
   const holdOwnerId = await getOrCreateHoldOwnerId();
   if (!devBooking) {
-    const holdCheck = await validateSlotHold(holdOwnerId, slotKey);
+    let holdCheck = await validateSlotHold(holdOwnerId, slotKey);
+    if (!holdCheck.ok) {
+      const refreshed = await createSlotHold(holdOwnerId, slotKey);
+      if (refreshed.ok) {
+        holdCheck = await validateSlotHold(holdOwnerId, slotKey);
+      }
+    }
     if (!holdCheck.ok) {
       return NextResponse.json({ error: holdCheck.error }, { status: 409 });
     }

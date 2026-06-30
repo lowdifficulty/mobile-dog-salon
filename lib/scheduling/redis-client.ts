@@ -1,8 +1,9 @@
 import "server-only";
 import { Redis } from "@upstash/redis";
-import { hasRedisEnv } from "./persistence";
+import { getRedisCredentials } from "./persistence";
 
 export function getRedisClient(): Redis | null {
-  if (!hasRedisEnv()) return null;
-  return Redis.fromEnv();
+  const creds = getRedisCredentials();
+  if (!creds) return null;
+  return new Redis(creds);
 }

@@ -15,11 +15,19 @@ export class PersistenceNotConfiguredError extends Error {
 }
 
 export function hasRedisEnv(): boolean {
+  return getRedisCredentials() !== null;
+}
+
+/** Upstash REST credentials from either Upstash or Vercel KV env var names. */
+export function getRedisCredentials(): { url: string; token: string } | null {
   const url =
-    process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    process.env.UPSTASH_REDIS_REST_URL?.trim() ||
+    process.env.KV_REST_API_URL?.trim();
   const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  return Boolean(url && token);
+    process.env.UPSTASH_REDIS_REST_TOKEN?.trim() ||
+    process.env.KV_REST_API_TOKEN?.trim();
+  if (!url || !token) return null;
+  return { url, token };
 }
 
 /** True on Vercel's serverless runtime — not local dev with pulled Vercel env vars. */
@@ -30,7 +38,7 @@ export function isVercelServerless(): boolean {
 /** Where availability + appointments are stored for this process. */
 export function getPersistenceMode(): PersistenceMode {
   if (hasRedisEnv()) return "redis";
-  if (process.env.VERCEL) return "ephemeral";
+  if (isVercelServerless()) return "ephemeral";
   return "file";
 }
 

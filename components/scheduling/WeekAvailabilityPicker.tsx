@@ -20,6 +20,7 @@ interface WeekAvailabilityPickerProps {
   selectedSlotKey: string;
   onSelectDate: (date: string) => void;
   onSelectSlot: (slot: AvailableSlot) => void;
+  onAvailabilityMeta?: (meta: { fallbackMode: boolean; devAllSlots: boolean }) => void;
 }
 
 function formatDayRange(days: WeekDay[]): string {
@@ -60,6 +61,7 @@ export default function WeekAvailabilityPicker({
   selectedSlotKey,
   onSelectDate,
   onSelectSlot,
+  onAvailabilityMeta,
 }: WeekAvailabilityPickerProps) {
   const [days, setDays] = useState<WeekDay[]>([]);
   const [pageStart, setPageStart] = useState(0);
@@ -86,9 +88,11 @@ export default function WeekAvailabilityPicker({
 
       if (isLocalhostHost()) {
         if (cancelled) return;
-        setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+        const localDays = buildFallbackRangeDays(fromDate, DAYS_TO_FETCH);
+        setDays(localDays);
         setDevAllSlots(true);
         setFallbackMode(false);
+        onAvailabilityMeta?.({ fallbackMode: false, devAllSlots: true });
         setLoading(false);
         return;
       }
@@ -96,13 +100,24 @@ export default function WeekAvailabilityPicker({
       try {
         const result = await fetchAvailabilityRange(fromDate, service);
         if (cancelled) return;
-        setDays(result.days);
-        setDevAllSlots(result.devAllSlots);
+        const hasLiveSlots = result.days.some((day) => day.slots.length > 0);
+        if (!hasLiveSlots) {
+          setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+          setFallbackMode(true);
+          setDevAllSlots(false);
+          onAvailabilityMeta?.({ fallbackMode: true, devAllSlots: false });
+        } else {
+          setDays(result.days);
+          setDevAllSlots(result.devAllSlots);
+          setFallbackMode(false);
+          onAvailabilityMeta?.({ fallbackMode: false, devAllSlots: result.devAllSlots });
+        }
       } catch {
         if (cancelled) return;
         setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
         setDevAllSlots(false);
         setFallbackMode(true);
+        onAvailabilityMeta?.({ fallbackMode: true, devAllSlots: false });
       } finally {
         if (!cancelled) setLoading(false);
       }

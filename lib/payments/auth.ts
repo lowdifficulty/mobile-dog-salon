@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "crypto";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
@@ -14,11 +15,18 @@ export interface ClientSessionData {
   slotHoldOwnerId?: string;
 }
 
+/** iron-session requires passwords >= 32 characters. */
+function ironSessionPassword(raw: string): string {
+  if (raw.length >= 32) return raw;
+  return createHash("sha256").update(`mds:iron:${raw}`).digest("hex");
+}
+
 export function getClientSessionOptions() {
-  const password =
+  const password = ironSessionPassword(
     process.env.CLIENT_SESSION_SECRET ??
-    process.env.SCHEDULING_SESSION_SECRET ??
-    "mobile-dog-salon-client-session-dev-secret";
+      process.env.SCHEDULING_SESSION_SECRET ??
+      "mobile-dog-salon-client-session-dev-secret"
+  );
 
   return {
     password,

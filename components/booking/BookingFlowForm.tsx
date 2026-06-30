@@ -109,6 +109,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [submitError, setSubmitError] = useState("");
   const [slotHoldError, setSlotHoldError] = useState("");
   const [isLocalhost, setIsLocalhost] = useState(false);
+  const [fromFallback, setFromFallback] = useState(false);
 
   const discountActive = true;
 
@@ -272,11 +273,22 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
     const additionalPets = finalizedPets.slice(1);
 
     try {
+      if (!isLocalhost) {
+        const hold = await holdBookingSlot(data.slotKey);
+        if (!hold.ok) {
+          setSubmitError(hold.error);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const res = await fetch("/api/book", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slotKey: data.slotKey,
+          fromFallback: fromFallback || isLocalhost,
           petName: "",
           petBreed: "",
           petSize: finalizedPets[0]?.petSize ?? data.petSize,
@@ -539,6 +551,9 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                 setSlotHoldError("");
               }}
               onSelectSlot={selectSlot}
+              onAvailabilityMeta={({ fallbackMode, devAllSlots }) => {
+                setFromFallback(fallbackMode || devAllSlots);
+              }}
             />
             {slotHoldError ? (
               <p className="text-sm text-red-600" role="alert">

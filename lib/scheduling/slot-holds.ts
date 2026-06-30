@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
@@ -36,6 +37,23 @@ function holdKey(slotKey: string): string {
 
 function ownerKey(ownerId: string): string {
   return `mds:hold:owner:${ownerId}`;
+}
+
+function isRedisWrongTypeError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes("WRONGTYPE");
+}
+
+async function addHoldIndex(slotKey: string): Promise<void> {
+  const redis = getRedisClient();
+  if (!redis) return;
+  try {
+    await redis.sadd(HOLD_INDEX_KEY, slotKey);
+  } catch (err) {
+    if (!isRedisWrongTypeError(err)) throw err;
+    await redis.del(HOLD_INDEX_KEY);
+    await redis.sadd(HOLD_INDEX_KEY, slotKey);
+  }
 }
 
 function expiryIso(ttlSeconds = SLOT_HOLD_TTL_SECONDS): string {
@@ -133,7 +151,7 @@ async function writeHold(slotKey: string, hold: SlotHold): Promise<void> {
   const redis = getRedisClient();
   if (redis) {
     await redis.set(holdKey(slotKey), hold, { ex: SLOT_HOLD_TTL_SECONDS });
-    await redis.sadd(HOLD_INDEX_KEY, slotKey);
+    await addHoldIndex(slotKey);
     await redis.set(ownerKey(hold.ownerId), slotKey, { ex: SLOT_HOLD_TTL_SECONDS });
     return;
   }
@@ -177,7 +195,13 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
   const redis = getRedisClient();
 
   if (redis) {
-    const slotKeys = (await redis.smembers<string[]>(HOLD_INDEX_KEY)) ?? [];
+    let slotKeys: string[] = [];
+    try {
+      slotKeys = (await redis.smembers<string[]>(HOLD_INDEX_KEY)) ?? [];
+    } catch (err) {
+      if (!isRedisWrongTypeError(err)) throw err;
+      await redis.del(HOLD_INDEX_KEY);
+    }
     for (const slotKey of slotKeys) {
       const hold = await readHold(slotKey);
       if (!hold) {
@@ -199,6 +223,21 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
 }
 
 export async function createSlotHold(
+  ownerId: string,
+  slotKey: string
+): Promise<SlotHoldResult> {
+  try {
+    return await createSlotHoldInner(ownerId, slotKey);
+  } catch (err) {
+    console.error("createSlotHold error:", err);
+    return {
+      ok: false,
+      error: "Could not reserve that time — please try again.",
+    };
+  }
+}
+
+async function createSlotHoldInner(
   ownerId: string,
   slotKey: string
 ): Promise<SlotHoldResult> {
@@ -273,7 +312,7 @@ export async function createSlotHold(
       }
       return { ok: false, error: "That time was just taken — pick another." };
     }
-    await redis.sadd(HOLD_INDEX_KEY, slotKey);
+    await addHoldIndex(slotKey);
     await redis.set(ownerKey(ownerId), slotKey, { ex: SLOT_HOLD_TTL_SECONDS });
     return { ok: true, holdId: hold.holdId, expiresAt: hold.expiresAt, slotKey };
   }

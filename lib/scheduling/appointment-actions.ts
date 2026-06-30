@@ -12,7 +12,7 @@ import {
   slotToISO,
 } from "@/lib/scheduling/slots";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
-import { consumeSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
+import { consumeSlotHold, createSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -160,7 +160,13 @@ export async function createAppointment(
 
   const slotKeyForHold = input.slotKey ?? `${groomerId}|${date}|${time}`;
   if (!options?.skipHold) {
-    const holdCheck = await validateSlotHold(options?.holdOwnerId, slotKeyForHold);
+    let holdCheck = await validateSlotHold(options?.holdOwnerId, slotKeyForHold);
+    if (!holdCheck.ok && options?.holdOwnerId) {
+      const refreshed = await createSlotHold(options.holdOwnerId, slotKeyForHold);
+      if (refreshed.ok) {
+        holdCheck = await validateSlotHold(options.holdOwnerId, slotKeyForHold);
+      }
+    }
     if (!holdCheck.ok) {
       return { ok: false, error: holdCheck.error, status: 409 };
     }

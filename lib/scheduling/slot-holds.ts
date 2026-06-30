@@ -13,6 +13,10 @@ import type { GroomerId } from "@/lib/scheduling/types";
 export const SLOT_HOLD_TTL_SECONDS = 10 * 60;
 
 const HOLD_INDEX_KEY = "mds:hold:keys";
+const BLOCKED_CACHE_MS = 5_000;
+
+let blockedCache: { keys: Set<string>; at: number; excludeOwnerId?: string } | null =
+  null;
 
 export interface SlotHold {
   holdId: string;
@@ -37,6 +41,10 @@ function holdKey(slotKey: string): string {
 
 function ownerKey(ownerId: string): string {
   return `mds:hold:owner:${ownerId}`;
+}
+
+function clearBlockedCache(): void {
+  blockedCache = null;
 }
 
 function isRedisWrongTypeError(err: unknown): boolean {
@@ -153,9 +161,11 @@ async function writeHold(slotKey: string, hold: SlotHold): Promise<void> {
     await redis.set(holdKey(slotKey), hold, { ex: SLOT_HOLD_TTL_SECONDS });
     await addHoldIndex(slotKey);
     await redis.set(ownerKey(hold.ownerId), slotKey, { ex: SLOT_HOLD_TTL_SECONDS });
+    clearBlockedCache();
     return;
   }
   memorySet(slotKey, hold, SLOT_HOLD_TTL_SECONDS);
+  clearBlockedCache();
 }
 
 async function deleteHold(slotKey: string, ownerId?: string): Promise<void> {
@@ -169,9 +179,11 @@ async function deleteHold(slotKey: string, ownerId?: string): Promise<void> {
         await redis.del(ownerKey(ownerId));
       }
     }
+    clearBlockedCache();
     return;
   }
   memoryDelete(slotKey);
+  clearBlockedCache();
 }
 
 async function releaseOwnerPreviousHold(ownerId: string, slotKey: string): Promise<void> {
@@ -191,6 +203,14 @@ async function releaseOwnerPreviousHold(ownerId: string, slotKey: string): Promi
 
 /** Slot keys held by other customers (optionally excluding one owner). */
 export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<string>> {
+  if (
+    blockedCache &&
+    blockedCache.excludeOwnerId === excludeOwnerId &&
+    Date.now() - blockedCache.at < BLOCKED_CACHE_MS
+  ) {
+    return new Set(blockedCache.keys);
+  }
+
   const blocked = new Set<string>();
   const redis = getRedisClient();
 
@@ -202,10 +222,14 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
     } catch (err) {
       if (!isRedisWrongTypeError(err)) throw err;
       await redis.del(HOLD_INDEX_KEY);
+      blockedCache = { keys: blocked, at: Date.now(), excludeOwnerId };
       return blocked;
     }
 
-    if (slotKeys.length === 0) return blocked;
+    if (slotKeys.length === 0) {
+      blockedCache = { keys: blocked, at: Date.now(), excludeOwnerId };
+      return blocked;
+    }
 
     const redisKeys = slotKeys.map((sk) => holdKey(sk));
     const holds = (await redis.mget<(SlotHold | null)[]>(...redisKeys)) ?? [];
@@ -229,6 +253,7 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
       );
     }
 
+    blockedCache = { keys: blocked, at: Date.now(), excludeOwnerId };
     return blocked;
   }
 
@@ -237,6 +262,8 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
     if (excludeOwnerId && entry.hold.ownerId === excludeOwnerId) continue;
     blocked.add(slotKey);
   }
+
+  blockedCache = { keys: blocked, at: Date.now(), excludeOwnerId };
   return blocked;
 }
 
@@ -332,6 +359,7 @@ async function createSlotHoldInner(
     }
     await addHoldIndex(slotKey);
     await redis.set(ownerKey(ownerId), slotKey, { ex: SLOT_HOLD_TTL_SECONDS });
+    clearBlockedCache();
     return { ok: true, holdId: hold.holdId, expiresAt: hold.expiresAt, slotKey };
   }
 

@@ -13,6 +13,20 @@ import type { SchedulingData, WriteSchedulingMeta } from "./types";
 
 const FILE_PATH = path.join(process.cwd(), "data", "scheduling.json");
 const REDIS_KEY = "mds:scheduling";
+const READ_CACHE_MS = 15_000;
+
+let readCache: { data: SchedulingData; at: number } | null = null;
+
+function cloneSchedulingData(data: SchedulingData): SchedulingData {
+  return {
+    availability: data.availability ?? [],
+    appointments: data.appointments ?? [],
+  };
+}
+
+export function invalidateSchedulingReadCache(): void {
+  readCache = null;
+}
 
 export function emptySchedulingData(): SchedulingData {
   return { availability: [], appointments: [] };
@@ -51,21 +65,29 @@ async function migrateFileToRedis(redis: NonNullable<ReturnType<typeof getRedisC
 }
 
 export async function readSchedulingData(): Promise<SchedulingData> {
+  if (readCache && Date.now() - readCache.at < READ_CACHE_MS) {
+    return cloneSchedulingData(readCache.data);
+  }
+
   const redis = getRedisClient();
   if (redis) {
     const data = await redis.get<SchedulingData>(REDIS_KEY);
     if (data) {
-      return {
-        availability: data.availability ?? [],
-        appointments: data.appointments ?? [],
-      };
+      const normalized = cloneSchedulingData(data);
+      readCache = { data: normalized, at: Date.now() };
+      return normalized;
     }
 
     const migrated = await migrateFileToRedis(redis);
-    if (migrated) return migrated;
+    if (migrated) {
+      const normalized = cloneSchedulingData(migrated);
+      readCache = { data: normalized, at: Date.now() };
+      return normalized;
+    }
 
     const empty = emptySchedulingData();
     await redis.set(REDIS_KEY, empty);
+    readCache = { data: empty, at: Date.now() };
     return empty;
   }
 
@@ -102,6 +124,8 @@ export async function writeSchedulingData(
   if (meta) {
     await appendAvailabilityHistory(before, normalized, meta);
   }
+
+  invalidateSchedulingReadCache();
 }
 
 export function getSchedulingPersistenceStatus() {

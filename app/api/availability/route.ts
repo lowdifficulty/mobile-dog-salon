@@ -25,9 +25,23 @@ export async function GET(request: Request) {
   const daysParam = searchParams.get("days");
 
   const devAllSlots = isLocalhostRequest(request);
-  const data = await readSchedulingData();
+  let data;
+  try {
+    data = await readSchedulingData();
+  } catch (err) {
+    console.error("Availability readSchedulingData error:", err);
+    return NextResponse.json({ error: "Could not load availability" }, { status: 500 });
+  }
+
   const holdOwnerId = devAllSlots ? undefined : await getOrCreateHoldOwnerId().catch(() => undefined);
-  const blockedSlotKeys = devAllSlots ? new Set<string>() : await getBlockedSlotKeys(holdOwnerId);
+  let blockedSlotKeys = new Set<string>();
+  if (!devAllSlots) {
+    try {
+      blockedSlotKeys = await getBlockedSlotKeys(holdOwnerId);
+    } catch (err) {
+      console.error("getBlockedSlotKeys error:", err);
+    }
+  }
 
   function filterBlocked<T extends { slotKey: string }>(slots: T[]): T[] {
     if (!blockedSlotKeys.size) return slots;

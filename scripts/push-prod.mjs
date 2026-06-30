@@ -23,7 +23,7 @@ function run(cmd, args, options = {}) {
 
 async function main() {
   const { execSync } = await import("node:child_process");
-  const dirty = execSync("git status --porcelain", { encoding: "utf8" }).trim();
+  const dirty = execSync("git status --porcelain --untracked-files=no", { encoding: "utf8" }).trim();
   if (dirty) {
     console.error(
       "Uncommitted changes detected. Commit first, then run 42 again."

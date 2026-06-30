@@ -197,20 +197,38 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
   if (redis) {
     let slotKeys: string[] = [];
     try {
-      slotKeys = (await redis.smembers<string[]>(HOLD_INDEX_KEY)) ?? [];
+      const raw = await redis.smembers<string[]>(HOLD_INDEX_KEY);
+      slotKeys = Array.isArray(raw) ? raw : [];
     } catch (err) {
       if (!isRedisWrongTypeError(err)) throw err;
       await redis.del(HOLD_INDEX_KEY);
+      return blocked;
     }
-    for (const slotKey of slotKeys) {
-      const hold = await readHold(slotKey);
+
+    if (slotKeys.length === 0) return blocked;
+
+    const redisKeys = slotKeys.map((sk) => holdKey(sk));
+    const holds = (await redis.mget<(SlotHold | null)[]>(...redisKeys)) ?? [];
+
+    const stale: string[] = [];
+    for (let i = 0; i < slotKeys.length; i++) {
+      const slotKey = slotKeys[i];
+      const hold = holds[i];
       if (!hold) {
-        await redis.srem(HOLD_INDEX_KEY, slotKey);
+        stale.push(slotKey);
         continue;
       }
       if (excludeOwnerId && hold.ownerId === excludeOwnerId) continue;
       blocked.add(slotKey);
     }
+
+    // Expired hold keys linger in the index; prune a few per request (not all — avoids Upstash rate limits).
+    if (stale.length > 0) {
+      await Promise.all(
+        stale.slice(0, 10).map((sk) => redis.srem(HOLD_INDEX_KEY, sk))
+      );
+    }
+
     return blocked;
   }
 

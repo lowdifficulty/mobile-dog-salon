@@ -16,6 +16,13 @@ import {
 
 const FILE_PATH = path.join(process.cwd(), "data", "leads.json");
 const REDIS_KEY = "mds:leads";
+const READ_CACHE_MS = 15_000;
+
+let readCache: { data: LeadsData; at: number } | null = null;
+
+export function invalidateLeadsReadCache(): void {
+  readCache = null;
+}
 
 export function emptyLeadsData(): LeadsData {
   return { leads: [] };
@@ -37,12 +44,21 @@ async function writeToLocalFile(data: LeadsData): Promise<void> {
 }
 
 export async function readLeadsData(): Promise<LeadsData> {
+  if (readCache && Date.now() - readCache.at < READ_CACHE_MS) {
+    return { leads: readCache.data.leads ?? [] };
+  }
+
   const redis = getRedisClient();
   if (redis) {
     const data = await redis.get<LeadsData>(REDIS_KEY);
-    if (data) return { leads: data.leads ?? [] };
+    if (data) {
+      const normalized = { leads: data.leads ?? [] };
+      readCache = { data: normalized, at: Date.now() };
+      return normalized;
+    }
     const empty = emptyLeadsData();
     await redis.set(REDIS_KEY, empty);
+    readCache = { data: empty, at: Date.now() };
     return empty;
   }
 
@@ -62,6 +78,7 @@ export async function writeLeadsData(data: LeadsData): Promise<void> {
   } else {
     await writeToLocalFile(normalized);
   }
+  invalidateLeadsReadCache();
 }
 
 function findLeadIndex(data: LeadsData, input: LeadUpsertInput): number {

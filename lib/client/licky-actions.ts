@@ -220,9 +220,10 @@ export async function lickyBookAppointment(
   const savedAddress = await getServiceAddressFromCtx(ctx);
   const { petName, petSize } = getPetFromCtx(ctx);
   const pending = getPendingLickyBooking(ctx);
+  const fromFallback = params.fromFallback ?? pending?.fromFallback;
 
   if (!pending?.slotKey || pending.slotKey !== slotKey) {
-    const reserveErr = await lickyReserveSlot(ctx, slotKey, service, params.fromFallback);
+    const reserveErr = await lickyReserveSlot(ctx, slotKey, service, fromFallback);
     if (reserveErr) return reserveErr;
   }
 
@@ -267,7 +268,7 @@ export async function lickyBookAppointment(
   const result = await createAppointment(
     input,
     actor,
-    lickyBookingOptions(request, params.fromFallback, ctx.holdOwnerId)
+    lickyBookingOptions(request, fromFallback, ctx.holdOwnerId)
   );
   if (!result.ok) {
     return structuredFromText(result.error);
@@ -473,7 +474,15 @@ export async function lickyCompletePendingBooking(
     );
   }
 
-  return null;
+  return lickyBookAppointment(
+    ctx,
+    {
+      slot_key: pending.slotKey,
+      service: pending.service,
+      fromFallback: pending.fromFallback,
+    },
+    request
+  );
 }
 
 export async function lickyCheckAvailability(

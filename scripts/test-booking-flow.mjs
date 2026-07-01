@@ -4,7 +4,7 @@
  *        BASE_URL=https://mobiledog-salon.com node scripts/test-booking-flow.mjs
  */
 
-const BASE = process.env.BASE_URL || "https://mobiledog-salon.com";
+const BASE = process.env.BASE_URL || "http://localhost:3000";
 
 function mergeCookies(existing, setCookieHeaders) {
   const jar = new Map();
@@ -61,7 +61,9 @@ async function findSlot() {
 
   for (const day of res.json?.days ?? []) {
     if (day.isPast || !day.slots?.length) continue;
-    return day.slots[0];
+    for (const slot of day.slots) {
+      return slot;
+    }
   }
   throw new Error("No bookable slots in the next 60 days");
 }

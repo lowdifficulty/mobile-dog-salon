@@ -23,10 +23,11 @@ export async function resolveLickyContext(): Promise<{
     account = (await findClientById(session.client.id)) ?? undefined;
   }
 
-  const guest: LickyGuestState = session.lickyGuest ?? {};
+  const guest: LickyGuestState = { ...(session.lickyGuest ?? {}) };
 
   const saveGuest = async (patch: Partial<LickyGuestState>) => {
-    session.lickyGuest = { ...(session.lickyGuest ?? {}), ...patch };
+    Object.assign(guest, patch);
+    session.lickyGuest = { ...guest };
     await session.save();
   };
 

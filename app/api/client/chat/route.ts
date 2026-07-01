@@ -4,6 +4,7 @@ import {
   lickyChatStatus,
   type ChatMessage,
 } from "@/lib/client/licky-chat";
+import { lickyCompletePendingBooking } from "@/lib/client/licky-actions";
 import { syncConversationToCtx } from "@/lib/client/licky-conversation";
 import { handleLickyClientAction, type LickyClientAction } from "@/lib/client/licky-ui-handler";
 import {
@@ -31,6 +32,16 @@ export async function POST(request: Request) {
 
     ctx.conversationMessages = messages;
     await syncConversationToCtx(ctx, messages);
+
+    const lastUserMessage = messages[messages.length - 1]?.content ?? "";
+    const pendingBooking = await lickyCompletePendingBooking(
+      ctx,
+      lastUserMessage,
+      request
+    );
+    if (pendingBooking) {
+      return NextResponse.json({ ...pendingBooking, ...lickyChatStatus() });
+    }
 
     const context = await buildLickyContextLines(ctx);
     const response = await createLickyReply(messages, context, ctx);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isLickyEnabled } from "@/lib/client/licky-enabled";
 import {
   createLickyReply,
   lickyChatStatus,
@@ -13,6 +14,17 @@ import {
 } from "@/lib/client/licky-session";
 
 export async function POST(request: Request) {
+  if (!isLickyEnabled()) {
+    return NextResponse.json(
+      {
+        error: "Licky is temporarily unavailable",
+        reply: "Our chat assistant is taking a nap. Book at /book or call (949) 755-8994.",
+        ...lickyChatStatus(),
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const { ctx: baseCtx } = await resolveLickyContext();
     const body = await request.json();

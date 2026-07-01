@@ -10,6 +10,7 @@ import {
 } from "@/lib/client/licky-actions";
 import { buildLickyKnowledgeBlock } from "@/lib/client/licky-knowledge";
 import { getLickyCustomTrainingText } from "@/lib/client/licky-config-store";
+import { isLickyEnabled } from "@/lib/client/licky-enabled";
 import { LICKY_TOOLS } from "@/lib/client/licky-tools";
 import type { ChatMessage } from "@/lib/client/licky-types";
 import {
@@ -328,14 +329,17 @@ export function isLickyChatConfigured(): boolean {
 
 export function lickyChatStatus(): {
   configured: boolean;
+  enabled: boolean;
   model: string;
   mode: "openai" | "fallback";
   tools: boolean;
 } {
+  const enabled = isLickyEnabled();
   return {
-    configured: isLickyChatConfigured(),
+    enabled,
+    configured: enabled && isLickyChatConfigured(),
     model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
-    mode: isLickyChatConfigured() ? "openai" : "fallback",
-    tools: true,
+    mode: enabled && isLickyChatConfigured() ? "openai" : "fallback",
+    tools: enabled,
   };
 }

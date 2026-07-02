@@ -39,18 +39,26 @@ export interface SaveLeadPayload {
   groomerId?: string;
   groomerName?: string;
   message?: string;
-  source?: "booking" | "contact" | "franchise";
+  source?: "booking" | "booking-hb" | "booking-oc" | "contact" | "franchise";
+  /** USD value sent to Meta only (not stored in CRM). */
+  metaConversionValue?: number;
 }
 
 export async function saveLead(payload: SaveLeadPayload): Promise<void> {
-  trackMetaLeadIfConversion(payload.funnelStep, payload.source ?? "booking");
+  const { metaConversionValue, ...crmPayload } = payload;
+  trackMetaLeadIfConversion(crmPayload.funnelStep, crmPayload.source ?? "booking", {
+    appointmentId: crmPayload.appointmentId,
+    groomerId: crmPayload.groomerId,
+    service: crmPayload.service,
+    value: metaConversionValue,
+  });
 
   try {
     await fetch("/api/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...payload,
+        ...crmPayload,
         leadSessionId: getLeadSessionId(),
       }),
     });

@@ -5,13 +5,15 @@ import { createPortal } from "react-dom";
 import BookingFlowForm from "@/components/booking/BookingFlowForm";
 import BookingFormCard from "@/components/booking/BookingFormCard";
 import { lockPageScroll } from "@/lib/scroll-lock";
+import type { BookingVariant } from "@/lib/booking/variants";
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  variant?: BookingVariant | null;
 }
 
-export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
+export default function BookingModal({ isOpen, onClose, variant = null }: BookingModalProps) {
   const [mounted, setMounted] = useState(false);
   const ignoreBackdropClose = useRef(false);
 
@@ -54,7 +56,7 @@ export default function BookingModal({ isOpen, onClose }: BookingModalProps) {
         aria-label="Book an appointment"
       >
         <BookingFormCard>
-          <BookingFlowForm onClose={onClose} />
+          <BookingFlowForm onClose={onClose} variant={variant} />
         </BookingFormCard>
       </div>
     </div>,

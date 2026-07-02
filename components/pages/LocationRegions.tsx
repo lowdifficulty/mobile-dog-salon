@@ -1,4 +1,5 @@
 import BookButton from "../BookButton";
+import type { BookingVariantId } from "@/lib/booking/variants";
 
 interface Region {
   name: string;
@@ -6,7 +7,13 @@ interface Region {
   cities: string[];
 }
 
-export default function LocationRegions({ regions }: { regions: Region[] }) {
+export default function LocationRegions({
+  regions,
+  bookingVariant,
+}: {
+  regions: Region[];
+  bookingVariant?: BookingVariantId;
+}) {
   return (
     <div className="space-y-10">
       {regions.map((region) => (
@@ -26,7 +33,7 @@ export default function LocationRegions({ regions }: { regions: Region[] }) {
         </div>
       ))}
       <div className="text-center pt-4">
-        <BookButton />
+        <BookButton bookingVariant={bookingVariant} />
       </div>
     </div>
   );

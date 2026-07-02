@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { isLocalhostHost } from "@/lib/booking/form-utils";
-import type { AvailableSlot } from "@/lib/scheduling/types";
+import type { AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 import {
   buildFallbackRangeDays,
@@ -18,11 +18,21 @@ interface WeekAvailabilityPickerProps {
   service: string;
   selectedDate: string;
   selectedSlotKey: string;
+  groomerId?: GroomerId;
   onSelectDate: (date: string) => void;
   onSelectSlot: (slot: AvailableSlot) => void;
   onAvailabilityMeta?: (meta: { fallbackMode: boolean; devAllSlots: boolean }) => void;
 }
 
+function filterDaysByGroomer(days: WeekDay[], groomerId?: GroomerId): WeekDay[] {
+  if (!groomerId) return days;
+  return days
+    .map((day) => ({
+      ...day,
+      slots: day.slots.filter((slot) => slot.groomerId === groomerId),
+    }))
+    .filter((day) => day.isPast || day.slots.length > 0);
+}
 function formatDayRange(days: WeekDay[]): string {
   if (days.length === 0) return "";
   const first = new Date(`${days[0].date}T12:00:00`);
@@ -59,6 +69,7 @@ export default function WeekAvailabilityPicker({
   service,
   selectedDate: _selectedDate,
   selectedSlotKey,
+  groomerId,
   onSelectDate,
   onSelectSlot,
   onAvailabilityMeta,
@@ -88,7 +99,10 @@ export default function WeekAvailabilityPicker({
 
       if (isLocalhostHost()) {
         if (cancelled) return;
-        const localDays = buildFallbackRangeDays(fromDate, DAYS_TO_FETCH);
+        const localDays = filterDaysByGroomer(
+          buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+          groomerId
+        );
         setDays(localDays);
         setDevAllSlots(true);
         setFallbackMode(false);
@@ -100,21 +114,32 @@ export default function WeekAvailabilityPicker({
       try {
         const result = await fetchAvailabilityRange(fromDate, service);
         if (cancelled) return;
-        const hasLiveSlots = result.days.some((day) => day.slots.length > 0);
+        const filteredDays = filterDaysByGroomer(result.days, groomerId);
+        const hasLiveSlots = filteredDays.some((day) => day.slots.length > 0);
         if (!hasLiveSlots) {
-          setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+          setDays(
+            filterDaysByGroomer(
+              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+              groomerId
+            )
+          );
           setFallbackMode(true);
           setDevAllSlots(false);
           onAvailabilityMeta?.({ fallbackMode: true, devAllSlots: false });
         } else {
-          setDays(result.days);
+          setDays(filteredDays);
           setDevAllSlots(result.devAllSlots);
           setFallbackMode(false);
           onAvailabilityMeta?.({ fallbackMode: false, devAllSlots: result.devAllSlots });
         }
       } catch {
         if (cancelled) return;
-        setDays(buildFallbackRangeDays(fromDate, DAYS_TO_FETCH));
+        setDays(
+          filterDaysByGroomer(
+            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+            groomerId
+          )
+        );
         setDevAllSlots(false);
         setFallbackMode(true);
         onAvailabilityMeta?.({ fallbackMode: true, devAllSlots: false });
@@ -127,7 +152,7 @@ export default function WeekAvailabilityPicker({
     return () => {
       cancelled = true;
     };
-  }, [service]);
+  }, [service, groomerId, onAvailabilityMeta]);
 
   const availableDays = useMemo(
     () => days.filter((day) => !day.isPast && day.slots.length > 0),
@@ -169,8 +194,9 @@ export default function WeekAvailabilityPicker({
         <p className="text-sm text-gray-500">Loading availability…</p>
       ) : availableDays.length === 0 ? (
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-          No open appointments in the next {DAYS_TO_FETCH} days. Check back soon — groomers
-          post availability in their calendars.
+          No open appointments in the next {DAYS_TO_FETCH} days
+          {groomerId ? " for this groomer" : ""}. Check back soon — groomers post availability in
+          their calendars.
         </p>
       ) : (
         <>

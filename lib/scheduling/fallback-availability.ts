@@ -19,24 +19,26 @@ export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
 
 export function buildFallbackRangeDays(
   fromDate: string,
-  dayCount: number
+  dayCount: number,
+  groomerId?: GroomerId
 ): FallbackWeekDay[] {
   const count = Math.max(1, Math.min(dayCount, 90));
+  const groomerIds = groomerId ? [groomerId] : ACTIVE_GROOMER_IDS;
   return Array.from({ length: count }, (_, i) => addDays(fromDate, i)).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots: AvailableSlot[] = [];
 
     if (isBookableDate(date)) {
-      for (const groomerId of ACTIVE_GROOMER_IDS) {
+      for (const id of groomerIds) {
         const times = [...TIME_SLOT_OPTIONS];
         for (const time of listSelfBookingStarts(times)) {
           slots.push({
-            groomerId,
-            groomerName: groomerClientDisplayName(groomerId),
+            groomerId: id,
+            groomerName: groomerClientDisplayName(id),
             date,
             time,
             displayTime: formatSelfBookingSlotDisplay(time),
-            slotKey: `${groomerId}|${date}|${time}`,
+            slotKey: `${id}|${date}|${time}`,
           });
         }
       }

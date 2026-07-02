@@ -21,6 +21,8 @@ const STATIC_ROUTES: { path: string; priority: number; changeFrequency: Metadata
   { path: ROUTES.careers, priority: 0.65, changeFrequency: "monthly" },
   { path: ROUTES.franchise, priority: 0.8, changeFrequency: "monthly" },
   { path: ROUTES.locations, priority: 0.75, changeFrequency: "monthly" },
+  { path: ROUTES.la, priority: 0.9, changeFrequency: "weekly" },
+  { path: ROUTES.oc, priority: 0.9, changeFrequency: "weekly" },
   { path: ROUTES.howItWorks, priority: 0.7, changeFrequency: "monthly" },
   { path: ROUTES.why, priority: 0.7, changeFrequency: "monthly" },
   { path: ROUTES.blog, priority: 0.8, changeFrequency: "daily" },

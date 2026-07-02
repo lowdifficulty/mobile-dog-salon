@@ -37,6 +37,27 @@ export const ORANGE_COUNTY_REGIONS = [
 
 export const ALL_ORANGE_COUNTY_CITIES = ORANGE_COUNTY_REGIONS.flatMap((r) => r.cities);
 
+export const LA_COUNTY_REGIONS = [
+  {
+    name: "Long Beach & South Bay",
+    description:
+      "Sarah's van is parked in Long Beach — we prioritize neighborhoods closest to her, from the waterfront to nearby South Bay communities.",
+    cities: ["Long Beach", "Signal Hill", "Lakewood", "Carson", "Torrance", "San Pedro", "Wilmington"],
+  },
+  {
+    name: "Gateway Cities",
+    description: "Mobile grooming across southeast LA County — convenient curb-side appointments near Sarah's Long Beach route.",
+    cities: ["Norwalk", "Downey", "Bellflower", "Cerritos", "Artesia", "Hawaiian Gardens", "La Mirada"],
+  },
+  {
+    name: "Whittier & Southeast LA",
+    description: "Stress-free grooming at home for families in Whittier, South Gate, and surrounding southeast LA neighborhoods.",
+    cities: ["Whittier", "South Gate", "Downey", "Norwalk", "Bellflower"],
+  },
+];
+
+export const ALL_LA_COUNTY_CITIES = LA_COUNTY_REGIONS.flatMap((r) => r.cities);
+
 export const WHY_CHOOSE_US = [
   {
     title: "One-on-One, Cage-Free",

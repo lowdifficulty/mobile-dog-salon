@@ -2,19 +2,24 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import BookingModal from "./BookingModal";
+import {
+  getBookingVariant,
+  isBookingHash,
+  resolveBookingVariantFromPath,
+  resolveBookingVariantId,
+  type BookingVariant,
+  type BookingVariantId,
+} from "@/lib/booking/variants";
 
-function isBookHash() {
-  return typeof window !== "undefined" && window.location.hash === "#book";
-}
-
-function clearBookHash() {
-  if (!isBookHash()) return;
+function clearBookingHash() {
+  if (typeof window === "undefined") return;
+  if (!isBookingHash(window.location.hash)) return;
   const url = window.location.pathname + window.location.search;
   window.history.replaceState(null, "", url);
 }
 
 interface BookingContextValue {
-  openBooking: () => void;
+  openBooking: (variantId?: BookingVariantId) => void;
   closeBooking: () => void;
   isBookingOpen: boolean;
 }
@@ -29,18 +34,36 @@ export function useBooking() {
   return ctx;
 }
 
+function variantFromId(variantId: BookingVariantId): BookingVariant | null {
+  return getBookingVariant(variantId);
+}
+
 export default function BookingProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [variant, setVariant] = useState<BookingVariant | null>(null);
 
-  const openBooking = useCallback(() => setIsOpen(true), []);
+  const openBooking = useCallback((explicitVariant?: BookingVariantId) => {
+    const variantId =
+      explicitVariant && explicitVariant !== "default"
+        ? explicitVariant
+        : resolveBookingVariantFromPath(window.location.pathname);
+    setVariant(variantFromId(variantId));
+    setIsOpen(true);
+  }, []);
+
   const closeBooking = useCallback(() => {
     setIsOpen(false);
-    clearBookHash();
+    setVariant(null);
+    clearBookingHash();
   }, []);
 
   useEffect(() => {
     const syncFromHash = () => {
-      if (isBookHash()) setIsOpen(true);
+      const hash = window.location.hash;
+      if (!isBookingHash(hash)) return;
+      const variantId = resolveBookingVariantId(window.location.pathname, hash);
+      setVariant(variantFromId(variantId));
+      setIsOpen(true);
     };
 
     syncFromHash();
@@ -51,7 +74,7 @@ export default function BookingProvider({ children }: { children: React.ReactNod
   return (
     <BookingContext.Provider value={{ openBooking, closeBooking, isBookingOpen: isOpen }}>
       {children}
-      <BookingModal isOpen={isOpen} onClose={closeBooking} />
+      <BookingModal isOpen={isOpen} onClose={closeBooking} variant={variant} />
     </BookingContext.Provider>
   );
 }

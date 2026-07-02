@@ -1,30 +1,22 @@
 import type { Metadata } from "next";
 import HomePageSections from "@/components/HomePageSections";
 import { OG_SHARE_IMAGE } from "@/lib/images";
+import { ROUTES } from "@/lib/routes";
 
 const SITE_URL = "https://mobiledog-salon.com";
-const HOME_TITLE = "Mobile Dog Salon | Good Dogs Take Baths — Orange County";
-const HOME_DESCRIPTION =
+const TITLE = "Mobile Dog Salon | Good Dogs Take Baths — Orange County";
+const DESCRIPTION =
   "Good Dogs Take Baths! Professional mobile dog grooming at your curb across Orange County. Book a spa day for your pup — fast, affordable, and stress-free.";
 
 export const metadata: Metadata = {
-  title: HOME_TITLE,
-  description: HOME_DESCRIPTION,
-  keywords: [
-    "mobile dog grooming",
-    "Orange County dog grooming",
-    "mobile pet grooming",
-    "dog grooming near me",
-    "Good Dogs Take Baths",
-    "Irvine dog grooming",
-    "Huntington Beach dog grooming",
-  ],
-  alternates: { canonical: SITE_URL },
+  title: TITLE,
+  description: DESCRIPTION,
+  alternates: { canonical: `${SITE_URL}${ROUTES.oc}` },
   openGraph: {
-    title: HOME_TITLE,
-    description: HOME_DESCRIPTION,
+    title: TITLE,
+    description: DESCRIPTION,
     type: "website",
-    url: SITE_URL,
+    url: `${SITE_URL}${ROUTES.oc}`,
     siteName: "Mobile Dog Salon",
     locale: "en_US",
     images: [
@@ -39,13 +31,13 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: HOME_TITLE,
-    description: HOME_DESCRIPTION,
+    title: TITLE,
+    description: DESCRIPTION,
     images: [OG_SHARE_IMAGE],
   },
   robots: { index: true, follow: true },
 };
 
-export default function Home() {
+export default function OcLandingPage() {
   return <HomePageSections />;
 }

@@ -37,6 +37,7 @@ import {
   type BookingPet,
 } from "@/lib/booking/pets";
 import { holdBookingSlot } from "@/lib/booking/slot-hold-client";
+import type { BookingVariant } from "@/lib/booking/variants";
 
 const STEP_COUNT = 4;
 
@@ -97,9 +98,10 @@ function getDevSkipBookableDate(): string {
 
 interface BookingFlowFormProps {
   onClose?: () => void;
+  variant?: BookingVariant | null;
 }
 
-export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
+export default function BookingFlowForm({ onClose, variant = null }: BookingFlowFormProps) {
   const [step, setStep] = useState(1);
   const [data, setData] = useState<BookingFormData>(initialData);
   const [bookingPets, setBookingPets] = useState<BookingPet[]>([]);
@@ -112,17 +114,27 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   const [fromFallback, setFromFallback] = useState(false);
 
   const discountActive = true;
+  const leadSource = variant?.leadSource ?? "booking";
+  const groomerFilter = variant?.groomerId;
 
   useEffect(() => {
     setIsLocalhost(isLocalhostHost());
     warmMetaPixel();
-    void saveLead({ funnelStep: "view_form", source: "booking" });
+    void saveLead({ funnelStep: "view_form", source: leadSource });
     void pingLeadActivity();
     const interval = window.setInterval(() => {
       void pingLeadActivity();
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [leadSource]);
+
+  useEffect(() => {
+    if (!variant) return;
+    setData((prev) => ({
+      ...prev,
+      city: prev.city || variant.defaultCity,
+    }));
+  }, [variant]);
 
   const update = (field: keyof BookingFormData, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -162,7 +174,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
   };
 
   const handleSkipAppointmentStep = () => {
-    const groomerId = "melanie";
+    const groomerId = groomerFilter ?? "melanie";
     const date = getDevSkipBookableDate();
     const time = "10:00";
     const slotKey = `${groomerId}|${date}|${time}`;
@@ -201,7 +213,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
       zipCode: data.zipCode,
       discountActive,
       smsOptIn: Boolean(data.phone.trim()),
-      source: "booking",
+      source: leadSource,
       ...extra,
     });
   };
@@ -329,7 +341,8 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
         appointmentStartAt: slotToISO(date, time),
         groomerId,
         groomerName: data.groomerName,
-        source: "booking",
+        source: leadSource,
+        metaConversionValue: selectedPrice ?? undefined,
       });
       setSubmitted(true);
     } catch {
@@ -541,6 +554,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
             </div>
             <WeekAvailabilityPicker
               service={data.service}
+              groomerId={groomerFilter}
               selectedDate={data.preferredDate}
               selectedSlotKey={data.slotKey}
               onSelectDate={(date) => {
@@ -608,7 +622,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                     type="text"
                     value={data.city}
                     onChange={(e) => update("city", e.target.value)}
-                    placeholder="Irvine"
+                    placeholder={variant?.defaultCity ?? "Irvine"}
                     autoComplete="address-level2"
                     className={inputClass}
                   />
@@ -624,7 +638,7 @@ export default function BookingFlowForm({ onClose }: BookingFlowFormProps) {
                     inputMode="numeric"
                     value={data.zipCode}
                     onChange={(e) => update("zipCode", e.target.value)}
-                    placeholder="92618"
+                    placeholder={variant?.zipPlaceholder ?? "92618"}
                     autoComplete="postal-code"
                     className={inputClass}
                   />

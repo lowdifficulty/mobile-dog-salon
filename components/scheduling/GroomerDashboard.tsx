@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
-import AppointmentList from "./AppointmentList";
+import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
 import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
@@ -17,11 +17,11 @@ const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type Tab = "upcoming" | "route" | "book" | "team-calendar" | "availability" | "clients";
+type Tab = "appointments" | "route" | "book" | "team-calendar" | "availability" | "clients";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("upcoming");
+  const [tab, setTab] = useState<Tab>("appointments");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const groomerId = user.groomerId;
@@ -41,7 +41,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "upcoming", label: "Upcoming" },
+    { id: "appointments", label: "Appointments" },
     { id: "clients", label: "Active clients" },
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
@@ -54,7 +54,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Upcoming appointments, active clients, daily route, calendar, and schedule."
+        subtitle="Appointments, active clients, daily route, calendar, and schedule."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
@@ -77,11 +77,10 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         <DashboardErrorBoundary>
           {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
           {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
-          {tab === "upcoming" && (
-            <AppointmentList
-              key={appointmentRefreshKey}
+          {tab === "appointments" && (
+            <StaffAppointmentsPanel
+              refreshKey={appointmentRefreshKey}
               apiUrl="/api/groomer/appointments"
-              filter="upcoming"
               currentGroomerId={groomerId}
               allowOverrideAvailability
             />
@@ -93,7 +92,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
               onBooked={() => {
                 setAppointmentRefreshKey((key) => key + 1);
                 setCalendarRefreshKey((key) => key + 1);
-                setTab("upcoming");
+                setTab("appointments");
               }}
             />
           )}

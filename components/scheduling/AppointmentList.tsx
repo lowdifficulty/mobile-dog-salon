@@ -10,6 +10,10 @@ import StaffDateTimePicker, {
   buildSlotKey,
 } from "@/components/scheduling/StaffDateTimePicker";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
+import {
+  isStaffUpcomingAppointment,
+  type StaffAppointmentFilter,
+} from "@/lib/scheduling/appointment-filters";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 import {
   groomerAppointmentCardClass,
@@ -41,7 +45,7 @@ export default function AppointmentList({
   allowOverrideAvailability = false,
 }: {
   apiUrl: string;
-  filter: "upcoming" | "past";
+  filter: StaffAppointmentFilter;
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
 }) {
@@ -211,12 +215,17 @@ export default function AppointmentList({
   if (appointments.length === 0) {
     return (
       <p className="text-gray-500 text-sm py-8 text-center">
-        {filter === "upcoming" ? "No upcoming appointments." : "No past appointments yet."}
+        {filter === "upcoming"
+          ? "No upcoming appointments."
+          : filter === "past"
+            ? "No past appointments yet."
+            : "No appointments yet."}
       </p>
     );
   }
 
-  const colorByGroomer = filter === "upcoming" && currentGroomerId;
+  const colorByGroomer =
+    (filter === "upcoming" || filter === "all") && currentGroomerId;
   const otherGroomerIds = colorByGroomer
     ? (Object.keys(GROOMERS) as GroomerId[]).filter((id) => id !== currentGroomerId)
     : [];
@@ -286,7 +295,7 @@ export default function AppointmentList({
             <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
 
-            {filter === "upcoming" &&
+            {isStaffUpcomingAppointment(ap) &&
               ap.status === "confirmed" &&
               (!currentGroomerId || ap.groomerId === currentGroomerId) && (
               <div className="mt-4 pt-4 border-t border-gray-100">

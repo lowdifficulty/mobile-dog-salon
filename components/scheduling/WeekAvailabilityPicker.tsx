@@ -177,7 +177,7 @@ export default function WeekAvailabilityPicker({
   return (
     <div className="space-y-3">
       {devAllSlots && (
-        <p className="text-xs text-blue-800 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+        <p className="text-xs text-gray-600 rounded-lg bg-white border border-gray-200 px-3 py-2">
           Localhost: all bookable time slots are shown for testing. Production only shows real
           groomer calendar availability.
         </p>
@@ -191,9 +191,9 @@ export default function WeekAvailabilityPicker({
       )}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading availability…</p>
+        <p className="text-sm text-gray-600">Loading availability…</p>
       ) : availableDays.length === 0 ? (
-        <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+        <p className="text-sm text-gray-600 rounded-xl bg-white border border-gray-200 px-4 py-3">
           No open appointments in the next {DAYS_TO_FETCH} days
           {groomerId ? " for this groomer" : ""}. Check back soon — groomers post availability in
           their calendars.
@@ -205,19 +205,19 @@ export default function WeekAvailabilityPicker({
               type="button"
               onClick={() => shiftPage(-1)}
               disabled={!canGoPrev}
-              className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              className="booking-form-ghost-btn px-2.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               aria-label="Earlier days"
             >
               ← Earlier
             </button>
-            <p className="text-xs font-semibold text-gray-700 text-center">
+            <p className="text-xs font-semibold text-gray-800 text-center">
               {formatDayRange(visibleDays)}
             </p>
             <button
               type="button"
               onClick={() => shiftPage(1)}
               disabled={!canGoNext}
-              className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-brand-bright/50 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              className="booking-form-ghost-btn px-2.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               aria-label="Later days"
             >
               Later →
@@ -227,28 +227,28 @@ export default function WeekAvailabilityPicker({
           <div className="space-y-3">
             {visibleDays.map((day) => (
               <div key={day.date}>
-                <p className="text-xs font-bold text-gray-900 mb-1.5">
+                <p className="text-xs font-bold text-gray-800 mb-1.5">
                   {day.weekday}, {day.monthShort} {day.dayNumber}
                 </p>
-                <div className="overflow-hidden rounded-lg border border-[#eaeaeb] bg-[#fafafb]">
+                <div className="booking-form-slot-list">
                   {day.slots.map((slot, slotIndex) => {
                     const selected = selectedSlotKey === slot.slotKey;
                     const isFirst = slotIndex === 0;
                     const isLast = slotIndex === day.slots.length - 1;
                     const radiusClass = [
                       isFirst ? "rounded-t-lg" : "",
-                      isLast ? "rounded-b-lg" : "border-b border-[#eaeaeb]",
+                      isLast ? "rounded-b-lg" : "border-b border-gray-200",
                     ].join(" ");
                     const stateClass = selected
-                      ? "bg-[#878787] text-white"
-                      : "bg-[#fafafb] text-[#0a0908] hover:bg-[#878787]/10";
+                      ? "booking-form-slot-selected"
+                      : "booking-form-slot";
 
                     return (
                       <button
                         key={slot.slotKey}
                         type="button"
                         onClick={() => handleSelectSlot(slot)}
-                        className={`w-full px-4 py-4 text-left transition-colors active:scale-[0.995] ${radiusClass} ${stateClass}`}
+                        className={`w-full px-4 py-4 text-left transition-colors ${radiusClass} ${stateClass}`}
                       >
                         <span className="block">
                           <span className="block text-base font-bold leading-snug">
@@ -256,7 +256,7 @@ export default function WeekAvailabilityPicker({
                           </span>
                           <span
                             className={`block text-sm mt-1 leading-snug ${
-                              selected ? "text-white/90" : "text-[#505051]"
+                              selected ? "text-white/90" : "text-gray-600"
                             }`}
                           >
                             with {slot.groomerName}

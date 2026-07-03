@@ -12,7 +12,7 @@ interface AddToCalendarButtonsProps {
 }
 
 const buttonClass =
-  "w-full flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-brand transition-all hover:border-brand hover:bg-brand/5";
+  "booking-form-ghost-btn w-full flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-all";
 
 export default function AddToCalendarButtons({ details }: AddToCalendarButtonsProps) {
   return (

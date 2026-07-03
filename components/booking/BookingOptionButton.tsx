@@ -26,8 +26,8 @@ export default function BookingOptionButton({
   onClick,
 }: BookingOptionButtonProps) {
   const stateClass = selected
-    ? "border-[#878787] bg-[#878787] text-white shadow-md"
-    : "border-gray-200 bg-white shadow-sm hover:border-brand hover:bg-brand-light/60 hover:shadow-md active:bg-brand-light";
+    ? "booking-form-option-selected"
+    : "booking-form-option";
 
   const labelBlock = (
     <span className="min-w-0">
@@ -46,7 +46,7 @@ export default function BookingOptionButton({
             variant === "picture"
               ? "text-xs sm:text-sm mt-0 leading-tight"
               : "text-xs sm:text-sm mt-1 leading-snug"
-          } ${selected ? "text-white/85" : "text-[#505051]"}`}
+          } ${selected ? "text-white/90" : "text-gray-600"}`}
         >
           {subtitle}
         </span>
@@ -54,12 +54,14 @@ export default function BookingOptionButton({
       {bullets && bullets.length > 0 && (
         <ul
           className={`mt-2 space-y-0.5 text-left ${
-            selected ? "text-white/90" : "text-[#505051]"
+            selected ? "text-white/90" : "text-gray-600"
           }`}
         >
           {bullets.map((item) => (
             <li key={item} className="flex gap-1.5 text-[11px] leading-snug">
-              <span className="shrink-0">•</span>
+              <span className={`shrink-0 ${selected ? "text-white/80" : "text-gray-500"}`}>
+                •
+              </span>
               <span>{item}</span>
             </li>
           ))}
@@ -68,14 +70,18 @@ export default function BookingOptionButton({
     </span>
   );
 
-  const baseClass = `min-w-0 flex-1 cursor-pointer rounded-lg border-2 px-2 py-4 transition-all duration-150 active:scale-[0.98] sm:px-3 sm:py-5 ${stateClass}`;
+  const baseClass = `min-w-0 flex-1 cursor-pointer rounded-lg px-2 py-4 transition-all duration-150 active:scale-[0.98] sm:px-3 sm:py-5 ${stateClass}`;
 
   if (variant === "picture") {
     return (
       <button type="button" onClick={onClick} className={`${baseClass} text-center`}>
         <span className="mx-auto flex flex-col items-center gap-2 sm:gap-3">
           {icon && (
-            <span className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-brand bg-white p-1.5 sm:h-20 sm:w-20 sm:p-2">
+            <span
+              className={`booking-form-icon-wrap h-16 w-16 sm:h-20 sm:w-20 sm:p-2 ${
+                selected ? "booking-form-icon-wrap-selected" : ""
+              }`}
+            >
               {icon}
             </span>
           )}
@@ -103,7 +109,11 @@ export function DogSizeIcon({ size }: { size: "small" | "medium" | "large" }) {
       alt=""
       width={80}
       height={80}
-      className="h-full w-full object-contain"
+      className="h-full w-full object-contain drop-shadow-sm"
+      style={{
+        filter:
+          "brightness(0) saturate(100%) invert(18%) sepia(48%) saturate(1450%) hue-rotate(182deg) brightness(92%) contrast(95%)",
+      }}
       aria-hidden
     />
   );

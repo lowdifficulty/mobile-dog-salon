@@ -8,7 +8,7 @@ export default function BookingFormCard({
 }) {
   return (
     <div
-      className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto scrollbar-grey ${className}`.trim()}
+      className={`booking-form-card w-full max-w-lg max-h-[90dvh] overflow-y-auto scrollbar-grey ${className}`.trim()}
     >
       {children}
     </div>

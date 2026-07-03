@@ -1,7 +1,6 @@
 import { getTodayPacificDate, isBookableDate } from "@/lib/scheduling/slots";
 
-export const bookingInputClass =
-  "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none";
+export const bookingInputClass = "booking-form-input";
 
 export function splitBookingName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);

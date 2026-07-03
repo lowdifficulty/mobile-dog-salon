@@ -11,7 +11,7 @@ import StaffDateTimePicker, {
 } from "@/components/scheduling/StaffDateTimePicker";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import {
-  isStaffUpcomingAppointment,
+  canStaffManageAppointment,
   type StaffAppointmentFilter,
 } from "@/lib/scheduling/appointment-filters";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
@@ -295,8 +295,7 @@ export default function AppointmentList({
             <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
 
-            {isStaffUpcomingAppointment(ap) &&
-              ap.status === "confirmed" &&
+            {canStaffManageAppointment(ap, filter) &&
               (!currentGroomerId || ap.groomerId === currentGroomerId) && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 {isEditingLead ? (

@@ -22,6 +22,20 @@ export function isStaffPastAppointment(
   return new Date(appointment.startAt).getTime() < staffUpcomingCutoff(now).getTime();
 }
 
+/** Upcoming (incl. 1hr grace) always; past confirmed when viewing Past or All. */
+export function canStaffManageAppointment(
+  appointment: { startAt: string; status: string },
+  filter: StaffAppointmentFilter,
+  now: Date = new Date()
+): boolean {
+  if (appointment.status !== "confirmed") return false;
+  if (isStaffUpcomingAppointment(appointment, now)) return true;
+  if (filter === "past" || filter === "all") {
+    return new Date(appointment.startAt).getTime() < staffUpcomingCutoff(now).getTime();
+  }
+  return false;
+}
+
 export function filterStaffAppointments<T extends { startAt: string; status: string }>(
   appointments: T[],
   filter: StaffAppointmentFilter,

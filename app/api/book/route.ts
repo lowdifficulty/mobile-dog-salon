@@ -11,6 +11,7 @@ import {
 } from "@/lib/scheduling/slots";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
+import { isAllowedBookingBlockStart } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
@@ -97,6 +98,13 @@ async function handleBookPost(request: Request) {
   if (!isBookableDate(date)) {
     return NextResponse.json(
       { error: "Same-day appointments are not available. Please choose a future date." },
+      { status: 400 }
+    );
+  }
+
+  if (!isAllowedBookingBlockStart(time)) {
+    return NextResponse.json(
+      { error: "That time slot is not available. Latest visits start at 7 PM." },
       { status: 400 }
     );
   }

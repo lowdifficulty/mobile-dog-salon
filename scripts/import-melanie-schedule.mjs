@@ -2,10 +2,10 @@
  * Push Melanie's recurring weekly schedule (6 weeks) to production via groomer API.
  *
  * Weekly hours (Pacific):
- *   Monday    4:00 PM – 8:00 PM
+ *   Monday    4:00 PM – 10:00 PM (last visit starts 7 PM)
  *   Tuesday   12:00 PM – 6:00 PM
  *   Wednesday off
- *   Thursday  all day (8 AM – 8 PM booking window)
+ *   Thursday  all day (8 AM – 10 PM, last visit starts 7 PM)
  *   Friday    12:00 PM – 6:00 PM
  *   Saturday  all day
  *   Sunday    off
@@ -45,7 +45,7 @@ function fullDaySlots() {
 /** Melanie's weekly template by JS weekday (0=Sun … 6=Sat). */
 const MELANIE_WEEKLY = {
   0: null,
-  1: slotsBetween(16, 20), // Mon 4–8 PM
+  1: slotsBetween(16, 22), // Mon 4–10 PM (last visit starts 7 PM)
   2: slotsBetween(12, 18), // Tue 12–6 PM
   3: null,
   4: fullDaySlots(), // Thu all day

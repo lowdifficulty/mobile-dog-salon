@@ -35,7 +35,8 @@ export const CALENDAR_NOTIFY_EMAILS = [
 export const ADMIN_EMAIL = "mattlewis06@gmail.com";
 
 export const WORK_START_HOUR = 8;
-export const WORK_END_HOUR = 20; // last appointment start at 8 PM
+/** Last 3-hour visit starts at 7 PM and ends at 10 PM. */
+export const WORK_END_HOUR = 21;
 
 export const TIME_SLOT_OPTIONS = [
   "08:00",
@@ -59,8 +60,12 @@ export const BOOKING_BLOCK_STARTS = [
   "11:00",
   "14:00",
   "17:00",
-  "20:00",
+  "19:00",
 ] as const;
+
+export function isAllowedBookingBlockStart(time: string): boolean {
+  return (BOOKING_BLOCK_STARTS as readonly string[]).includes(time);
+}
 
 function formatTimeRangeDisplay(startTime24: string, durationMinutes: number): string {
   const [h, m] = startTime24.split(":").map(Number);

@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
+import { isAllowedBookingBlockStart } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
@@ -115,6 +116,14 @@ export async function createAppointment(
   }
 
   const { groomerId, date, time } = resolved;
+
+  if (!isAllowedBookingBlockStart(time)) {
+    return {
+      ok: false,
+      error: "That time slot is not available. Latest visits start at 7 PM.",
+      status: 400,
+    };
+  }
 
   if (options?.groomerId && groomerId !== options.groomerId) {
     return {
@@ -259,6 +268,14 @@ export async function rescheduleAppointment(
     ({ groomerId, date, time } = parseSlotKey(slotKey));
   } catch {
     return { ok: false, error: "Invalid slot", status: 400 };
+  }
+
+  if (!isAllowedBookingBlockStart(time)) {
+    return {
+      ok: false,
+      error: "That time slot is not available. Latest visits start at 7 PM.",
+      status: 400,
+    };
   }
 
   const data = await readSchedulingData();

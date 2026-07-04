@@ -24,7 +24,7 @@ function slotsBetween(startHour, endHour) {
   return out;
 }
 
-/** Default full day: all hourly blocks 8 AM – 8 PM (matches groomer “Start with 8 AM – 8 PM”). */
+/** Default full day: hourly blocks 8 AM – 8 PM (last visit starts 7 PM). */
 function defaultFullDaySlots() {
   return SLOT_HOURS.map((h) => hourToSlot(h));
 }

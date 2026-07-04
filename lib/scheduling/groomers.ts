@@ -19,7 +19,6 @@ export const GROOMERS: Record<
     name: "Melanie",
     email: "melanie@mobiledog-salon.com",
     calendarEmail: "melanie@mobiledog-salon.com",
-    acceptsBookings: false,
   },
   diamond: {
     id: "diamond",

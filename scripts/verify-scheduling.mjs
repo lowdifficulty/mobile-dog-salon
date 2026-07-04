@@ -6,7 +6,7 @@
 
 const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const MELANIE_EMAIL = "melanie@mobiledog-salon.com";
-const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Lick2026!!!";
+const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
 const TEST_DATE = process.env.SCHEDULING_TEST_DATE || "2026-07-15";
 const TEST_TIMES = ["09:00", "10:00", "11:00"];
 

@@ -18,7 +18,7 @@
  */
 
 const BASE = process.env.SMOKE_BASE_URL || "https://mobiledog-salon.com";
-const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Lick2026!!!";
+const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
 const WEEKS_OUT = Number(process.env.SCHEDULE_WEEKS || 6);
 const BOOKING_HOURS = 2;
 

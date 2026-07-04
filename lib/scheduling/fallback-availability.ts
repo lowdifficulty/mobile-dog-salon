@@ -1,4 +1,10 @@
-import { GROOMERS, TIME_SLOT_OPTIONS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
+import {
+  BOOKABLE_GROOMER_IDS,
+  TIME_SLOT_OPTIONS,
+  formatSelfBookingSlotDisplay,
+  groomerAcceptsBookings,
+  groomerClientDisplayName,
+} from "./groomers";
 import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listSelfBookingStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
@@ -11,7 +17,7 @@ export interface FallbackWeekDay {
   slots: AvailableSlot[];
 }
 
-const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
+const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
 export function buildFallbackWeekDays(weekStart: string): FallbackWeekDay[] {
   return buildFallbackRangeDays(weekStart, 7);
@@ -23,7 +29,11 @@ export function buildFallbackRangeDays(
   groomerId?: GroomerId
 ): FallbackWeekDay[] {
   const count = Math.max(1, Math.min(dayCount, 90));
-  const groomerIds = groomerId ? [groomerId] : ACTIVE_GROOMER_IDS;
+  const groomerIds = groomerId
+    ? groomerAcceptsBookings(groomerId)
+      ? [groomerId]
+      : []
+    : ACTIVE_GROOMER_IDS;
   return Array.from({ length: count }, (_, i) => addDays(fromDate, i)).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots: AvailableSlot[] = [];

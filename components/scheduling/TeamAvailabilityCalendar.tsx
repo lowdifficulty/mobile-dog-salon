@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  BOOKABLE_GROOMER_IDS,
   BOOKING_BLOCK_STARTS,
   GROOMERS,
   formatBookingBlockDisplay,
@@ -11,7 +12,16 @@ import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const GROOMER_IDS: GroomerId[] = ["melanie", "diamond"];
+
+function groomerDotClass(id: GroomerId, selected: boolean): string {
+  if (id === "melanie") return selected ? "bg-white" : "bg-brand";
+  return selected ? "bg-accent-hot" : "bg-accent";
+}
+
+function groomerChipClass(id: GroomerId): string {
+  if (id === "melanie") return "bg-brand/10 text-brand border-brand/30";
+  return "bg-accent/10 text-brand border-accent/30";
+}
 
 function monthLabel(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
@@ -45,10 +55,10 @@ function getMonthGrid(year: number, month: number): (string | null)[] {
   return cells;
 }
 
-type RowsByGroomer = Record<GroomerId, Record<string, string[]>>;
+type RowsByGroomer = Partial<Record<GroomerId, Record<string, string[]>>>;
 
 function emptyRows(): RowsByGroomer {
-  return { melanie: {}, diamond: {} };
+  return Object.fromEntries(BOOKABLE_GROOMER_IDS.map((id) => [id, {}]));
 }
 
 export default function TeamAvailabilityCalendar({
@@ -71,6 +81,15 @@ export default function TeamAvailabilityCalendar({
     [viewYear, viewMonth]
   );
 
+  const legendText = useMemo(
+    () =>
+      BOOKABLE_GROOMER_IDS.map((id) => {
+        const color = id === "melanie" ? "Blue" : "Pink";
+        return `${color} dot = ${GROOMERS[id].name}`;
+      }).join(" · "),
+    []
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -83,9 +102,10 @@ export default function TeamAvailabilityCalendar({
     const data = await res.json();
     const next = emptyRows();
     for (const a of data.availability as AvailabilityDay[]) {
-      if (a.groomerId === "melanie" || a.groomerId === "diamond") {
-        next[a.groomerId][a.date] = [...a.times];
-      }
+      if (!BOOKABLE_GROOMER_IDS.includes(a.groomerId)) continue;
+      const bucket = next[a.groomerId] ?? {};
+      bucket[a.date] = [...a.times];
+      next[a.groomerId] = bucket;
     }
     setRows(next);
     setLoading(false);
@@ -114,11 +134,9 @@ export default function TeamAvailabilityCalendar({
       <div className="site-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex flex-wrap gap-4 text-sm font-semibold">
-            {GROOMER_IDS.map((id) => (
+            {BOOKABLE_GROOMER_IDS.map((id) => (
               <span key={id} className="flex items-center gap-2 text-gray-700">
-                <span
-                  className={`w-3 h-3 rounded-full ${id === "melanie" ? "bg-brand" : "bg-accent"}`}
-                />
+                <span className={`w-3 h-3 rounded-full ${groomerDotClass(id, false)}`} />
                 {GROOMERS[id].name}
               </span>
             ))}
@@ -170,15 +188,11 @@ export default function TeamAvailabilityCalendar({
             }
 
             const isPast = date < today;
-            const melanieBlocks = isPast
-              ? []
-              : listBookingBlockStarts(rows.melanie[date] ?? []);
-            const diamondBlocks = isPast
-              ? []
-              : listBookingBlockStarts(rows.diamond[date] ?? []);
-            const melanieHours = melanieBlocks.length;
-            const diamondHours = diamondBlocks.length;
-            const hasAny = melanieHours > 0 || diamondHours > 0;
+            const blockCounts = BOOKABLE_GROOMER_IDS.map((id) => ({
+              id,
+              blocks: isPast ? [] : listBookingBlockStarts(rows[id]?.[date] ?? []),
+            }));
+            const hasAny = blockCounts.some((g) => g.blocks.length > 0);
             const isSelected = date === selectedDate;
             const isToday = date === today;
 
@@ -200,17 +214,14 @@ export default function TeamAvailabilityCalendar({
               >
                 <span>{Number(date.slice(8, 10))}</span>
                 <div className="flex gap-1">
-                  {melanieHours > 0 && (
-                    <span
-                      className={`w-2 h-2 rounded-full ${isSelected ? "bg-white" : "bg-brand"}`}
-                      title={`Melanie: ${melanieHours} block${melanieHours === 1 ? "" : "s"}`}
-                    />
-                  )}
-                  {diamondHours > 0 && (
-                    <span
-                      className={`w-2 h-2 rounded-full ${isSelected ? "bg-accent-hot" : "bg-accent"}`}
-                      title={`Diamond: ${diamondHours} block${diamondHours === 1 ? "" : "s"}`}
-                    />
+                  {blockCounts.map(({ id, blocks }) =>
+                    blocks.length > 0 ? (
+                      <span
+                        key={id}
+                        className={`w-2 h-2 rounded-full ${groomerDotClass(id, isSelected)}`}
+                        title={`${GROOMERS[id].name}: ${blocks.length} block${blocks.length === 1 ? "" : "s"}`}
+                      />
+                    ) : null
                   )}
                 </div>
               </button>
@@ -218,24 +229,24 @@ export default function TeamAvailabilityCalendar({
           })}
         </div>
 
-        <p className="text-xs text-gray-500 mt-4">
-          Blue dot = Melanie · Pink dot = Diamond. Click a day for hour details.
-        </p>
+        {legendText ? (
+          <p className="text-xs text-gray-500 mt-4">{legendText}. Click a day for hour details.</p>
+        ) : (
+          <p className="text-xs text-gray-500 mt-4">No groomers are accepting bookings.</p>
+        )}
       </div>
 
       <div className="site-card p-6 lg:sticky lg:top-8 space-y-6">
         {selectedDate && selectedDate >= today ? (
           <>
             <h3 className="text-lg font-bold text-brand">{formatDateLabel(selectedDate)}</h3>
-            {GROOMER_IDS.map((id) => {
-              const times = rows[id][selectedDate];
+            {BOOKABLE_GROOMER_IDS.map((id) => {
+              const times = rows[id]?.[selectedDate];
               const active = Boolean(times?.length);
               return (
                 <div key={id}>
                   <h4 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full ${id === "melanie" ? "bg-brand" : "bg-accent"}`}
-                    />
+                    <span className={`w-2.5 h-2.5 rounded-full ${groomerDotClass(id, false)}`} />
                     {GROOMERS[id].name}
                   </h4>
                   {active ? (
@@ -243,11 +254,7 @@ export default function TeamAvailabilityCalendar({
                       {listBookingBlockStarts(times!).map((blockStart) => (
                         <span
                           key={blockStart}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                            id === "melanie"
-                              ? "bg-brand/10 text-brand border-brand/30"
-                              : "bg-accent/10 text-brand border-accent/30"
-                          }`}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${groomerChipClass(id)}`}
                         >
                           {formatBookingBlockDisplay(blockStart)}
                         </span>

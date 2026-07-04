@@ -5,11 +5,16 @@ import type {
 } from "./types";
 import type { GroomerId } from "./types";
 import { isGroomerFullyBooked } from "./capacity";
-import { GROOMERS, formatSelfBookingSlotDisplay, groomerClientDisplayName } from "./groomers";
+import {
+  BOOKABLE_GROOMER_IDS,
+  formatSelfBookingSlotDisplay,
+  groomerAcceptsBookings,
+  groomerClientDisplayName,
+} from "./groomers";
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
 
-const ACTIVE_GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
+const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
 /** Pacific Time ISO string for Orange County appointments */
 export function slotToISO(date: string, time: string): string {

@@ -10,6 +10,8 @@ export const GROOMERS: Record<
     clientName?: string;
     email: string;
     calendarEmail: string;
+    /** When false, excluded from public booking and team availability calendars. */
+    acceptsBookings?: boolean;
   }
 > = {
   melanie: {
@@ -17,6 +19,7 @@ export const GROOMERS: Record<
     name: "Melanie",
     email: "melanie@mobiledog-salon.com",
     calendarEmail: "melanie@mobiledog-salon.com",
+    acceptsBookings: false,
   },
   diamond: {
     id: "diamond",
@@ -95,6 +98,18 @@ export function formatDisplayTime(time24: string): string {
 
 export function groomerName(id: GroomerId): string {
   return GROOMERS[id].name;
+}
+
+export function groomerAcceptsBookings(id: GroomerId): boolean {
+  return GROOMERS[id].acceptsBookings !== false;
+}
+
+export const BOOKABLE_GROOMER_IDS = (Object.keys(GROOMERS) as GroomerId[]).filter(
+  groomerAcceptsBookings
+);
+
+export function defaultBookableGroomerId(): GroomerId {
+  return BOOKABLE_GROOMER_IDS[0] ?? "diamond";
 }
 
 /** Client-facing booking calendar and confirmation copy. */

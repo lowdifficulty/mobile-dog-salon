@@ -16,7 +16,7 @@ const ADMIN_PASSWORD_HASH =
 const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
   melanie:
     process.env.SCHEDULING_PASSWORD_HASH_MELANIE ??
-    "$2b$10$bPTNR36A.miiCUieYHGYVOU6OctrQSV1/kBi8xVhJQMH34os8xW56",
+    "$2b$10$DUgCSuhis4Mn5iuNMJspBeLS4U6SQuNpbJtNsp48YZYl6MOsV1Bve",
   diamond:
     process.env.SCHEDULING_PASSWORD_HASH_DIAMOND ??
     "$2b$10$fIgTTqJ.fh5P.dS.zHmOw.2K7z8npBMCk6OaXHAUN6YSAlp70tWP.",

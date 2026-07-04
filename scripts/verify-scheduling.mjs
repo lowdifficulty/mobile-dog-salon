@@ -6,7 +6,7 @@
 
 const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const MELANIE_EMAIL = "melanie@mobiledog-salon.com";
-const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
+const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Lick2026!!!";
 const TEST_DATE = process.env.SCHEDULING_TEST_DATE || "2026-07-15";
 const TEST_TIMES = ["09:00", "10:00", "11:00"];
 
@@ -113,11 +113,11 @@ async function main() {
   const melanieSlots = (publicSlots.json?.slots ?? []).filter(
     (s) => s.groomerId === "melanie"
   );
-  if (melanieSlots.length < 1) {
-    failures.push("booking form slots");
-    console.error("FAIL public slots", publicSlots.json);
+  if (melanieSlots.length > 0) {
+    failures.push("melanie should not appear on public booking calendar");
+    console.error("FAIL Melanie still has public slots", melanieSlots);
   } else {
-    console.log(`OK   booking form shows ${melanieSlots.length} Melanie slot(s)`);
+    console.log("OK   Melanie excluded from public booking calendar");
   }
 
   const relogin = await request("/api/auth/login", {

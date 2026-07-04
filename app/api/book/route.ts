@@ -11,7 +11,7 @@ import {
 } from "@/lib/scheduling/slots";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
-import { isAllowedBookingBlockStart } from "@/lib/scheduling/groomers";
+import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
@@ -93,6 +93,13 @@ async function handleBookPost(request: Request) {
     ({ groomerId, date, time } = parseSlotKey(slotKey));
   } catch {
     return NextResponse.json({ error: "Invalid slot" }, { status: 400 });
+  }
+
+  if (!groomerAcceptsBookings(groomerId)) {
+    return NextResponse.json(
+      { error: "That groomer is not accepting new bookings" },
+      { status: 409 }
+    );
   }
 
   if (!isBookableDate(date)) {

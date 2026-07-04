@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { GroomerId } from "@/lib/scheduling/types";
-import { GROOMERS } from "@/lib/scheduling/groomers";
+import { GROOMERS, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 
 export default function SendToGroomerButton({
   type,
@@ -23,7 +23,7 @@ export default function SendToGroomerButton({
   const [error, setError] = useState("");
 
   const targets = (Object.keys(GROOMERS) as GroomerId[]).filter(
-    (id) => id !== currentGroomerId
+    (id) => id !== currentGroomerId && groomerAcceptsBookings(id)
   );
 
   if (targets.length === 0) return null;

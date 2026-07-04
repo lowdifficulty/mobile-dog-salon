@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BOOKING_BLOCK_STARTS,
+  BOOKABLE_GROOMER_IDS,
   formatBookingBlockDisplay,
   GROOMERS,
 } from "@/lib/scheduling/groomers";
@@ -78,7 +79,7 @@ export default function StaffDateTimePicker({
             onChange={(e) => onSelectGroomer(e.target.value as GroomerId)}
             className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm"
           >
-            {(Object.keys(GROOMERS) as GroomerId[]).map((id) => (
+            {BOOKABLE_GROOMER_IDS.map((id) => (
               <option key={id} value={id}>
                 {GROOMERS[id].name}
               </option>

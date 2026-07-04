@@ -1,5 +1,6 @@
 import "server-only";
 
+import { groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { buildFallbackRangeDays } from "@/lib/scheduling/fallback-availability";
 import { getBlockedSlotKeys } from "@/lib/scheduling/slot-holds";
 import { getSchedulingPersistenceStatus } from "@/lib/scheduling/store";
@@ -17,7 +18,9 @@ function sanitizeDays(days: number | undefined): number {
 
 function sanitizeGroomerId(raw: string | undefined): "melanie" | "diamond" | undefined {
   const id = raw?.trim().toLowerCase();
-  if (id === "melanie" || id === "diamond") return id;
+  if (id === "melanie" || id === "diamond") {
+    return groomerAcceptsBookings(id) ? id : undefined;
+  }
   return undefined;
 }
 

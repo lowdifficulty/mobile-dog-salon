@@ -5,7 +5,7 @@ import AppointmentList from "./AppointmentList";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import TeamAvailabilityCalendar from "./TeamAvailabilityCalendar";
 import AvailabilityHistoryPanel from "./AvailabilityHistoryPanel";
-import { GROOMERS } from "@/lib/scheduling/groomers";
+import { GROOMERS, defaultBookableGroomerId, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 type TeamTab = "calendar" | "history" | "upcoming" | "past";
@@ -92,7 +92,11 @@ export default function TeamCalendarPanel({
       {tab === "upcoming" && (
         <>
           <StaffBookAppointmentForm
-            defaultGroomerId={groomerId === "all" ? "melanie" : groomerId}
+            defaultGroomerId={
+              groomerId === "all" || !groomerAcceptsBookings(groomerId)
+                ? defaultBookableGroomerId()
+                : groomerId
+            }
             allowGroomerPick={groomerId === "all"}
             onBooked={() => {
               setAppointmentRefreshKey((key) => key + 1);

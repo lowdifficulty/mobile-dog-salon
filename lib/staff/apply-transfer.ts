@@ -1,6 +1,6 @@
 import "server-only";
 
-import { GROOMERS } from "@/lib/scheduling/groomers";
+import { GROOMERS, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { transferAppointmentToGroomer } from "@/lib/scheduling/appointment-actions";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { updateLeadFields, getLeadById, getLeadByAppointmentId } from "@/lib/leads/store";
@@ -76,6 +76,6 @@ export function staffTransferTargets(
   currentGroomerId?: GroomerId
 ): { id: GroomerId; name: string }[] {
   return (Object.keys(GROOMERS) as GroomerId[])
-    .filter((id) => id !== currentGroomerId)
+    .filter((id) => id !== currentGroomerId && groomerAcceptsBookings(id))
     .map((id) => ({ id, name: GROOMERS[id].name }));
 }

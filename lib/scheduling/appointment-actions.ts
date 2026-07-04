@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
-import { isAllowedBookingBlockStart } from "@/lib/scheduling/groomers";
+import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
@@ -116,6 +116,14 @@ export async function createAppointment(
   }
 
   const { groomerId, date, time } = resolved;
+
+  if (!groomerAcceptsBookings(groomerId)) {
+    return {
+      ok: false,
+      error: "That groomer is not accepting new bookings.",
+      status: 409,
+    };
+  }
 
   if (!isAllowedBookingBlockStart(time)) {
     return {
@@ -392,6 +400,14 @@ export async function transferAppointmentToGroomer(
   }
   if (appointment.groomerId === toGroomerId) {
     return { ok: true, appointment };
+  }
+
+  if (!groomerAcceptsBookings(toGroomerId)) {
+    return {
+      ok: false,
+      error: "That groomer is not accepting new bookings.",
+      status: 409,
+    };
   }
 
   const { date, time } = parseSlotFromIso(appointment.startAt);

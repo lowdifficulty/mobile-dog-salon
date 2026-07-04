@@ -20,7 +20,11 @@ import {
   DOG_SERVICE_PACKAGES,
 } from "@/lib/booking/dog-service-packages";
 import { parseSlotKey, slotToISO, getTodayPacificDate, isBookableDate } from "@/lib/scheduling/slots";
-import { formatBookingBlockDisplay, groomerClientDisplayName } from "@/lib/scheduling/groomers";
+import {
+  defaultBookableGroomerId,
+  formatBookingBlockDisplay,
+  groomerClientDisplayName,
+} from "@/lib/scheduling/groomers";
 import {
   isValidBookingContact,
 } from "@/lib/scheduling/address";
@@ -172,7 +176,7 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
   };
 
   const handleSkipAppointmentStep = () => {
-    const groomerId = groomerFilter ?? "melanie";
+    const groomerId = groomerFilter ?? defaultBookableGroomerId();
     const date = getDevSkipBookableDate();
     const time = "10:00";
     const slotKey = `${groomerId}|${date}|${time}`;

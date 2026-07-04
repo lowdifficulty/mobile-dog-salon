@@ -15,7 +15,11 @@ import BookingOptionButton from "@/components/booking/BookingOptionButton";
 import BookingOptionList from "@/components/booking/BookingOptionList";
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
-import { formatBookingBlockDisplay, groomerClientDisplayName } from "@/lib/scheduling/groomers";
+import {
+  defaultBookableGroomerId,
+  formatBookingBlockDisplay,
+  groomerClientDisplayName,
+} from "@/lib/scheduling/groomers";
 import { isValidBookingContact } from "@/lib/scheduling/address";
 import type { CalendarEventDetails } from "@/lib/calendar-links";
 import { pingLeadActivity, saveLead, type SaveLeadPayload } from "@/lib/leads/client";
@@ -154,7 +158,7 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
   };
 
   const handleSkipAppointmentStep = () => {
-    const groomerId = "melanie";
+    const groomerId = defaultBookableGroomerId();
     const date = getDevSkipBookableDate();
     const time = "10:00";
     const slotKey = `${groomerId}|${date}|${time}`;

@@ -4,6 +4,7 @@ import {
   loginAdmin,
   loginGroomer,
 } from "@/lib/scheduling/auth";
+import { appendStaffLoginLog } from "@/lib/staff/login-log";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -43,6 +44,12 @@ export async function POST(request: Request) {
   const session = await getSession();
   session.user = user;
   await session.save();
+
+  const loginIdentifier =
+    role === "admin" ? email!.trim().toLowerCase() : (username ?? "").toLowerCase();
+  appendStaffLoginLog({ user, loginIdentifier, request }).catch((err) => {
+    console.error("Staff login log failed:", err);
+  });
 
   return NextResponse.json({ success: true, user });
 }

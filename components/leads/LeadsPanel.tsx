@@ -608,8 +608,8 @@ export default function LeadsPanel({
         ? "No upcoming scheduled appointments."
         : view === "complete"
           ? contactsLayout
-            ? "No customers for today or past visits yet."
-            : "No completed visits yet. Past appointments appear here after their scheduled time."
+            ? "No customers yet. Visits move here one hour after their appointment start time."
+            : "No completed visits yet. Appointments move here one hour after their start time."
           : "No leads in cold storage.";
 
   return (

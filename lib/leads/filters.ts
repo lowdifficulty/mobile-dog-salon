@@ -1,6 +1,6 @@
 import { normalizePhone } from "./normalize";
+import { isStaffUpcomingAppointment } from "@/lib/scheduling/appointment-filters";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
-import { getTodayPacificDate } from "@/lib/scheduling/slots";
 import { funnelStepOrder, type Lead, type LeadFunnelStep } from "./types";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -83,23 +83,32 @@ export function isBookedVisitLead(lead: {
   return true;
 }
 
-/** Customers tab: today's calendar visits and past appointments (no completion action required). */
-export function isCustomerVisitLead(lead: Lead): boolean {
+/** Customers tab: visits at least 1 hour after appointment start (see STAFF_UPCOMING_GRACE_MS). */
+export function isCustomerVisitLead(lead: Lead, now: Date = new Date()): boolean {
   const normalized = withLeadDefaults(lead);
   if (!hasValidLeadPhone(normalized)) return false;
   if (isBookedVisitLead(normalized)) {
-    return appointmentPacificDate(normalized.appointmentStartAt!) <= getTodayPacificDate();
+    if (!normalized.appointmentStartAt) return false;
+    return !isStaffUpcomingAppointment(
+      { startAt: normalized.appointmentStartAt, status: "confirmed" },
+      now
+    );
   }
   return isCompletedVisitLead(normalized);
 }
 
-export function isScheduledLead(lead: {
-  funnelStep: LeadFunnelStep;
-  appointmentStartAt?: string;
-}): boolean {
-  if (!isBookedVisitLead(lead)) return false;
-  if (isAppointmentInProgress(lead)) return false;
-  return appointmentPacificDate(lead.appointmentStartAt!) > getTodayPacificDate();
+export function isScheduledLead(
+  lead: {
+    funnelStep: LeadFunnelStep;
+    appointmentStartAt?: string;
+  },
+  now: Date = new Date()
+): boolean {
+  if (!isBookedVisitLead(lead) || !lead.appointmentStartAt) return false;
+  return isStaffUpcomingAppointment(
+    { startAt: lead.appointmentStartAt, status: "confirmed" },
+    now
+  );
 }
 
 /** Picked a slot but did not complete booking — may still have address without phone. */
@@ -110,11 +119,7 @@ export function isAbandonedLead(lead: {
   phone?: string;
 }): boolean {
   if (isScheduledLead(lead)) return false;
-  if (
-    isBookedVisitLead(lead) &&
-    normalizePhone(lead.phone ?? "").length >= 10 &&
-    appointmentPacificDate(lead.appointmentStartAt!) <= getTodayPacificDate()
-  ) {
+  if (isBookedVisitLead(lead) && normalizePhone(lead.phone ?? "").length >= 10) {
     return false;
   }
   if (isCompletedVisitLead(lead)) return false;

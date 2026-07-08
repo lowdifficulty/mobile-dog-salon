@@ -113,28 +113,28 @@ export const VAN_FEATURES = [
 export const SERVICE_PACKAGES = [
   {
     name: "Signature Spa Package",
-    price: "From $100",
+    price: "From $120",
     description: "Our most popular full-service groom — bath, blow dry, brush out, ears, nails, and more.",
     features: ["Warm filtered bath", "All-natural shampoo & conditioner", "Hand blow dry", "Gentle brush out", "Ear cleaning", "Nail trim & file", "Teeth brushing"],
     href: ROUTES.mobileSpa,
   },
   {
     name: "Bath & Brush",
-    price: "From $70",
+    price: "From $90",
     description: "Perfect for regular maintenance between full grooms.",
     features: ["Warm bath", "Blow dry", "Brush out", "Ear cleaning", "Nail trim available"],
     href: ROUTES.bathing,
   },
   {
     name: "Full Groom with Haircut",
-    price: "From $110",
+    price: "From $130",
     description: "Complete groom with breed-specific or custom haircut styling.",
     features: ["Everything in Signature", "Breed-specific haircut", "Sanitary trim", "Paw pad trim"],
     href: ROUTES.mobileSpa,
   },
   {
     name: "Nail Trim Only",
-    price: "From $35",
+    price: "From $55",
     description: "Quick, calm nail care at your curb.",
     features: ["Nail trim & file", "Paw pad check", "One-on-one session"],
     href: ROUTES.nails,
@@ -251,7 +251,7 @@ export const SERVICE_CONTENT = {
       { question: "What is included in a full spa groom?", answer: "Bath, blow dry, brush out, ear cleaning, nail trim, and breed-specific haircut as requested. Teeth brushing is included in our Signature packages." },
       { question: "Do you groom cats?", answer: "Yes — we offer gentle mobile grooming for cats as well as dogs. Let us know when booking." },
       { question: "How long does a session take?", answer: "Most full grooms run 60–90 minutes depending on size, coat condition, and temperament." },
-      { question: "How much does a full groom cost?", answer: "Pricing typically ranges from $120–$350+ based on size, breed, and coat. Book online or call for your pup's exact quote." },
+      { question: "How much does a full groom cost?", answer: "Pricing typically ranges from $140–$370+ based on size, breed, and coat. Book online or call for your pup's exact quote." },
     ],
   },
   bathing: {

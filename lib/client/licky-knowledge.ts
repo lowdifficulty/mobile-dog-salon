@@ -70,7 +70,7 @@ export function buildLickyKnowledgeBlock(): string {
     "",
     "DOG GROOMING PRICES (USD, list vs ~50% discount)",
     ...priceRows,
-    "- Cat grooming: Cat Bath ~$200 list / ~$100 discounted; Cat Haircut ~$260 list / ~$130 discounted.",
+    "- Cat grooming: Cat Bath ~$220 list / ~$110 discounted; Cat Haircut ~$280 list / ~$140 discounted.",
     "- Clients with 'discount locked in' on their account keep the ~50% rate on future dog grooming visits.",
     "",
     "SERVICES",

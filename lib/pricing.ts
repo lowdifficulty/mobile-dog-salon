@@ -44,8 +44,8 @@ export const CAT_GROOMING_SERVICES = [
 
 /** List prices before the 50% discount */
 export const CAT_SERVICE_LIST_PRICING: Record<CatServiceId, number> = {
-  "cat-bath": 200,
-  "cat-groom": 260,
+  "cat-bath": 220,
+  "cat-groom": 280,
 };
 
 export function isCatService(service: string): boolean {
@@ -71,16 +71,16 @@ export const SERVICE_PRICING: Record<
   Record<GroomingServiceId, number>
 > = {
   small: {
-    "full-groom": 90,
-    "bath-brush": 70,
-  },
-  medium: {
-    "full-groom": 100,
-    "bath-brush": 80,
-  },
-  large: {
     "full-groom": 110,
     "bath-brush": 90,
+  },
+  medium: {
+    "full-groom": 120,
+    "bath-brush": 100,
+  },
+  large: {
+    "full-groom": 130,
+    "bath-brush": 110,
   },
 };
 

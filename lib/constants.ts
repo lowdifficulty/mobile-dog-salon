@@ -80,7 +80,7 @@ export const FAQS = [
   {
     question: "How much does Mobile Dog Salon cost?",
     answer:
-      "Price varies based on your dog's size, breed, coat condition, and the service you select. Services typically range from $120–$350+. Book online or call us for your pup's exact cost.",
+      "Price varies based on your dog's size, breed, coat condition, and the service you select. Services typically range from $140–$370+. Book online or call us for your pup's exact cost.",
   },
   {
     question: "Does Mobile Dog Salon service my area?",
@@ -97,6 +97,6 @@ export const PET_SIZES = [
 
 /** @deprecated Use GROOMING_SERVICES from lib/pricing.ts for booking */
 export const SERVICE_OPTIONS = [
-  { value: "full-groom", label: "Full Groom and Haircut", price: "From $90" },
-  { value: "bath-brush", label: "Bath & Brush", price: "From $70" },
+  { value: "full-groom", label: "Full Groom and Haircut", price: "From $110" },
+  { value: "bath-brush", label: "Bath & Brush", price: "From $90" },
 ];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import AvailabilityEditor from "./AvailabilityEditor";
 import VanCapacityOverview from "./VanCapacityOverview";
 import { GROOMERS } from "@/lib/scheduling/groomers";
@@ -16,7 +16,19 @@ export default function StaffShiftsPanel({
   defaultGroomerId?: GroomerId;
 }) {
   const [groomerId, setGroomerId] = useState<GroomerId>(defaultGroomerId);
-  const [editorKey, setEditorKey] = useState(0);
+  const [overviewKey, setOverviewKey] = useState(0);
+  const [addShiftRequest, setAddShiftRequest] = useState<{
+    date: string;
+    time: string;
+    id: number;
+  } | null>(null);
+  const [pendingSlotKeys, setPendingSlotKeys] = useState<string[]>([]);
+
+  const handleAddTimeslot = useCallback((date: string, time: string) => {
+    const key = `${date}|${time}`;
+    setPendingSlotKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    setAddShiftRequest({ date, time, id: Date.now() });
+  }, []);
 
   return (
     <div>
@@ -25,7 +37,7 @@ export default function StaffShiftsPanel({
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
             1 van fleet — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
-            Allocate coverage from existing appointments, then edit per groomer below.
+            Use + on an available timeslot (or select below), then Save shifts to lock it in.
           </p>
         </div>
         <label className="block">
@@ -34,7 +46,11 @@ export default function StaffShiftsPanel({
           </span>
           <select
             value={groomerId}
-            onChange={(e) => setGroomerId(e.target.value as GroomerId)}
+            onChange={(e) => {
+              setGroomerId(e.target.value as GroomerId);
+              setPendingSlotKeys([]);
+              setAddShiftRequest(null);
+            }}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand"
           >
             {GROOMER_IDS.map((id) => (
@@ -46,13 +62,23 @@ export default function StaffShiftsPanel({
         </label>
       </div>
 
-      <VanCapacityOverview onAllocated={() => setEditorKey((k) => k + 1)} />
+      <VanCapacityOverview
+        key={overviewKey}
+        pendingSlotKeys={pendingSlotKeys}
+        onAddTimeslot={handleAddTimeslot}
+      />
 
       <AvailabilityEditor
-        key={`${groomerId}-${editorKey}`}
+        key={groomerId}
         apiBase={`${apiBase}?groomerId=${groomerId}&edit=1`}
         groomerId={groomerId}
         includeGroomerIdInSave
+        addShiftRequest={addShiftRequest}
+        onSaved={() => {
+          setPendingSlotKeys([]);
+          setAddShiftRequest(null);
+          setOverviewKey((k) => k + 1);
+        }}
       />
     </div>
   );

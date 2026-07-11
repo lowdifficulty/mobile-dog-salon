@@ -63,12 +63,17 @@ export default function AvailabilityEditor({
   groomerId,
   readOnly = false,
   includeGroomerIdInSave = false,
+  addShiftRequest = null,
+  onSaved,
 }: {
   apiBase: string;
   groomerId?: GroomerId;
   readOnly?: boolean;
   /** When true, PUT body includes groomerId (staff/admin APIs). */
   includeGroomerIdInSave?: boolean;
+  /** External request to enable a shift (e.g. + on available timeslots). */
+  addShiftRequest?: { date: string; time: string; id: number } | null;
+  onSaved?: () => void;
 }) {
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
@@ -131,6 +136,35 @@ export default function AvailabilityEditor({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!addShiftRequest || readOnly) return;
+    const { date, time } = addShiftRequest;
+    if (date < today || date > maxDate) {
+      setMessage("That timeslot is outside the shift window.");
+      return;
+    }
+    if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(time)) {
+      setMessage("That timeslot is not a valid shift start.");
+      return;
+    }
+
+    setViewYear(Number(date.slice(0, 4)));
+    setViewMonth(Number(date.slice(5, 7)));
+    setSelectedDate(date);
+
+    setRows((prev) => {
+      const current = prev[date] ?? [];
+      if (isBookingBlockEnabled(current, time)) return prev;
+      return {
+        ...prev,
+        [date]: setBookingBlockEnabled(current, time, true),
+      };
+    });
+    setMessage(
+      `Added ${formatDisplayTime(time)} on ${formatDateLabel(date)} — click Save shifts to lock it in.`
+    );
+  }, [addShiftRequest, readOnly, today, maxDate]);
 
   function goMonth(delta: number) {
     if (delta < 0 && !canGoPrevMonth) return;
@@ -210,6 +244,7 @@ export default function AvailabilityEditor({
     if (res.ok) {
       setMessage("Shifts saved!");
       await load();
+      onSaved?.();
     } else {
       const data = await res.json().catch(() => ({}));
       const err =

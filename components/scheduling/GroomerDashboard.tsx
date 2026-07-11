@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
@@ -12,7 +12,43 @@ import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
 import VanCapacityOverview from "./VanCapacityOverview";
-import type { SessionUser } from "@/lib/scheduling/types";
+import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
+
+function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
+  const [overviewKey, setOverviewKey] = useState(0);
+  const [addShiftRequest, setAddShiftRequest] = useState<{
+    date: string;
+    time: string;
+    id: number;
+  } | null>(null);
+  const [pendingSlotKeys, setPendingSlotKeys] = useState<string[]>([]);
+
+  const handleAddTimeslot = useCallback((date: string, time: string) => {
+    const key = `${date}|${time}`;
+    setPendingSlotKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
+    setAddShiftRequest({ date, time, id: Date.now() });
+  }, []);
+
+  return (
+    <div>
+      <VanCapacityOverview
+        key={overviewKey}
+        pendingSlotKeys={pendingSlotKeys}
+        onAddTimeslot={handleAddTimeslot}
+      />
+      <AvailabilityEditor
+        apiBase="/api/groomer/availability"
+        groomerId={groomerId}
+        addShiftRequest={addShiftRequest}
+        onSaved={() => {
+          setPendingSlotKeys([]);
+          setAddShiftRequest(null);
+          setOverviewKey((k) => k + 1);
+        }}
+      />
+    </div>
+  );
+}
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
@@ -105,13 +141,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
             />
           )}
           {tab === "availability" && (
-            <div>
-              <VanCapacityOverview />
-              <AvailabilityEditor
-                apiBase="/api/groomer/availability"
-                groomerId={groomerId}
-              />
-            </div>
+            <GroomerShiftsTab groomerId={groomerId} />
           )}
         </DashboardErrorBoundary>
       </SchedulingShell>

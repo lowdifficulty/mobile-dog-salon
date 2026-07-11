@@ -14,18 +14,27 @@ type VanSummary = {
   conflictCount: number;
 };
 
+function slotKey(date: string, time: string): string {
+  return `${date}|${time}`;
+}
+
 export default function VanCapacityOverview({
   apiBase = "/api/staff/van-capacity",
-  onAllocated,
+  onAddTimeslot,
+  pendingSlotKeys = [],
 }: {
   apiBase?: string;
-  onAllocated?: () => void;
+  /** Add an open van timeslot to the shift calendar below (save to lock in). */
+  onAddTimeslot?: (date: string, time: string) => void;
+  /** Slots already queued in the editor but not saved yet. */
+  pendingSlotKeys?: string[];
 }) {
   const [summary, setSummary] = useState<VanSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [allocating, setAllocating] = useState(false);
   const [message, setMessage] = useState("");
   const [showAllAvailable, setShowAllAvailable] = useState(false);
+
+  const pending = new Set(pendingSlotKeys);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,31 +64,6 @@ export default function VanCapacityOverview({
     load();
   }, [load]);
 
-  async function allocateFromAppointments() {
-    setAllocating(true);
-    setMessage("");
-    const res = await fetch(apiBase, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "allocate-from-appointments" }),
-    });
-    setAllocating(false);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMessage(data.error ?? "Could not allocate shifts.");
-      return;
-    }
-    setMessage(data.message ?? "Shifts allocated from appointments.");
-    setSummary({
-      vanCount: data.vanCount,
-      availableTimeslots: data.availableTimeslots ?? [],
-      availableCount: data.availableCount ?? 0,
-      conflicts: data.conflicts ?? [],
-      conflictCount: data.conflictCount ?? 0,
-    });
-    onAllocated?.();
-  }
-
   if (loading) {
     return <p className="text-sm text-gray-500 mb-6">Loading van capacity…</p>;
   }
@@ -96,27 +80,6 @@ export default function VanCapacityOverview({
 
   return (
     <div className="mb-8 space-y-4">
-      <div className="site-card p-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Fleet</p>
-          <h3 className="text-lg font-bold text-brand mt-1">
-            {summary.vanCount} van · one visit at a time
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Shifts and bookings share a single van. Overlapping appointments across groomers are
-            conflicts.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={allocateFromAppointments}
-          disabled={allocating}
-          className="site-btn text-sm shrink-0"
-        >
-          {allocating ? "Allocating…" : "Allocate shifts from appointments"}
-        </button>
-      </div>
-
       {message && <p className="text-sm font-semibold text-brand">{message}</p>}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -127,19 +90,52 @@ export default function VanCapacityOverview({
               {summary.availableCount} open (next 30 days)
             </span>
           </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Open van slots (1 van). Use + to add a shift to the calendar below, then Save.
+          </p>
           {visibleSlots.length === 0 ? (
             <p className="text-sm text-gray-500">No open van timeslots in the next 30 days.</p>
           ) : (
             <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
-              {visibleSlots.map((slot) => (
-                <li
-                  key={`${slot.date}|${slot.time}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-sm"
-                >
-                  <span className="font-semibold text-brand">{slot.displayDate}</span>
-                  <span className="text-gray-600">{slot.displayTime}</span>
-                </li>
-              ))}
+              {visibleSlots.map((slot) => {
+                const key = slotKey(slot.date, slot.time);
+                const queued = pending.has(key);
+                return (
+                  <li
+                    key={key}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      <span className="font-semibold text-brand">{slot.displayDate}</span>
+                      <span className="text-gray-600">{slot.displayTime}</span>
+                    </div>
+                    {onAddTimeslot && (
+                      <button
+                        type="button"
+                        onClick={() => onAddTimeslot(slot.date, slot.time)}
+                        disabled={queued}
+                        title={
+                          queued
+                            ? "Added to calendar below — Save shifts to lock in"
+                            : "Add this shift to the calendar below"
+                        }
+                        aria-label={
+                          queued
+                            ? `Shift queued for ${slot.displayDate} ${slot.displayTime}`
+                            : `Add ${slot.displayDate} ${slot.displayTime} to calendar`
+                        }
+                        className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full border text-lg font-bold leading-none transition-colors ${
+                          queued
+                            ? "border-brand bg-brand text-white cursor-default"
+                            : "border-gray-200 bg-white text-brand hover:border-brand hover:bg-brand hover:text-white"
+                        }`}
+                      >
+                        {queued ? "✓" : "+"}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
           {summary.availableTimeslots.length > 16 && (
@@ -166,6 +162,9 @@ export default function VanCapacityOverview({
               {summary.conflictCount} conflict{summary.conflictCount === 1 ? "" : "s"}
             </span>
           </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Overlapping appointments that can’t both run with one van.
+          </p>
           {summary.conflicts.length === 0 ? (
             <p className="text-sm text-gray-500">
               No overlapping appointments — the van schedule is clear.

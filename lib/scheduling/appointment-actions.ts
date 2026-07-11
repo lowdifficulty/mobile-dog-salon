@@ -8,6 +8,7 @@ import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
   isBookableDate,
   isSlotTaken,
+  isVanSlotTaken,
   parseSlotFromIso,
   parseSlotKey,
   slotToISO,
@@ -173,6 +174,14 @@ export async function createAppointment(
 
   if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
     return { ok: false, error: "That time slot is no longer available", status: 409 };
+  }
+
+  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+    return {
+      ok: false,
+      error: "The van is already booked at that time (1 van — only one visit at a time).",
+      status: 409,
+    };
   }
 
   const slotKeyForHold = input.slotKey ?? `${groomerId}|${date}|${time}`;
@@ -358,6 +367,22 @@ export async function rescheduleAppointment(
     )
   ) {
     return { ok: false, error: "That time slot is no longer available", status: 409 };
+  }
+
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      BOOKING_DURATION_MINUTES,
+      data.appointments,
+      appointment.id
+    )
+  ) {
+    return {
+      ok: false,
+      error: "The van is already booked at that time (1 van — only one visit at a time).",
+      status: 409,
+    };
   }
 
   appointment.groomerId = groomerId;

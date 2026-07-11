@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AvailabilityEditor from "./AvailabilityEditor";
+import VanCapacityOverview from "./VanCapacityOverview";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 
@@ -15,6 +16,7 @@ export default function StaffShiftsPanel({
   defaultGroomerId?: GroomerId;
 }) {
   const [groomerId, setGroomerId] = useState<GroomerId>(defaultGroomerId);
+  const [editorKey, setEditorKey] = useState(0);
 
   return (
     <div>
@@ -22,8 +24,8 @@ export default function StaffShiftsPanel({
         <div>
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Choose which 3-hour shifts each groomer works — any day of the week, up to 3 months
-            ahead. Shifts: 8 AM, 11 AM, 2 PM, 5 PM.
+            1 van fleet — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
+            Allocate coverage from existing appointments, then edit per groomer below.
           </p>
         </div>
         <label className="block">
@@ -44,8 +46,10 @@ export default function StaffShiftsPanel({
         </label>
       </div>
 
+      <VanCapacityOverview onAllocated={() => setEditorKey((k) => k + 1)} />
+
       <AvailabilityEditor
-        key={groomerId}
+        key={`${groomerId}-${editorKey}`}
         apiBase={`${apiBase}?groomerId=${groomerId}&edit=1`}
         groomerId={groomerId}
         includeGroomerIdInSave

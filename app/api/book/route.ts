@@ -6,6 +6,7 @@ import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store"
 import {
   isBookableDate,
   isSlotTaken,
+  isVanSlotTaken,
   parseSlotKey,
   slotToISO,
 } from "@/lib/scheduling/slots";
@@ -137,6 +138,13 @@ async function handleBookPost(request: Request) {
 
   if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
     return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
+  }
+
+  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+    return NextResponse.json(
+      { error: "The van is already booked at that time (1 van — only one visit at a time)." },
+      { status: 409 }
+    );
   }
 
   const holdOwnerId = await getOrCreateHoldOwnerId();

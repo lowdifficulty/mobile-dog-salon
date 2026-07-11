@@ -11,6 +11,7 @@ import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
+import VanCapacityOverview from "./VanCapacityOverview";
 import type { SessionUser } from "@/lib/scheduling/types";
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
@@ -104,10 +105,13 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
             />
           )}
           {tab === "availability" && (
-            <AvailabilityEditor
-              apiBase="/api/groomer/availability"
-              groomerId={groomerId}
-            />
+            <div>
+              <VanCapacityOverview />
+              <AvailabilityEditor
+                apiBase="/api/groomer/availability"
+                groomerId={groomerId}
+              />
+            </div>
           )}
         </DashboardErrorBoundary>
       </SchedulingShell>

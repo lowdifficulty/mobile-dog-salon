@@ -1,10 +1,3 @@
-import type {
-  Appointment,
-  AvailabilityDay,
-  AvailableSlot,
-} from "./types";
-import type { GroomerId } from "./types";
-import { isGroomerFullyBooked } from "./capacity";
 import {
   BOOKABLE_GROOMER_IDS,
   formatSelfBookingSlotDisplay,
@@ -13,6 +6,16 @@ import {
 } from "./groomers";
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
+import { isGroomerFullyBooked } from "./capacity";
+import type {
+  Appointment,
+  AvailabilityDay,
+  AvailableSlot,
+  GroomerId,
+} from "./types";
+
+/** Fleet size — only this many appointments can run at the same time. */
+export const VAN_COUNT = 1;
 
 const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
@@ -58,6 +61,34 @@ export function isSlotTaken(
   });
 }
 
+/** True if the van fleet already has a visit overlapping this window (any groomer). */
+export function isVanSlotTaken(
+  date: string,
+  time: string,
+  durationMinutes: number,
+  appointments: Appointment[],
+  excludeAppointmentId?: string
+): boolean {
+  const start = parsePacificDateTime(date, time);
+  const end = new Date(
+    start.getTime() + appointmentBlockMinutes(durationMinutes) * 60 * 1000
+  );
+
+  let overlapping = 0;
+  for (const ap of appointments) {
+    if (ap.id === excludeAppointmentId) continue;
+    if (ap.status === "cancelled") continue;
+    const apStart = new Date(ap.startAt);
+    const apEnd = new Date(
+      apStart.getTime() + appointmentBlockMinutes(ap.durationMinutes) * 60 * 1000
+    );
+    if (!overlaps(start, end, apStart, apEnd)) continue;
+    overlapping += 1;
+    if (overlapping >= VAN_COUNT) return true;
+  }
+  return false;
+}
+
 export function getAvailableSlotsForDate(
   date: string,
   availability: AvailabilityDay[],
@@ -75,7 +106,8 @@ export function getAvailableSlotsForDate(
     if (isGroomerFullyBooked(day.groomerId, date, appointments)) continue;
 
     const blockStarts = listSelfBookingStarts(day.times, (time) =>
-      isSlotTaken(day.groomerId, date, time, duration, appointments)
+      isSlotTaken(day.groomerId, date, time, duration, appointments) ||
+      isVanSlotTaken(date, time, duration, appointments)
     );
 
     for (const time of blockStarts) {
@@ -109,7 +141,8 @@ export function getDatesWithAvailability(
     const hasSlot = listSelfBookingStarts(
       day.times,
       (time) =>
-        isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments)
+        isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments) ||
+        isVanSlotTaken(day.date, time, BOOKING_DURATION_MINUTES, appointments)
     ).length > 0;
     if (hasSlot) dates.add(day.date);
   }

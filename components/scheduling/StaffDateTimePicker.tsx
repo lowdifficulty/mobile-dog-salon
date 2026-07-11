@@ -8,7 +8,7 @@ import {
   GROOMERS,
 } from "@/lib/scheduling/groomers";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
-import { getTodayPacificDate, isSlotTaken } from "@/lib/scheduling/slots";
+import { getTodayPacificDate, isSlotTaken, isVanSlotTaken } from "@/lib/scheduling/slots";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export function buildSlotKey(groomerId: GroomerId, date: string, time: string): string {
@@ -56,15 +56,23 @@ export default function StaffDateTimePicker({
   const takenBlocks = useMemo(() => {
     if (!selectedDate) return new Set<string>();
     return new Set(
-      BOOKING_BLOCK_STARTS.filter((time) =>
-        isSlotTaken(
-          groomerId,
-          selectedDate,
-          time,
-          BOOKING_DURATION_MINUTES,
-          appointments,
-          excludeAppointmentId
-        )
+      BOOKING_BLOCK_STARTS.filter(
+        (time) =>
+          isSlotTaken(
+            groomerId,
+            selectedDate,
+            time,
+            BOOKING_DURATION_MINUTES,
+            appointments,
+            excludeAppointmentId
+          ) ||
+          isVanSlotTaken(
+            selectedDate,
+            time,
+            BOOKING_DURATION_MINUTES,
+            appointments,
+            excludeAppointmentId
+          )
       )
     );
   }, [appointments, excludeAppointmentId, groomerId, selectedDate]);

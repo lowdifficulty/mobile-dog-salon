@@ -10,11 +10,13 @@ import LeadsPanel from "@/components/leads/LeadsPanel";
 import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
 import LickyTrainingPanel from "./LickyTrainingPanel";
 import StaffLoginLogPanel from "./StaffLoginLogPanel";
+import StaffShiftsPanel from "./StaffShiftsPanel";
 
 type Tab =
   | "contacts"
   | "analytics"
   | "team-calendar"
+  | "shifts"
   | "qa"
   | "payments"
   | "licky"
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
     { id: "contacts", label: "Contacts" },
     { id: "analytics", label: "Analytics" },
     { id: "team-calendar", label: "Team calendar" },
+    { id: "shifts", label: "Shifts" },
     { id: "qa", label: "QA" },
     { id: "payments", label: "Payments Beta" },
     { id: "licky", label: "Licky bot" },
@@ -43,7 +46,7 @@ export default function AdminDashboard() {
   return (
     <SchedulingShell
       title="Admin dashboard"
-      subtitle="Contacts, analytics, team calendar, QA, payments, and staff logins."
+      subtitle="Contacts, analytics, team calendar, shifts, QA, payments, and staff logins."
       onLogout={logout}
     >
       <div className="flex flex-wrap gap-2 mb-8">
@@ -70,6 +73,7 @@ export default function AdminDashboard() {
       {tab === "team-calendar" && (
         <TeamCalendarPanel availabilityApi="/api/staff/availability" />
       )}
+      {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
       {tab === "qa" && <QaDiagnosticsPanel />}
       {tab === "payments" && <StaffPaymentsPanel />}
       {tab === "licky" && <LickyTrainingPanel />}

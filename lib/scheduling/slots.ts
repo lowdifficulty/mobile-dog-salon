@@ -135,6 +135,22 @@ export function getTodayPacificDate(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: PACIFIC_TZ });
 }
 
+/** Add calendar months to a YYYY-MM-DD date (clamps to last day of month). */
+export function addMonthsToDate(date: string, months: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+  const day = Math.min(d, lastDay);
+  return `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Latest date staff can select as a working shift. */
+export function getShiftHorizonEndDate(months = 3): string {
+  return addMonthsToDate(getTodayPacificDate(), months);
+}
+
 /** Customers must book at least one day ahead (no same-day appointments). */
 export function isBookableDate(date: string): boolean {
   return date > getTodayPacificDate();

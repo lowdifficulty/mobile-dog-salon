@@ -37,8 +37,11 @@ export const CALENDAR_NOTIFY_EMAILS = [
 export const ADMIN_EMAIL = "mattlewis06@gmail.com";
 
 export const WORK_START_HOUR = 8;
-/** Last 3-hour visit starts at 7 PM and ends at 10 PM. */
-export const WORK_END_HOUR = 21;
+/** Last 3-hour shift starts at 5 PM and ends at 8 PM. */
+export const WORK_END_HOUR = 20;
+
+/** How far ahead staff can select shifts (calendar months from today). */
+export const SHIFT_HORIZON_MONTHS = 3;
 
 export const TIME_SLOT_OPTIONS = [
   "08:00",
@@ -53,16 +56,14 @@ export const TIME_SLOT_OPTIONS = [
   "17:00",
   "18:00",
   "19:00",
-  "20:00",
 ] as const;
 
-/** 3-hour availability blocks groomers toggle on their calendar. */
+/** 3-hour shifts groomers can work (every day, up to SHIFT_HORIZON_MONTHS ahead). */
 export const BOOKING_BLOCK_STARTS = [
   "08:00",
   "11:00",
   "14:00",
   "17:00",
-  "19:00",
 ] as const;
 
 export function isAllowedBookingBlockStart(time: string): boolean {

@@ -128,7 +128,7 @@ export async function createAppointment(
   if (!isAllowedBookingBlockStart(time)) {
     return {
       ok: false,
-      error: "That time slot is not available. Latest visits start at 7 PM.",
+      error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
       status: 400,
     };
   }
@@ -281,7 +281,7 @@ export async function rescheduleAppointment(
   if (!isAllowedBookingBlockStart(time)) {
     return {
       ok: false,
-      error: "That time slot is not available. Latest visits start at 7 PM.",
+      error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
       status: 400,
     };
   }

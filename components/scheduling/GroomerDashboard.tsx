@@ -46,7 +46,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
     { id: "team-calendar", label: "Calendar" },
-    { id: "availability", label: "Schedule" },
+    { id: "availability", label: "Shifts" },
   ];
 
   return (
@@ -54,7 +54,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Appointments, active clients, daily route, calendar, and schedule."
+        subtitle="Appointments, active clients, daily route, calendar, and shifts."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">

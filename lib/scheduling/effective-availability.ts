@@ -1,7 +1,12 @@
 import { slotsCoveredByBooking } from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
+import { SHIFT_HORIZON_MONTHS } from "./groomers";
 import { appointmentBlockMinutes } from "./services";
-import { parseSlotFromIso } from "./slots";
+import {
+  getShiftHorizonEndDate,
+  getTodayPacificDate,
+  parseSlotFromIso,
+} from "./slots";
 import type {
   Appointment,
   AvailabilityDay,
@@ -73,11 +78,19 @@ export function normalizeGroomerAvailabilitySave(
   groomerId: GroomerId,
   incoming: AvailabilityDay[]
 ): AvailabilityDay[] {
+  const today = getTodayPacificDate();
+  const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
+
   return incoming
     .map((day) => ({
       groomerId,
       date: day.date,
       times: [...new Set(day.times)].sort(),
     }))
-    .filter((day) => day.times.length > 0);
+    .filter(
+      (day) =>
+        day.times.length > 0 &&
+        day.date >= today &&
+        day.date <= maxDate
+    );
 }

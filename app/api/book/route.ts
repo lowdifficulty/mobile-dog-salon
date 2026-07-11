@@ -111,7 +111,7 @@ async function handleBookPost(request: Request) {
 
   if (!isAllowedBookingBlockStart(time)) {
     return NextResponse.json(
-      { error: "That time slot is not available. Latest visits start at 7 PM." },
+      { error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM." },
       { status: 400 }
     );
   }

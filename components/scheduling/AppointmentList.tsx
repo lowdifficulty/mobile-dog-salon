@@ -43,11 +43,13 @@ export default function AppointmentList({
   filter,
   currentGroomerId,
   allowOverrideAvailability = false,
+  allowDelete = false,
 }: {
   apiUrl: string;
   filter: StaffAppointmentFilter;
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
+  allowDelete?: boolean;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,6 +178,28 @@ export default function AppointmentList({
     }
   }
 
+  async function handleDelete(ap: Appointment) {
+    const ok = window.confirm(
+      `Permanently delete ${formatPetNames(getAppointmentPets(ap))}'s appointment on ${formatWhen(ap.startAt)}? This cannot be undone.`
+    );
+    if (!ok) return;
+
+    setBusyId(ap.id);
+    setActionError(null);
+    try {
+      const res = await fetch(`${manageApiBase}/${ap.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      closeReschedule();
+      closeEditLead();
+      await loadAppointments();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function handleReschedule(ap: Appointment) {
     const slotKey =
       allowOverrideAvailability && rescheduleDate && rescheduleTime && rescheduleGroomerId
@@ -267,6 +291,11 @@ export default function AppointmentList({
           colorByGroomer: Boolean(colorByGroomer),
         });
 
+        const canManage =
+          canStaffManageAppointment(ap, filter) &&
+          (!currentGroomerId || ap.groomerId === currentGroomerId);
+        const showActions = canManage || allowDelete;
+
         return (
           <div key={ap.id} className={`site-card p-4 border-l-4 ${cardAccentClass}`}>
             <div className="flex flex-wrap justify-between gap-2 mb-2">
@@ -295,10 +324,9 @@ export default function AppointmentList({
             <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
             {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
 
-            {canStaffManageAppointment(ap, filter) &&
-              (!currentGroomerId || ap.groomerId === currentGroomerId) && (
+            {showActions && (
               <div className="mt-4 pt-4 border-t border-gray-100">
-                {isEditingLead ? (
+                {isEditingLead && canManage ? (
                   leadFormLoading || !leadFormValues ? (
                     <p className="text-sm text-gray-500">Loading client details…</p>
                   ) : (
@@ -310,7 +338,7 @@ export default function AppointmentList({
                       onCancel={closeEditLead}
                     />
                   )
-                ) : !isRescheduling ? (
+                ) : !isRescheduling && canManage ? (
                   <div className="flex flex-wrap gap-3 items-center">
                     <button
                       type="button"
@@ -343,8 +371,18 @@ export default function AppointmentList({
                     >
                       {isBusy ? "Working…" : "Cancel"}
                     </button>
+                    {allowDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(ap)}
+                        disabled={isBusy}
+                        className="text-sm font-semibold text-red-800 hover:text-red-950 underline disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
-                ) : (
+                ) : isRescheduling && canManage ? (
                   <div className="space-y-4">
                     <p className="text-sm font-semibold text-gray-800">Pick a new time</p>
                     {allowOverrideAvailability ? (
@@ -397,7 +435,18 @@ export default function AppointmentList({
                       </button>
                     </div>
                   </div>
-                )}
+                ) : allowDelete ? (
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(ap)}
+                      disabled={isBusy}
+                      className="text-sm font-semibold text-red-800 hover:text-red-950 underline disabled:opacity-50"
+                    >
+                      {isBusy ? "Working…" : "Delete"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

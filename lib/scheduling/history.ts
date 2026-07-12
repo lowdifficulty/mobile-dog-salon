@@ -69,6 +69,9 @@ function buildSummary(
   if (meta.action === "appointment_cancel") {
     return "Appointment cancelled — hours returned to groomer calendar";
   }
+  if (meta.action === "appointment_delete") {
+    return "Appointment permanently deleted";
+  }
   if (meta.action === "appointment_reschedule") {
     return "Appointment rescheduled — calendar hours updated";
   }

@@ -392,6 +392,41 @@ body {
     @apply bg-white rounded-[30px] shadow-sm border border-accent/10 hover:border-accent/30 hover:shadow-md transition-all;
   }
 
+  .interview-booking-fold {
+    @apply pt-3 pb-4 md:pt-5 md:pb-6;
+    min-height: calc(100dvh - 4rem);
+  }
+
+  @media (min-width: 768px) {
+    .interview-booking-fold {
+      min-height: calc(100dvh - 4.5rem);
+    }
+  }
+
+  .interview-booking-card {
+    @apply site-card p-3.5 sm:p-4 md:p-5;
+  }
+
+  .interview-booking-title {
+    @apply text-lg sm:text-xl font-bold text-brand text-center leading-tight;
+  }
+
+  .interview-booking-meta {
+    @apply text-xs sm:text-sm text-gray-600 text-center mt-1 leading-snug;
+  }
+
+  .interview-booking-label {
+    @apply block text-xs font-semibold text-gray-800 mb-1;
+  }
+
+  .interview-booking-input {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-bright/30 focus:border-brand-bright outline-none;
+  }
+
+  .interview-slot-btn {
+    @apply rounded-lg px-1.5 py-2 text-xs sm:text-sm font-semibold border transition-colors;
+  }
+
   .site-check {
     @apply w-5 h-5 rounded-full flex items-center justify-center shrink-0;
     background-color: var(--accent-light);

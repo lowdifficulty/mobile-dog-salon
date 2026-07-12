@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/scheduling/auth";
 import {
   cancelAppointment,
+  deleteAppointment,
   rescheduleAppointment,
 } from "@/lib/scheduling/appointment-actions";
 
@@ -38,6 +39,22 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unauthorized";
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const admin = await requireAdmin();
+    const { id } = await context.params;
+    const result = await deleteAppointment(id, admin.email);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    return NextResponse.json({ ok: true, appointment: result.appointment });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unauthorized";
     const status = message === "Unauthorized" ? 401 : 500;

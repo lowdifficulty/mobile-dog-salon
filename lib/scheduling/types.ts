@@ -49,6 +49,7 @@ export type AvailabilityHistoryAction =
   | "groomer_erase"
   | "booking"
   | "appointment_cancel"
+  | "appointment_delete"
   | "appointment_reschedule"
   | "admin_restore"
   | "system_init"

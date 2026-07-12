@@ -9,6 +9,7 @@ export const ROUTES = {
   ourVans: "/about/our-vans",
   reviews: "/reviews",
   careers: "/careers",
+  interviewBooking: "/careers/interview",
   locations: "/locations",
   la: "/la",
   oc: "/oc",

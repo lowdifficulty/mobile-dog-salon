@@ -11,12 +11,14 @@ import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
 import LickyTrainingPanel from "./LickyTrainingPanel";
 import StaffLoginLogPanel from "./StaffLoginLogPanel";
 import StaffShiftsPanel from "./StaffShiftsPanel";
+import JobInterviewsPanel from "@/components/interviews/JobInterviewsPanel";
 
 type Tab =
   | "contacts"
   | "analytics"
   | "team-calendar"
   | "shifts"
+  | "job-interviews"
   | "qa"
   | "payments"
   | "licky"
@@ -37,6 +39,7 @@ export default function AdminDashboard() {
     { id: "analytics", label: "Analytics" },
     { id: "team-calendar", label: "Team calendar" },
     { id: "shifts", label: "Shifts" },
+    { id: "job-interviews", label: "Job Interviews" },
     { id: "qa", label: "QA" },
     { id: "payments", label: "Payments Beta" },
     { id: "licky", label: "Licky bot" },
@@ -71,9 +74,13 @@ export default function AdminDashboard() {
       )}
       {tab === "analytics" && <FunnelAnalyticsPanel />}
       {tab === "team-calendar" && (
-        <TeamCalendarPanel availabilityApi="/api/staff/availability" />
+        <TeamCalendarPanel
+          availabilityApi="/api/staff/availability"
+          allowDeleteAppointments
+        />
       )}
       {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
+      {tab === "job-interviews" && <JobInterviewsPanel />}
       {tab === "qa" && <QaDiagnosticsPanel />}
       {tab === "payments" && <StaffPaymentsPanel />}
       {tab === "licky" && <LickyTrainingPanel />}

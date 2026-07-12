@@ -457,6 +457,33 @@ export async function cancelAppointment(
   return { ok: true, appointment };
 }
 
+export async function deleteAppointment(
+  appointmentId: string,
+  actor: string,
+  options?: { groomerId?: GroomerId }
+): Promise<AppointmentActionResult> {
+  const data = await readSchedulingData();
+  const index = data.appointments.findIndex((a) => a.id === appointmentId);
+  if (index === -1) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+
+  const appointment = data.appointments[index];
+  if (options?.groomerId && appointment.groomerId !== options.groomerId) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+
+  data.appointments.splice(index, 1);
+
+  await writeSchedulingData(data, {
+    action: "appointment_delete",
+    actor,
+    groomerId: appointment.groomerId,
+  });
+
+  return { ok: true, appointment };
+}
+
 export async function rescheduleAppointment(
   appointmentId: string,
   slotKey: string,

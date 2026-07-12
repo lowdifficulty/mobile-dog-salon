@@ -23,10 +23,12 @@ export default function TeamCalendarPanel({
   availabilityOnly = false,
   availabilityApi = "/api/admin/availability",
   calendarRefreshKey: externalCalendarRefreshKey = 0,
+  allowDeleteAppointments = false,
 }: {
   availabilityOnly?: boolean;
   availabilityApi?: string;
   calendarRefreshKey?: number;
+  allowDeleteAppointments?: boolean;
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
@@ -108,10 +110,17 @@ export default function TeamCalendarPanel({
             apiUrl={appointmentApi}
             filter="upcoming"
             allowOverrideAvailability
+            allowDelete={allowDeleteAppointments}
           />
         </>
       )}
-      {tab === "past" && <AppointmentList apiUrl={appointmentApi} filter="past" />}
+      {tab === "past" && (
+        <AppointmentList
+          apiUrl={appointmentApi}
+          filter="past"
+          allowDelete={allowDeleteAppointments}
+        />
+      )}
     </div>
   );
 }

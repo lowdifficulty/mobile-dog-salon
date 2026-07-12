@@ -49,7 +49,7 @@ export default function CareersPage() {
             <a href={ROUTES.interviewBooking} className="site-link font-semibold">
               schedule a 20-minute interview
             </a>{" "}
-            for Tuesday, July 14 ($20/hour plus tips). You can also email{" "}
+            on Tuesday, July 14 or Thursday, July 16 ($20/hour plus tips). You can also email{" "}
             <a href="mailto:careers@mobiledog-salon.com" className="site-link font-semibold">
               careers@mobiledog-salon.com
             </a>{" "}

@@ -89,7 +89,7 @@ export default function JobInterviewsPanel() {
             {bookings.length} interview booking{bookings.length === 1 ? "" : "s"} · sorted by time
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
-            Groomer interviews · Tuesday Jul 14, 2026 · 9:00 AM–12:00 PM Pacific
+            Groomer interviews · Tue Jul 14 & Thu Jul 16, 2026 · 9:00 AM–12:00 PM Pacific
           </p>
         </div>
         <button

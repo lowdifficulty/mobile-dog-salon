@@ -427,6 +427,10 @@ body {
     @apply rounded-lg px-1.5 py-2 text-xs sm:text-sm font-semibold border transition-colors;
   }
 
+  .interview-date-nav-btn {
+    @apply booking-form-ghost-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-semibold leading-none disabled:opacity-30 disabled:cursor-not-allowed;
+  }
+
   .site-check {
     @apply w-5 h-5 rounded-full flex items-center justify-center shrink-0;
     background-color: var(--accent-light);

@@ -5,6 +5,11 @@ import {
   bookingToCalendarDetails,
   type InterviewCalendarDetails,
 } from "@/lib/interviews/calendar-links";
+import {
+  formatInterviewDateLong,
+  formatInterviewDatePickerLabel,
+  INTERVIEW_DATES,
+} from "@/lib/interviews/slots";
 import InterviewAddToCalendarButtons from "./InterviewAddToCalendarButtons";
 
 interface InterviewSlot {
@@ -14,18 +19,27 @@ interface InterviewSlot {
   available: boolean;
 }
 
-interface InterviewIntro {
+interface InterviewDateOption {
+  date: string;
   dateLabel: string;
+  weekdayLabel: string;
+  availableCount: number;
+  totalCount: number;
+}
+
+interface InterviewIntro {
   roleTitle: string;
   payDescription: string;
 }
 
 export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro }) {
+  const [dates, setDates] = useState<InterviewDateOption[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [dateLabel, setDateLabel] = useState("");
   const [slots, setSlots] = useState<InterviewSlot[]>([]);
-  const [dateLabel, setDateLabel] = useState(intro?.dateLabel ?? "");
   const [roleTitle, setRoleTitle] = useState(intro?.roleTitle ?? "");
   const [payDescription, setPayDescription] = useState(intro?.payDescription ?? "");
-  const [loadingSlots, setLoadingSlots] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [slotKey, setSlotKey] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,23 +51,80 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
   );
   const [emailNote, setEmailNote] = useState("");
 
-  const loadSlots = useCallback(() => {
-    setLoadingSlots(true);
-    return fetch("/api/interviews/slots", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        setSlots(data.slots ?? []);
-        if (!intro?.dateLabel) setDateLabel(data.dateLabel ?? "");
-        if (!intro?.roleTitle) setRoleTitle(data.roleTitle ?? "");
-        if (!intro?.payDescription) setPayDescription(data.payDescription ?? "");
-      })
-      .catch(() => setError("Could not load interview times."))
-      .finally(() => setLoadingSlots(false));
-  }, [intro?.dateLabel, intro?.payDescription, intro?.roleTitle]);
+  const loadSlotsForDate = useCallback(async (date: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/interviews/slots?date=${encodeURIComponent(date)}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not load times");
+      setSelectedDate(date);
+      setDateLabel(data.dateLabel ?? formatInterviewDateLong(date));
+      setSlots(data.slots ?? []);
+      if (!intro?.roleTitle) setRoleTitle(data.roleTitle ?? "");
+      if (!intro?.payDescription) setPayDescription(data.payDescription ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load interview times.");
+      setSlots([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [intro?.payDescription, intro?.roleTitle]);
+
+  const refreshDates = useCallback(async () => {
+    const res = await fetch("/api/interviews/slots", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Could not load dates");
+    setDates(data.dates ?? []);
+    return data as {
+      activeDate: string | null;
+      dateLabel: string;
+      dates: InterviewDateOption[];
+      roleTitle: string;
+      payDescription: string;
+      slots: InterviewSlot[];
+    };
+  }, []);
+
+  const loadInitial = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await refreshDates();
+      if (!intro?.roleTitle) setRoleTitle(data.roleTitle ?? "");
+      if (!intro?.payDescription) setPayDescription(data.payDescription ?? "");
+      const initialDate = data.activeDate ?? INTERVIEW_DATES[0];
+      setSelectedDate(initialDate);
+      setDateLabel(data.dateLabel || formatInterviewDateLong(initialDate));
+      setSlots(data.slots ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load interview times.");
+      setDates([]);
+      setSelectedDate("");
+      setDateLabel("");
+      setSlots([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [intro?.payDescription, intro?.roleTitle, refreshDates]);
 
   useEffect(() => {
-    loadSlots();
-  }, [loadSlots]);
+    void loadInitial();
+  }, [loadInitial]);
+
+  const dateIndex = INTERVIEW_DATES.indexOf(selectedDate as (typeof INTERVIEW_DATES)[number]);
+  const canGoPrev = dateIndex > 0;
+  const canGoNext = dateIndex >= 0 && dateIndex < INTERVIEW_DATES.length - 1;
+
+  function goToRelativeDate(offset: -1 | 1) {
+    if (dateIndex < 0) return;
+    const nextIndex = dateIndex + offset;
+    if (nextIndex < 0 || nextIndex >= INTERVIEW_DATES.length) return;
+    setSlotKey("");
+    void loadSlotsForDate(INTERVIEW_DATES[nextIndex]);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,8 +143,10 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
       });
       const data = await res.json();
       if (!res.ok) {
-        if (res.status === 409) {
-          await loadSlots();
+        if (res.status === 409 && selectedDate) {
+          setSlotKey("");
+          await refreshDates();
+          await loadSlotsForDate(selectedDate);
         }
         throw new Error(data.error ?? "Could not book interview");
       }
@@ -96,6 +169,7 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
 
   if (calendarDetails) {
     const firstName = calendarDetails.fullName.split(" ")[0] || calendarDetails.fullName;
+    const bookedDateLabel = formatInterviewDateLong(calendarDetails.date);
     return (
       <div className="interview-booking-card">
         <div className="text-center mb-4">
@@ -106,9 +180,8 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
           </div>
           <h2 className="interview-booking-title">You&apos;re scheduled!</h2>
           <p className="interview-booking-meta mt-2">
-            Thanks, {firstName}! {calendarDetails.roleTitle} ·{" "}
-            {dateLabel || calendarDetails.date} · {calendarDetails.time} Pacific ·{" "}
-            {calendarDetails.payDescription}
+            Thanks, {firstName}! {calendarDetails.roleTitle} · {bookedDateLabel} ·{" "}
+            {calendarDetails.time} Pacific · {calendarDetails.payDescription}
           </p>
           <p className="text-[11px] text-gray-500 mt-1">{emailNote}</p>
         </div>
@@ -118,6 +191,10 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
   }
 
   const availableCount = slots.filter((s) => s.available).length;
+  const selectedDateMeta = dates.find((d) => d.date === selectedDate);
+  const otherDateHasOpenings = dates.some(
+    (d) => d.date !== selectedDate && d.availableCount > 0
+  );
 
   return (
     <form onSubmit={handleSubmit} className="interview-booking-card space-y-3 sm:space-y-3.5">
@@ -125,24 +202,64 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
         <h1 className="interview-booking-title">Schedule Your Interview</h1>
         <p className="interview-booking-meta">
           <strong>{roleTitle || "Mobile Dog Groomer"}</strong> ·{" "}
-          {dateLabel || "Tuesday, July 14, 2026"} · {payDescription || "$20/hour plus tips"} ·
-          20 min · Pacific
+          {payDescription || "$20/hour plus tips"} · 20 min · Pacific
         </p>
+      </div>
+
+      <div>
+        <label className="interview-booking-label">
+          Interview date <span className="text-red-500">*</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="interview-date-nav-btn"
+            disabled={loading || !canGoPrev}
+            onClick={() => goToRelativeDate(-1)}
+            aria-label="Previous interview date"
+          >
+            ‹
+          </button>
+          <div className="flex-1 min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2 text-center">
+            <p className="text-sm font-semibold text-brand truncate">
+              {loading && !dateLabel ? "Loading…" : dateLabel || "No dates"}
+            </p>
+            {selectedDateMeta && !loading && (
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                {formatInterviewDatePickerLabel(selectedDate)} · 9 AM–12 PM
+                {selectedDateMeta.availableCount === 0 ? " · Fully booked" : ""}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="interview-date-nav-btn"
+            disabled={loading || !canGoNext}
+            onClick={() => goToRelativeDate(1)}
+            aria-label="Next interview date"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <div>
         <label className="interview-booking-label">
           Choose a time <span className="text-red-500">*</span>
         </label>
-        {loadingSlots ? (
+        {loading ? (
           <p className="text-xs text-gray-500">Loading times…</p>
-        ) : availableCount === 0 ? (
+        ) : !selectedDate || availableCount === 0 ? (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            All times booked. Email{" "}
-            <a href="mailto:careers@mobiledog-salon.com" className="font-semibold underline">
-              careers@mobiledog-salon.com
-            </a>
-            .
+            {otherDateHasOpenings
+              ? "All times on this date are booked. Use the arrows to check the other day."
+              : "All interview times are booked. Email "}
+            {!otherDateHasOpenings && (
+              <a href="mailto:careers@mobiledog-salon.com" className="font-semibold underline">
+                careers@mobiledog-salon.com
+              </a>
+            )}
+            {!otherDateHasOpenings && "."}
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -165,7 +282,7 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
             ))}
           </div>
         )}
-        {!loadingSlots && availableCount > 0 && (
+        {!loading && selectedDate && availableCount > 0 && (
           <p className="text-[11px] text-gray-500 mt-1">
             {availableCount} open · Pacific Time
           </p>
@@ -221,7 +338,7 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
 
       <button
         type="submit"
-        disabled={submitting || loadingSlots || availableCount === 0}
+        disabled={submitting || loading || !selectedDate || availableCount === 0}
         className="booking-form-ghost-btn w-full flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitting ? "Booking…" : "Schedule interview"}

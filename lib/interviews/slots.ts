@@ -1,6 +1,3 @@
-/** Tuesday, July 14, 2026 — groomer interview day */
-export const INTERVIEW_DATE = "2026-07-14";
-
 export const INTERVIEW_ROLE_TITLE = "Mobile Dog Groomer";
 
 export const INTERVIEW_PAY = "$20/hour plus tips";
@@ -14,6 +11,14 @@ export const INTERVIEW_LOCATION_DETAIL =
 
 /** Hiring manager calendar — receives ICS invites for each booking */
 export const INTERVIEW_MANAGER_EMAIL = "mattlewis06@gmail.com";
+
+/** Tuesday Jul 14 and Thursday Jul 16, 2026 — groomer interview days */
+export const INTERVIEW_DATES = ["2026-07-14", "2026-07-16"] as const;
+
+export type InterviewDate = (typeof INTERVIEW_DATES)[number];
+
+/** @deprecated Use INTERVIEW_DATES */
+export const INTERVIEW_DATE = INTERVIEW_DATES[0];
 
 const SLOT_TIMES_24H = [
   "09:00",
@@ -37,6 +42,18 @@ export interface InterviewSlot {
   available: boolean;
 }
 
+export interface InterviewDateOption {
+  date: string;
+  dateLabel: string;
+  weekdayLabel: string;
+  availableCount: number;
+  totalCount: number;
+}
+
+export function isInterviewDate(date: string): date is InterviewDate {
+  return (INTERVIEW_DATES as readonly string[]).includes(date);
+}
+
 export function formatInterviewTimeLabel(time24: string): string {
   const [hourStr, minute] = time24.split(":");
   let hour = Number(hourStr);
@@ -58,12 +75,8 @@ export function parseInterviewSlotKey(slotKey: string): { date: string; time24: 
 
 export function isValidInterviewSlotKey(slotKey: string): boolean {
   const parsed = parseInterviewSlotKey(slotKey);
-  if (!parsed || parsed.date !== INTERVIEW_DATE) return false;
+  if (!parsed || !isInterviewDate(parsed.date)) return false;
   return SLOT_TIMES_24H.includes(parsed.time24 as InterviewSlotTime);
-}
-
-export function interviewSlotStartIso(date: string, time24: string): string {
-  return `${date}T${time24}:00`;
 }
 
 export function interviewSlotEndDate(date: string, time24: string): Date {
@@ -81,10 +94,34 @@ export function formatInterviewDateLong(date: string): string {
   });
 }
 
-export function listInterviewSlotDefinitions(): Omit<InterviewSlot, "available">[] {
+export function formatInterviewWeekdayLabel(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "America/Los_Angeles",
+  });
+}
+
+export function formatInterviewDatePickerLabel(date: string): string {
+  const d = new Date(`${date}T12:00:00`);
+  const weekday = d.toLocaleDateString("en-US", {
+    weekday: "short",
+    timeZone: "America/Los_Angeles",
+  });
+  const monthDay = d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "America/Los_Angeles",
+  });
+  return `${weekday}, ${monthDay}`;
+}
+
+export function listInterviewSlotDefinitions(
+  date: string
+): Omit<InterviewSlot, "available">[] {
+  if (!isInterviewDate(date)) return [];
   return SLOT_TIMES_24H.map((time24) => ({
-    slotKey: buildInterviewSlotKey(INTERVIEW_DATE, time24),
-    date: INTERVIEW_DATE,
+    slotKey: buildInterviewSlotKey(date, time24),
+    date,
     time24,
     timeLabel: formatInterviewTimeLabel(time24),
   }));
@@ -98,4 +135,36 @@ export function applySlotAvailability(
     ...slot,
     available: !bookedSlotKeys.has(slot.slotKey),
   }));
+}
+
+export function listInterviewDateOptions(
+  bookedSlotKeys: Set<string>
+): InterviewDateOption[] {
+  return INTERVIEW_DATES.map((date) => {
+    const slots = applySlotAvailability(listInterviewSlotDefinitions(date), bookedSlotKeys);
+    const availableCount = slots.filter((slot) => slot.available).length;
+    return {
+      date,
+      dateLabel: formatInterviewDateLong(date),
+      weekdayLabel: formatInterviewWeekdayLabel(date),
+      availableCount,
+      totalCount: slots.length,
+    };
+  });
+}
+
+/** Tuesday while it has openings; otherwise Thursday if available. */
+export function resolveActiveInterviewDate(
+  dateOptions: InterviewDateOption[]
+): InterviewDateOption | null {
+  const byDate = new Map(dateOptions.map((option) => [option.date, option]));
+  const tuesday = byDate.get(INTERVIEW_DATES[0]);
+  if (tuesday && tuesday.availableCount > 0) return tuesday;
+  const thursday = byDate.get(INTERVIEW_DATES[1]);
+  if (thursday && thursday.availableCount > 0) return thursday;
+  return null;
+}
+
+export function formatInterviewDatesSummary(): string {
+  return INTERVIEW_DATES.map((date) => formatInterviewWeekdayLabel(date)).join(" or ");
 }

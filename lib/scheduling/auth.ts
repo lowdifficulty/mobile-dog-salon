@@ -3,7 +3,7 @@ import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import type { SessionUser, GroomerId } from "./types";
-import { ADMIN_EMAIL, GROOMERS, groomerIdFromEmail } from "./groomers";
+import { ADMIN_EMAIL, ADMIN_USERNAME, GROOMERS, groomerIdFromEmail } from "./groomers";
 
 export interface SessionData {
   user?: SessionUser;
@@ -11,7 +11,7 @@ export interface SessionData {
 
 const ADMIN_PASSWORD_HASH =
   process.env.SCHEDULING_PASSWORD_HASH ??
-  "$2b$10$u0DN49dIL.xM4OfVlNIpduTF9jTPmb8IzR2uX.6.cRk1BuOkOcuJ.";
+  "$2b$10$n2rK8CRGl/PmwOVuxdSMNuYDuOo0hEovurPXClfc9aAeV1yDB4aUi";
 
 const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
   melanie:
@@ -85,10 +85,10 @@ export async function loginGroomerByEmail(
 }
 
 export async function loginAdmin(
-  email: string,
+  username: string,
   password: string
 ): Promise<SessionUser | null> {
-  if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return null;
+  if (username.trim().toLowerCase() !== ADMIN_USERNAME.toLowerCase()) return null;
   if (!(await verifyPassword(password))) return null;
   return {
     role: "admin",

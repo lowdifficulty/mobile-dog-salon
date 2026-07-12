@@ -23,10 +23,10 @@ export async function POST(request: Request) {
   let user = null;
 
   if (role === "admin") {
-    if (!email?.trim()) {
-      return NextResponse.json({ error: "Email required" }, { status: 400 });
+    if (!username?.trim()) {
+      return NextResponse.json({ error: "Username required" }, { status: 400 });
     }
-    user = await loginAdmin(email, password);
+    user = await loginAdmin(username, password);
   } else if (role === "groomer") {
     const id = (username ?? "").toLowerCase() as GroomerId;
     if (id !== "melanie" && id !== "diamond") {
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   await session.save();
 
   const loginIdentifier =
-    role === "admin" ? email!.trim().toLowerCase() : (username ?? "").toLowerCase();
+    role === "admin" ? username!.trim().toLowerCase() : (username ?? "").toLowerCase();
   appendStaffLoginLog({ user, loginIdentifier, request }).catch((err) => {
     console.error("Staff login log failed:", err);
   });

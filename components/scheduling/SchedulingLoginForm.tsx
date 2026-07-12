@@ -18,8 +18,7 @@ export default function SchedulingLoginForm({
   dashboardPath: string;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useState("melanie");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState(role === "admin" ? "" : "melanie");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,8 +33,7 @@ export default function SchedulingLoginForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         role,
-        username: role === "groomer" ? username : undefined,
-        email: role === "admin" ? email : undefined,
+        username: role === "groomer" ? username : role === "admin" ? username : undefined,
         password,
       }),
     });
@@ -73,13 +71,13 @@ export default function SchedulingLoginForm({
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl"
               />
             </div>

@@ -33,7 +33,10 @@ export const CALENDAR_NOTIFY_EMAILS = [
   "team@mobiledog-salon.com",
 ];
 
-export const ADMIN_EMAIL = "mattlewis06@gmail.com";
+export const ADMIN_USERNAME = "1";
+
+/** Legacy session / audit label; login uses {@link ADMIN_USERNAME}. */
+export const ADMIN_EMAIL = "admin@mobiledog-salon.com";
 
 export const WORK_START_HOUR = 8;
 /** Last 3-hour shift starts at 5 PM and ends at 8 PM. */

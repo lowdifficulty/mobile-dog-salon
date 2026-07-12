@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PET_SIZES } from "@/lib/constants";
 import { GROOMING_SERVICES } from "@/lib/pricing";
 import StaffDateTimePicker, { buildSlotKey } from "@/components/scheduling/StaffDateTimePicker";
+import {
+  listRecurringStaffDates,
+  STAFF_RECURRENCE_OPTIONS,
+  type StaffRecurrenceFrequency,
+} from "@/lib/scheduling/recurring-appointments";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 export interface StaffBookAppointmentPrefill {
@@ -50,13 +55,20 @@ export default function StaffBookAppointmentForm({
   const [city, setCity] = useState(prefill?.city ?? "");
   const [zipCode, setZipCode] = useState(prefill?.zipCode ?? "");
   const [notes, setNotes] = useState(prefill?.notes ?? "");
+  const [recurrence, setRecurrence] = useState<StaffRecurrenceFrequency>("none");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const plannedDates = useMemo(() => {
+    if (!date || recurrence === "none") return date ? [date] : [];
+    return listRecurringStaffDates(date, recurrence);
+  }, [date, recurrence]);
+
   function resetForm() {
     setDate("");
     setTime("");
+    setRecurrence("none");
     setError(null);
     setSuccess(null);
   }
@@ -90,14 +102,27 @@ export default function StaffBookAppointmentForm({
           city,
           zipCode,
           notes,
+          recurrence,
           overrideAvailability: true,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Booking failed");
 
-      setSuccess("Appointment booked.");
-      resetForm();
+      const bookedCount = data.bookedCount ?? 1;
+      const skipped = (data.skipped ?? []) as { date: string; reason: string }[];
+      if (skipped.length > 0) {
+        setSuccess(
+          `Booked ${bookedCount} appointment${bookedCount === 1 ? "" : "s"}. Skipped ${skipped.length} date${skipped.length === 1 ? "" : "s"} (conflicts).`
+        );
+      } else if (bookedCount > 1) {
+        setSuccess(`Booked ${bookedCount} recurring appointments.`);
+      } else {
+        setSuccess("Appointment booked.");
+      }
+      setDate("");
+      setTime("");
+      setRecurrence("none");
       onBooked?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking failed");
@@ -124,7 +149,8 @@ export default function StaffBookAppointmentForm({
         <div>
           <h2 className="text-lg font-bold text-brand">Book appointment</h2>
           <p className="text-sm text-gray-600">
-            Re-book a client on any future date, even if you haven&apos;t set availability yet.
+            Re-book a client on any future date, even if you haven&apos;t set availability yet. Set
+            a repeat schedule for regular clients.
           </p>
         </div>
         <button
@@ -163,6 +189,28 @@ export default function StaffBookAppointmentForm({
           allowGroomerPick={allowGroomerPick}
           onSelectGroomer={setGroomerId}
         />
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Repeat</label>
+          <select
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value as StaffRecurrenceFrequency)}
+            className="w-full max-w-md px-4 py-2 border border-gray-200 rounded-xl text-sm"
+          >
+            {STAFF_RECURRENCE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {date && recurrence !== "none" && (
+            <p className="mt-2 text-sm text-gray-600">
+              Will book <span className="font-semibold text-brand">{plannedDates.length}</span>{" "}
+              appointment{plannedDates.length === 1 ? "" : "s"} through the next 3 months
+              {time ? ` at the same time` : ""}.
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -290,7 +338,11 @@ export default function StaffBookAppointmentForm({
           disabled={busy || !date || !time}
           className="px-5 py-2.5 rounded-full text-sm font-semibold bg-brand text-white hover:bg-brand-dark disabled:opacity-50"
         >
-          {busy ? "Booking…" : "Confirm appointment"}
+          {busy
+            ? "Booking…"
+            : recurrence !== "none" && plannedDates.length > 1
+              ? `Book ${plannedDates.length} appointments`
+              : "Confirm appointment"}
         </button>
       </form>
     </div>

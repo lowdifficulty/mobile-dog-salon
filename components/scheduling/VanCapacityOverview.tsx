@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   AvailableVanTimeslot,
+  GroomerAvailabilityOverlap,
   VanConflict,
 } from "@/lib/scheduling/van-capacity";
 
@@ -12,6 +13,8 @@ type VanSummary = {
   availableCount: number;
   conflicts: VanConflict[];
   conflictCount: number;
+  groomerAvailabilityOverlaps: GroomerAvailabilityOverlap[];
+  groomerAvailabilityOverlapCount: number;
 };
 
 function slotKey(date: string, time: string): string {
@@ -33,6 +36,7 @@ export default function VanCapacityOverview({
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [showAllAvailable, setShowAllAvailable] = useState(false);
+  const [showAllGroomerOverlaps, setShowAllGroomerOverlaps] = useState(false);
 
   const pending = new Set(pendingSlotKeys);
 
@@ -56,6 +60,8 @@ export default function VanCapacityOverview({
       availableCount: data.availableCount ?? 0,
       conflicts: data.conflicts ?? [],
       conflictCount: data.conflictCount ?? 0,
+      groomerAvailabilityOverlaps: data.groomerAvailabilityOverlaps ?? [],
+      groomerAvailabilityOverlapCount: data.groomerAvailabilityOverlapCount ?? 0,
     });
     setLoading(false);
   }, [apiBase]);
@@ -78,12 +84,16 @@ export default function VanCapacityOverview({
     ? summary.availableTimeslots
     : summary.availableTimeslots.slice(0, 16);
 
+  const visibleGroomerOverlaps = showAllGroomerOverlaps
+    ? summary.groomerAvailabilityOverlaps
+    : summary.groomerAvailabilityOverlaps.slice(0, 16);
+
   return (
     <div className="mb-8 space-y-4">
       {message && <p className="text-sm font-semibold text-brand">{message}</p>}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="site-card p-5">
+        <section className="site-card p-5 lg:row-span-2">
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h4 className="text-base font-bold text-brand">Available timeslots</h4>
             <span className="text-xs font-semibold text-gray-500">
@@ -198,6 +208,61 @@ export default function VanCapacityOverview({
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+
+        <section className="site-card p-5">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h4 className="text-base font-bold text-brand">Groomer availability overlap</h4>
+            <span
+              className={`text-xs font-semibold ${
+                summary.groomerAvailabilityOverlapCount > 0
+                  ? "text-amber-700"
+                  : "text-gray-500"
+              }`}
+            >
+              {summary.groomerAvailabilityOverlapCount} overlap
+              {summary.groomerAvailabilityOverlapCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Melanie and Diamond are both open for the same shift — only one van can run at a
+            time.
+          </p>
+          {summary.groomerAvailabilityOverlaps.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No overlapping groomer shifts in the next 30 days.
+            </p>
+          ) : (
+            <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+              {visibleGroomerOverlaps.map((overlap) => (
+                <li
+                  key={overlap.id}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm"
+                >
+                  <p className="font-bold text-amber-900">
+                    {overlap.displayDate} · {overlap.displayTime}
+                  </p>
+                  <p className="mt-0.5 text-amber-800">
+                    <span className="font-semibold">Melanie</span>
+                    {" and "}
+                    <span className="font-semibold">Diamond</span>
+                    {" both available"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {summary.groomerAvailabilityOverlaps.length > 16 && (
+            <button
+              type="button"
+              onClick={() => setShowAllGroomerOverlaps((v) => !v)}
+              className="mt-3 text-sm font-semibold text-brand hover:underline"
+            >
+              {showAllGroomerOverlaps
+                ? "Show fewer"
+                : `Show all ${summary.groomerAvailabilityOverlapCount} overlaps`}
+            </button>
           )}
         </section>
       </div>

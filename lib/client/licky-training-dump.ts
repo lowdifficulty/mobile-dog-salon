@@ -176,7 +176,7 @@ export function formatLickyTrainingMarkdown(
     "## Calendar snapshot",
     `Persistence: ${dump.persistence.mode} (${dump.persistence.message})`,
     `Open slots (14d): full groom ${dump.calendarStats.openSlotsNext14Days.fullGroom}, bath ${dump.calendarStats.openSlotsNext14Days.bathBrush}`,
-    `Melanie: ${dump.calendarStats.openSlotsNext14Days.melanieFullGroom}, Diamond/Sarah: ${dump.calendarStats.openSlotsNext14Days.diamondFullGroom}`,
+    `Melanie: ${dump.calendarStats.openSlotsNext14Days.melanieFullGroom}, Diamond: ${dump.calendarStats.openSlotsNext14Days.diamondFullGroom}`,
     "",
     "### Sample availability tool output",
     dump.sampleToolOutputs.check_availability_full_groom_14d,

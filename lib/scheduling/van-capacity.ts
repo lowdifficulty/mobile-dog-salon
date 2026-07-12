@@ -6,9 +6,11 @@ import {
   groomerName,
 } from "./groomers";
 import {
+  hasMinimumAvailabilityForBooking,
   isBookingBlockEnabled,
   setBookingBlockEnabled,
 } from "./availability";
+import { effectiveAvailability } from "./effective-availability";
 import { appointmentBlockMinutes, BOOKING_DURATION_MINUTES } from "./services";
 import {
   VAN_COUNT,
@@ -47,6 +49,15 @@ export interface VanConflict {
 }
 
 export interface AvailableVanTimeslot {
+  date: string;
+  time: string;
+  displayTime: string;
+  displayDate: string;
+}
+
+/** Melanie and Diamond both open for the same shift (1 van can't serve both). */
+export interface GroomerAvailabilityOverlap {
+  id: string;
   date: string;
   time: string;
   displayTime: string;
@@ -148,6 +159,50 @@ export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
   return conflicts.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** Shifts where Melanie and Diamond are both effectively available at once. */
+export function findGroomerAvailabilityOverlaps(
+  data: SchedulingData,
+  options?: { from?: string; to?: string }
+): GroomerAvailabilityOverlap[] {
+  const from = options?.from ?? getTodayPacificDate();
+  const to = options?.to ?? addMonthsToDate(from, 1);
+  const effective = effectiveAvailability(data);
+
+  const timesByGroomer: Record<GroomerId, Map<string, string[]>> = {
+    melanie: new Map(),
+    diamond: new Map(),
+  };
+
+  for (const day of effective) {
+    if (day.groomerId !== "melanie" && day.groomerId !== "diamond") continue;
+    timesByGroomer[day.groomerId].set(day.date, day.times);
+  }
+
+  const overlaps: GroomerAvailabilityOverlap[] = [];
+
+  for (const date of eachDateInclusive(from, to)) {
+    const melanieTimes = timesByGroomer.melanie.get(date) ?? [];
+    const diamondTimes = timesByGroomer.diamond.get(date) ?? [];
+    if (!melanieTimes.length || !diamondTimes.length) continue;
+
+    for (const time of BOOKING_BLOCK_STARTS) {
+      if (!hasMinimumAvailabilityForBooking(melanieTimes, time)) continue;
+      if (!hasMinimumAvailabilityForBooking(diamondTimes, time)) continue;
+      overlaps.push({
+        id: `${date}|${time}`,
+        date,
+        time,
+        displayTime: formatBookingBlockDisplay(time),
+        displayDate: formatShortDate(date),
+      });
+    }
+  }
+
+  return overlaps.sort((a, b) =>
+    a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date)
+  );
+}
+
 function formatShortDate(date: string): string {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
     weekday: "short",
@@ -246,20 +301,19 @@ export function allocateShiftsFromAppointments(
     );
 }
 
-export function vanCapacitySummary(appointments: Appointment[]) {
+export function vanCapacitySummary(data: SchedulingData) {
   const today = getTodayPacificDate();
   const nearTermEnd = addMonthsToDate(today, 1);
-  const availableNearTerm = listAvailableVanTimeslots(appointments, {
-    from: today,
-    to: nearTermEnd,
-  });
+  const range = { from: today, to: nearTermEnd };
+  const availableNearTerm = listAvailableVanTimeslots(data.appointments, range);
   const conflicts = findVanConflicts(
-    appointments.filter((ap) => {
+    data.appointments.filter((ap) => {
       if (ap.status === "cancelled") return false;
       const { date } = parseSlotFromIso(ap.startAt);
       return date >= today;
     })
   );
+  const groomerAvailabilityOverlaps = findGroomerAvailabilityOverlaps(data, range);
 
   return {
     vanCount: VAN_COUNT,
@@ -267,5 +321,7 @@ export function vanCapacitySummary(appointments: Appointment[]) {
     availableCount: availableNearTerm.length,
     conflicts,
     conflictCount: conflicts.length,
+    groomerAvailabilityOverlaps,
+    groomerAvailabilityOverlapCount: groomerAvailabilityOverlaps.length,
   };
 }

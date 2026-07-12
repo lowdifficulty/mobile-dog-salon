@@ -15,6 +15,11 @@ import {
 } from "@/lib/scheduling/slots";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
 import { consumeSlotHold, createSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
+import {
+  listRecurringStaffDates,
+  staffRecurrenceLabel,
+  type StaffRecurrenceFrequency,
+} from "@/lib/scheduling/recurring-appointments";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -239,6 +244,187 @@ export async function createAppointment(
   }
 
   return { ok: true, appointment };
+}
+
+export type RecurringAppointmentResult =
+  | {
+      ok: true;
+      appointments: Appointment[];
+      skipped: { date: string; reason: string }[];
+    }
+  | { ok: false; error: string; status: number };
+
+function buildAppointmentRecord(
+  input: CreateAppointmentInput,
+  groomerId: GroomerId,
+  date: string,
+  time: string,
+  notes: string
+): Appointment {
+  const phoneTrimmed = input.phone?.trim() ?? "";
+  const street = String(input.address ?? "").trim();
+  const cityName = String(input.city ?? "").trim();
+  const zipTrimmed = String(input.zipCode ?? "").trim();
+  const emailTrimmed = String(input.email ?? "").trim();
+  const bookingEmail =
+    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+
+  return {
+    id: randomUUID(),
+    groomerId,
+    startAt: slotToISO(date, time),
+    durationMinutes: BOOKING_DURATION_MINUTES,
+    status: "confirmed",
+    petName: input.petName?.trim() ?? "",
+    petBreed: input.petBreed ?? "",
+    petSize: input.petSize,
+    additionalPets: Array.isArray(input.additionalPets)
+      ? input.additionalPets.filter((pet) => pet?.petSize)
+      : undefined,
+    service: input.service,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    email: bookingEmail,
+    phone: phoneTrimmed,
+    smsOptIn: Boolean(input.smsOptIn),
+    address: street,
+    city: cityName || "Orange County",
+    zipCode: zipTrimmed,
+    notes,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function slotConflictReason(
+  groomerId: GroomerId,
+  date: string,
+  time: string,
+  appointments: Appointment[]
+): string | null {
+  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, appointments)) {
+    return "Groomer already booked at that time";
+  }
+
+  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments)) {
+    return "Van already booked at that time";
+  }
+
+  return null;
+}
+
+export async function createRecurringAppointments(
+  input: CreateAppointmentInput,
+  actor: string,
+  recurrence: StaffRecurrenceFrequency,
+  options?: AppointmentMutationOptions
+): Promise<RecurringAppointmentResult> {
+  if (recurrence === "none") {
+    const single = await createAppointment(input, actor, options);
+    if (!single.ok) {
+      return { ok: false, error: single.error, status: single.status };
+    }
+    return { ok: true, appointments: [single.appointment], skipped: [] };
+  }
+
+  const phoneTrimmed = input.phone?.trim() ?? "";
+  if (!phoneTrimmed) {
+    return { ok: false, error: "Phone number is required", status: 400 };
+  }
+
+  const street = String(input.address ?? "").trim();
+  const cityName = String(input.city ?? "").trim();
+  const zipTrimmed = String(input.zipCode ?? "").trim();
+
+  if (!input.petSize || !input.service || !input.firstName || !input.lastName || !street) {
+    return { ok: false, error: "Missing required fields", status: 400 };
+  }
+
+  if (!/^\d{5}(-\d{4})?$/.test(zipTrimmed)) {
+    return { ok: false, error: "Please enter a valid ZIP code.", status: 400 };
+  }
+
+  const resolved = resolveSlot(input);
+  if ("error" in resolved) {
+    return { ok: false, error: resolved.error, status: 400 };
+  }
+
+  const { groomerId, date: startDate, time } = resolved;
+
+  if (!groomerAcceptsBookings(groomerId)) {
+    return {
+      ok: false,
+      error: "That groomer is not accepting new bookings.",
+      status: 409,
+    };
+  }
+
+  if (!isAllowedBookingBlockStart(time)) {
+    return {
+      ok: false,
+      error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
+      status: 400,
+    };
+  }
+
+  if (options?.groomerId && groomerId !== options.groomerId) {
+    return {
+      ok: false,
+      error: "You can only book appointments on your own schedule",
+      status: 403,
+    };
+  }
+
+  const dates = listRecurringStaffDates(startDate, recurrence);
+  const data = await readSchedulingData();
+  const created: Appointment[] = [];
+  const skipped: { date: string; reason: string }[] = [];
+  const recurrenceNote = `Recurring: ${staffRecurrenceLabel(recurrence)}.`;
+  const baseNotes = input.notes?.trim() ?? "";
+  const notes = baseNotes ? `${baseNotes}\n${recurrenceNote}` : recurrenceNote;
+
+  for (const date of dates) {
+    if (!options?.allowSameDay && !isBookableDate(date)) {
+      skipped.push({ date, reason: "Same-day booking not allowed" });
+      continue;
+    }
+
+    if (!options?.overrideAvailability) {
+      const dayAvail = data.availability.find(
+        (a) => a.groomerId === groomerId && a.date === date
+      );
+      if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+        skipped.push({ date, reason: "Groomer not available at that time" });
+        continue;
+      }
+      if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
+        skipped.push({ date, reason: "Groomer fully booked that day" });
+        continue;
+      }
+    }
+
+    const conflict = slotConflictReason(groomerId, date, time, data.appointments);
+    if (conflict) {
+      skipped.push({ date, reason: conflict });
+      continue;
+    }
+
+    const appointment = buildAppointmentRecord(input, groomerId, date, time, notes);
+    data.appointments.push(appointment);
+    created.push(appointment);
+  }
+
+  if (created.length === 0) {
+    const firstReason = skipped[0]?.reason ?? "No dates could be booked";
+    return { ok: false, error: firstReason, status: 409 };
+  }
+
+  await writeSchedulingData(data, {
+    action: "booking",
+    actor,
+    groomerId,
+  });
+
+  return { ok: true, appointments: created, skipped };
 }
 
 export async function cancelAppointment(

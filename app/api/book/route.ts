@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-request";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
+import { effectiveAvailability } from "@/lib/scheduling/effective-availability";
 import {
+  getAvailableSlotsForDate,
   isBookableDate,
   isSlotTaken,
   isVanSlotTaken,
@@ -118,8 +120,23 @@ async function handleBookPost(request: Request) {
   }
 
   const data = await readSchedulingData();
-  const devBooking = isLocalhostRequest(request);
+  const devBooking = isLocalhostDevWithoutProductionData(request);
   const relaxAvailability = devBooking || Boolean(fromFallback);
+
+  if (!relaxAvailability) {
+    const publicSlots = getAvailableSlotsForDate(
+      date,
+      effectiveAvailability(data),
+      data.appointments,
+      service
+    );
+    if (!publicSlots.some((slot) => slot.slotKey === slotKey)) {
+      return NextResponse.json(
+        { error: "That time slot is not available. Please choose another time." },
+        { status: 409 }
+      );
+    }
+  }
 
   if (!relaxAvailability) {
     const dayAvail = data.availability.find(

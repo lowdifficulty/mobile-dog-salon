@@ -5,7 +5,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { killPort } from "./local-server.mjs";
+import { killPort, localProcessEnv, startNextServerDetached } from "./local-server.mjs";
 
 const PORT = "3000";
 const isWin = process.platform === "win32";
@@ -50,6 +50,11 @@ async function main() {
   console.log(`Stopping anything on port ${PORT}...`);
   killPort(Number(PORT));
 
+  if (!process.argv.includes("--no-pull")) {
+    console.log("Refreshing local data from production...");
+    await run("node", ["scripts/pull-from-production.mjs"]);
+  }
+
   if (existsSync(".next") && !process.argv.includes("--clean")) {
     console.log("Using existing .next build (pass --clean to wipe cache).");
   } else if (existsSync(".next")) {
@@ -73,7 +78,7 @@ async function main() {
   const child = spawn(npm, ["start"], {
     stdio: "inherit",
     shell: isWin,
-    env: { ...process.env, PORT },
+    env: localProcessEnv(Number(PORT)),
   });
 
   void (async () => {

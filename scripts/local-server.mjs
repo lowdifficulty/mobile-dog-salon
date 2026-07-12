@@ -8,6 +8,17 @@ import { join } from "node:path";
 
 const isWin = process.platform === "win32";
 
+/** Strip Vercel flags from .env.local so local file stores are used for QA snapshots. */
+export function localProcessEnv(port = 3000) {
+  const env = { ...process.env, PORT: String(port), LOCALHOST_PROD_DATA: "1" };
+  for (const key of Object.keys(env)) {
+    if (key === "VERCEL" || key.startsWith("VERCEL_")) {
+      delete env[key];
+    }
+  }
+  return env;
+}
+
 export function getNextBin() {
   return join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
 }
@@ -63,7 +74,7 @@ export function startNextServerDetached(port = 3000) {
   const child = spawn(process.execPath, [nextBin, "start", "-p", String(port)], {
     detached: true,
     stdio: ["ignore", logFd, logFd],
-    env: { ...process.env, PORT: String(port) },
+    env: localProcessEnv(port),
     cwd: process.cwd(),
     windowsHide: true,
   });

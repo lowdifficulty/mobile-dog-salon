@@ -122,7 +122,23 @@ export function getAvailableSlotsForDate(
     }
   }
 
-  return slots.sort((a, b) => a.time.localeCompare(b.time));
+  return preferMelanieOnOverlapSlots(
+    slots.sort((a, b) => a.time.localeCompare(b.time))
+  );
+}
+
+/** When Melanie and Diamond are both open at the same time, public booking shows Melanie only (1 van). */
+export function preferMelanieOnOverlapSlots(slots: AvailableSlot[]): AvailableSlot[] {
+  const melanieSlotTimes = new Set(
+    slots
+      .filter((slot) => slot.groomerId === "melanie")
+      .map((slot) => `${slot.date}|${slot.time}`)
+  );
+
+  return slots.filter((slot) => {
+    if (slot.groomerId !== "diamond") return true;
+    return !melanieSlotTimes.has(`${slot.date}|${slot.time}`);
+  });
 }
 
 export function getDatesWithAvailability(
@@ -132,21 +148,17 @@ export function getDatesWithAvailability(
   fromDate: string,
   toDate: string
 ): string[] {
-  const dates = new Set<string>();
-  for (const day of availability) {
-    if (day.date < fromDate || day.date > toDate) continue;
-    if (!isBookableDate(day.date)) continue;
-    if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
-    if (isGroomerFullyBooked(day.groomerId, day.date, appointments)) continue;
-    const hasSlot = listSelfBookingStarts(
-      day.times,
-      (time) =>
-        isSlotTaken(day.groomerId, day.date, time, BOOKING_DURATION_MINUTES, appointments) ||
-        isVanSlotTaken(day.date, time, BOOKING_DURATION_MINUTES, appointments)
-    ).length > 0;
-    if (hasSlot) dates.add(day.date);
+  const dates: string[] = [];
+  let cursor = fromDate;
+  while (cursor <= toDate) {
+    if (
+      getAvailableSlotsForDate(cursor, availability, appointments, service).length > 0
+    ) {
+      dates.push(cursor);
+    }
+    cursor = addDays(cursor, 1);
   }
-  return [...dates].sort();
+  return dates;
 }
 
 export function parseSlotKey(slotKey: string): {

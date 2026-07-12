@@ -36,7 +36,7 @@ import {
 } from "@/lib/pricing";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { updateClient } from "@/lib/payments/store";
-import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-request";
 import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { createSlotHold, SLOT_HOLD_TTL_SECONDS } from "@/lib/scheduling/slot-holds";
 import type { LickyActionContext } from "@/lib/client/licky-context";
@@ -61,9 +61,11 @@ function lickyBookingOptions(
   fromFallback: boolean | undefined,
   holdOwnerId: string
 ): AppointmentMutationOptions {
-  const localhost = request ? isLocalhostRequest(request) : false;
+  const localhostDev = request
+    ? isLocalhostDevWithoutProductionData(request)
+    : false;
   return {
-    overrideAvailability: localhost || Boolean(fromFallback),
+    overrideAvailability: localhostDev || Boolean(fromFallback),
     holdOwnerId,
   };
 }

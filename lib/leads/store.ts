@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
-import { assertWritablePersistence } from "@/lib/scheduling/persistence";
+import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/persistence";
 import { normalizePhone } from "./normalize";
 import {
   funnelStepOrder,
@@ -62,7 +62,7 @@ export async function readLeadsData(): Promise<LeadsData> {
     return empty;
   }
 
-  if (process.env.VERCEL) {
+  if (isVercelServerless()) {
     return emptyLeadsData();
   }
 

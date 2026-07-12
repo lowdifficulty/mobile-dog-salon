@@ -11,6 +11,7 @@
   "scripts": {
     "42": "node scripts/push-prod.mjs",
     "67": "node scripts/start-local.mjs",
+    "pull:prod": "node scripts/pull-from-production.mjs",
     "dev": "next dev",
     "build": "next build",
     "postbuild": "node scripts/ensure-local.mjs --restart --skip-if-ci",

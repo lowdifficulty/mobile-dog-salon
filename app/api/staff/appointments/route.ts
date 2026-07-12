@@ -6,10 +6,11 @@ import {
 } from "@/lib/scheduling/appointment-filters";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import {
-  createAppointment,
+  createRecurringAppointments,
   type CreateAppointmentInput,
 } from "@/lib/scheduling/appointment-actions";
 import { runBookingFollowUp } from "@/lib/scheduling/booking-follow-up";
+import { isStaffRecurrenceFrequency } from "@/lib/scheduling/recurring-appointments";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 function parseFilter(value: string | null): StaffAppointmentFilter {
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
     const user = await requireStaff();
     const body = (await request.json()) as CreateAppointmentInput & {
       overrideAvailability?: boolean;
+      recurrence?: string;
     };
 
     const groomerOptions =
@@ -49,22 +51,40 @@ export async function POST(request: Request) {
         ? { groomerId: user.groomerId }
         : undefined;
 
-    const result = await createAppointment(body, user.email, {
+    const mutationOptions = {
       ...groomerOptions,
       overrideAvailability: body.overrideAvailability ?? true,
       allowSameDay: true,
       skipHold: true,
-    });
+    };
+
+    const recurrence = isStaffRecurrenceFrequency(body.recurrence)
+      ? body.recurrence
+      : "none";
+
+    const result = await createRecurringAppointments(
+      body,
+      user.email,
+      recurrence,
+      mutationOptions
+    );
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    await runBookingFollowUp(result.appointment, "staff");
+    for (let i = 0; i < result.appointments.length; i++) {
+      await runBookingFollowUp(result.appointments[i], "staff", {
+        quiet: i > 0,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
-      appointment: result.appointment,
+      appointment: result.appointments[0],
+      appointments: result.appointments,
+      bookedCount: result.appointments.length,
+      skipped: result.skipped,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unauthorized";

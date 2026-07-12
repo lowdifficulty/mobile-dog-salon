@@ -164,7 +164,7 @@ export default function LickyTrainingPanel() {
               {slots.fullGroom} full groom · {slots.bathBrush} bath
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Melanie {slots.melanieFullGroom} · Sarah/Diamond {slots.diamondFullGroom} · source:{" "}
+              Melanie {slots.melanieFullGroom} · Diamond {slots.diamondFullGroom} · source:{" "}
               {slots.source}
             </p>
           </div>

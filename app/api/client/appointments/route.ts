@@ -6,7 +6,7 @@ import {
 import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { mergeAppointmentIds, listClientAppointments } from "@/lib/client/appointments";
 import { getClientServiceAddress } from "@/lib/client/licky-address";
-import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-request";
 import { requireClient } from "@/lib/payments/auth";
 import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
 import { findClientById, updateClient } from "@/lib/payments/store";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       input,
       `client:${account.email}`,
       {
-        overrideAvailability: isLocalhostRequest(request),
+        overrideAvailability: isLocalhostDevWithoutProductionData(request),
         holdOwnerId: await getOrCreateHoldOwnerId(),
       }
     );

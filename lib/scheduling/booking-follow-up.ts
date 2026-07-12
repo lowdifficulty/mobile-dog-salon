@@ -9,7 +9,8 @@ import type { Appointment } from "@/lib/scheduling/types";
 /** Lead sync, calendar invites, confirmations, reminders, and CRM after a new booking. */
 export async function runBookingFollowUp(
   appointment: Appointment,
-  source: "booking" | "staff"
+  source: "booking" | "staff",
+  options?: { quiet?: boolean }
 ): Promise<void> {
   try {
     await upsertLead({
@@ -35,6 +36,8 @@ export async function runBookingFollowUp(
   } catch (err) {
     console.error("Lead sync failed:", err);
   }
+
+  if (options?.quiet) return;
 
   try {
     await sendCalendarInvites(appointment);

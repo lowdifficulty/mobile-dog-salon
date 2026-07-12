@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isLocalhostRequest } from "@/lib/dev/is-localhost-request";
+import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-request";
 import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
 import { getBlockedSlotKeys } from "@/lib/scheduling/slot-holds";
 import { readSchedulingData } from "@/lib/scheduling/store";
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from"); // YYYY-MM-DD range start
   const daysParam = searchParams.get("days");
 
-  const devAllSlots = isLocalhostRequest(request);
+  const devAllSlots = isLocalhostDevWithoutProductionData(request);
   let data;
   try {
     data = await readSchedulingData();

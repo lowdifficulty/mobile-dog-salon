@@ -15,7 +15,7 @@ export async function GET() {
   try {
     await requireStaff();
     const data = await readSchedulingData();
-    const summary = vanCapacitySummary(data.appointments);
+    const summary = vanCapacitySummary(data);
     return NextResponse.json({
       ...summary,
       persistence: getSchedulingPersistenceStatus(),
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       actor: user.email,
     });
 
-    const summary = vanCapacitySummary(data.appointments);
+    const summary = vanCapacitySummary(data);
 
     return NextResponse.json({
       success: true,

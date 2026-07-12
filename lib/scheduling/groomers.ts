@@ -23,7 +23,6 @@ export const GROOMERS: Record<
   diamond: {
     id: "diamond",
     name: "Diamond",
-    clientName: "Sarah",
     email: "diamond@mobiledog-salon.com",
     calendarEmail: "diamond@mobiledog-salon.com",
   },

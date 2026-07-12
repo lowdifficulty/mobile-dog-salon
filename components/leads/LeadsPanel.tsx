@@ -473,12 +473,14 @@ export default function LeadsPanel({
     return sortedLeads.filter((lead) => matchesAbandonedSubtab(lead, abandonedSubtab));
   }, [sortedLeads, view, abandonedSubtab]);
 
-  const loadLeads = useCallback(() => {
+  const loadLeads = useCallback((options?: { silent?: boolean }) => {
     if (view === "job_applicants") {
       setLoading(false);
       return Promise.resolve();
     }
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
     setError(null);
     return fetch(`${apiBase}?view=${view}`)
       .then((r) => {
@@ -496,8 +498,12 @@ export default function LeadsPanel({
           }))
         )
       )
-      .catch(() => setError("Could not load leads."))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!options?.silent) setError("Could not load leads.");
+      })
+      .finally(() => {
+        if (!options?.silent) setLoading(false);
+      });
   }, [view, apiBase]);
 
   useEffect(() => {
@@ -516,6 +522,23 @@ export default function LeadsPanel({
       listStatus?: LeadListStatus;
     } & Partial<LeadDetailsFormValues>
   ) {
+    const isInlineToggle =
+      (body.followUpMode !== undefined || body.visitOutcome !== undefined) &&
+      body.listStatus === undefined &&
+      !Object.keys(body).some(
+        (key) =>
+          key !== "followUpMode" &&
+          key !== "visitOutcome" &&
+          body[key as keyof typeof body] !== undefined
+      );
+
+    const previousLeads = leads;
+    if (isInlineToggle) {
+      setLeads((prev) =>
+        prev.map((lead) => (lead.id === leadId ? { ...lead, ...body } : lead))
+      );
+    }
+
     setSavingId(leadId);
     setError(null);
     try {
@@ -537,10 +560,15 @@ export default function LeadsPanel({
       if (body.listStatus === "active" && view === "cold_storage") {
         setExpandedId(null);
       }
-      await loadLeads();
+      if (!isInlineToggle) {
+        await loadLeads({ silent: true });
+      }
       await loadBadges();
       setEditingId(null);
     } catch (err) {
+      if (isInlineToggle) {
+        setLeads(previousLeads);
+      }
       setError(err instanceof Error ? err.message : "Could not update lead.");
     } finally {
       setSavingId(null);
@@ -589,7 +617,7 @@ export default function LeadsPanel({
       });
       if (!res.ok) throw new Error("Failed");
       setNoteDrafts((prev) => ({ ...prev, [leadId]: "" }));
-      await loadLeads();
+      await loadLeads({ silent: true });
       await loadBadges();
       setExpandedId(leadId);
     } catch {
@@ -776,99 +804,101 @@ export default function LeadsPanel({
                   key={lead.id}
                   className={`rounded-xl border overflow-hidden ${rowStyle(lead, view as LeadCrmView)}`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(expanded ? null : lead.id)}
-                    className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-gray-900">
-                          {hasValidLeadPhone(lead)
-                            ? formatPhoneDisplay(lead.phone)
-                            : "No phone on file"}
-                        </p>
-                        {isScheduledLead(lead) && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
-                            Scheduled
-                          </span>
-                        )}
-                        {isAppointmentInProgress(lead) && view === "complete" && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-blue-900 bg-blue-200 px-2 py-0.5 rounded-full">
-                            In progress
-                          </span>
-                        )}
-                        {isAbandonedLead(lead) && view === "abandoned" && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
-                            Picked time
-                          </span>
-                        )}
-                        {lead.followUpDue &&
-                          lead.followUpMode === "fu" &&
-                          !isScheduledLead(lead) &&
-                          view !== "complete" && (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
-                            Due
-                          </span>
-                        )}
-                        {view === "complete" ? (
-                          <VisitOutcomeToggle
-                            outcome={lead.visitOutcome}
-                            disabled={busy}
-                            onChange={(visitOutcome) =>
-                              patchLead(lead.id, { visitOutcome })
-                            }
-                          />
-                        ) : (
-                          <FollowUpToggle
-                            mode={lead.followUpMode}
-                            disabled={busy}
-                            onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
-                          />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-0.5">
-                        {displayName(lead)}
-                        {lead.currentlyActive && (
-                          <span className="text-brand font-semibold"> (currently active)</span>
-                        )}
-                      </p>
-                      {view === "scheduled" && lead.appointmentStartAt && (
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">
-                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
-                        </p>
-                      )}
-                      {lead.appointmentStartAt && isAbandonedLead(lead) && (
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">
-                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
-                        </p>
-                      )}
-                      {view === "complete" &&
-                        isAppointmentInProgress(lead) &&
-                        lead.appointmentStartAt && (
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">
-                          {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
-                        </p>
-                      )}
-                      {view === "complete" && lead.lastAppointmentAt && !isAppointmentInProgress(lead) && (
-                        <p className="text-sm font-medium text-gray-800 mt-0.5">
-                          Last visit: {formatShortDate(lead.lastAppointmentAt)}
-                          {lead.visitOutcome === "complete" && (
-                            <span className="text-green-800 font-semibold">
-                              {" "}
-                              · {formatDaysSinceLastAppointment(lead.lastAppointmentAt)}
+                  <div className="w-full px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(expanded ? null : lead.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-gray-900">
+                            {hasValidLeadPhone(lead)
+                              ? formatPhoneDisplay(lead.phone)
+                              : "No phone on file"}
+                          </p>
+                          {isScheduledLead(lead) && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-green-800 bg-green-200 px-2 py-0.5 rounded-full">
+                              Scheduled
                             </span>
                           )}
+                          {isAppointmentInProgress(lead) && view === "complete" && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-blue-900 bg-blue-200 px-2 py-0.5 rounded-full">
+                              In progress
+                            </span>
+                          )}
+                          {isAbandonedLead(lead) && view === "abandoned" && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
+                              Picked time
+                            </span>
+                          )}
+                          {lead.followUpDue &&
+                            lead.followUpMode === "fu" &&
+                            !isScheduledLead(lead) &&
+                            view !== "complete" && (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-200 px-2 py-0.5 rounded-full">
+                              Due
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          {displayName(lead)}
+                          {lead.currentlyActive && (
+                            <span className="text-brand font-semibold"> (currently active)</span>
+                          )}
                         </p>
+                        {view === "scheduled" && lead.appointmentStartAt && (
+                          <p className="text-sm font-medium text-gray-800 mt-0.5">
+                            {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                          </p>
+                        )}
+                        {lead.appointmentStartAt && isAbandonedLead(lead) && (
+                          <p className="text-sm font-medium text-gray-800 mt-0.5">
+                            {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                          </p>
+                        )}
+                        {view === "complete" &&
+                          isAppointmentInProgress(lead) &&
+                          lead.appointmentStartAt && (
+                          <p className="text-sm font-medium text-gray-800 mt-0.5">
+                            {formatLeadAppointmentWhen(lead.appointmentStartAt, lead.groomerName)}
+                          </p>
+                        )}
+                        {view === "complete" && lead.lastAppointmentAt && !isAppointmentInProgress(lead) && (
+                          <p className="text-sm font-medium text-gray-800 mt-0.5">
+                            Last visit: {formatShortDate(lead.lastAppointmentAt)}
+                            {lead.visitOutcome === "complete" && (
+                              <span className="text-green-800 font-semibold">
+                                {" "}
+                                · {formatDaysSinceLastAppointment(lead.lastAppointmentAt)}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Contact: {formatDate(lead.contactMadeAt)}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 sm:justify-end">
+                      {view === "complete" ? (
+                        <VisitOutcomeToggle
+                          outcome={lead.visitOutcome}
+                          disabled={busy}
+                          onChange={(visitOutcome) =>
+                            patchLead(lead.id, { visitOutcome })
+                          }
+                        />
+                      ) : (
+                        <FollowUpToggle
+                          mode={lead.followUpMode}
+                          disabled={busy}
+                          onChange={(mode) => patchLead(lead.id, { followUpMode: mode })}
+                        />
                       )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Contact: {formatDate(lead.contactMadeAt)}
-                      </p>
-                    </div>
-                    <div className="shrink-0">
                       <FunnelProgress step={lead.funnelStep} />
                     </div>
-                  </button>
+                  </div>
 
                   {expanded && (
                     <div className="border-t border-gray-200/80 px-4 py-4 space-y-4 bg-white/60">

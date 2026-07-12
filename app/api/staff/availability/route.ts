@@ -12,6 +12,11 @@ import {
   readSchedulingData,
   writeSchedulingData,
 } from "@/lib/scheduling/store";
+import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
+import {
+  buildOpenVanSlotKeySet,
+  rejectUnavailableGroomerShifts,
+} from "@/lib/scheduling/van-capacity";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 function isGroomerId(value: string | null): value is GroomerId {
@@ -31,9 +36,13 @@ export async function GET(request: Request) {
     if (edit && isGroomerId(groomerIdParam)) {
       const mine = data.availability.filter((a) => a.groomerId === groomerIdParam);
       const locked = appointmentLockedHourSlots(groomerIdParam, data.appointments);
+      const today = getTodayPacificDate();
+      const maxDate = getShiftHorizonEndDate();
+      const openSlotKeys = [...buildOpenVanSlotKeySet(data, { from: today, to: maxDate })];
       return NextResponse.json({
         availability: mine,
         locked,
+        openSlotKeys,
         persistence: getSchedulingPersistenceStatus(),
       });
     }
@@ -80,6 +89,11 @@ export async function PUT(request: Request) {
           times: [...new Set(a.times)].sort(),
         }))
     );
+
+    const shiftError = rejectUnavailableGroomerShifts(data, groomerId, sanitized);
+    if (shiftError) {
+      return NextResponse.json({ error: shiftError }, { status: 409 });
+    }
 
     data.availability = [
       ...data.availability.filter((a) => a.groomerId !== groomerId),

@@ -392,6 +392,10 @@ body {
     @apply bg-white rounded-[30px] shadow-sm border border-accent/10 hover:border-accent/30 hover:shadow-md transition-all;
   }
 
+  .van-capacity-slots-list {
+    @apply max-h-72 overflow-y-auto space-y-1.5 pr-1;
+  }
+
   .interview-booking-fold {
     @apply pt-3 pb-4 md:pt-5 md:pb-6;
     min-height: calc(100dvh - 4rem);

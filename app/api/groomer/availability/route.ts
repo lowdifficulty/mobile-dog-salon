@@ -10,6 +10,11 @@ import {
   readSchedulingData,
   writeSchedulingData,
 } from "@/lib/scheduling/store";
+import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
+import {
+  buildOpenVanSlotKeySet,
+  rejectUnavailableGroomerShifts,
+} from "@/lib/scheduling/van-capacity";
 import type { AvailabilityDay } from "@/lib/scheduling/types";
 
 export async function GET() {
@@ -18,10 +23,14 @@ export async function GET() {
     const data = await readSchedulingData();
     const mine = data.availability.filter((a) => a.groomerId === user.groomerId);
     const locked = appointmentLockedHourSlots(user.groomerId!, data.appointments);
+    const today = getTodayPacificDate();
+    const maxDate = getShiftHorizonEndDate();
+    const openSlotKeys = [...buildOpenVanSlotKeySet(data, { from: today, to: maxDate })];
 
     return NextResponse.json({
       availability: mine,
       locked,
+      openSlotKeys,
       persistence: getSchedulingPersistenceStatus(),
     });
   } catch {
@@ -46,6 +55,11 @@ export async function PUT(request: Request) {
           times: [...new Set(a.times)].sort(),
         }))
     );
+
+    const shiftError = rejectUnavailableGroomerShifts(data, user.groomerId!, sanitized);
+    if (shiftError) {
+      return NextResponse.json({ error: shiftError }, { status: 409 });
+    }
 
     data.availability = [
       ...data.availability.filter((a) => a.groomerId !== user.groomerId),

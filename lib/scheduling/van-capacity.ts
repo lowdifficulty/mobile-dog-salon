@@ -276,6 +276,50 @@ export function listAvailableVanTimeslots(
   return open;
 }
 
+export function openVanSlotKey(date: string, time: string): string {
+  return `${date}|${time}`;
+}
+
+export function buildOpenVanSlotKeySet(
+  data: SchedulingData,
+  options?: { from?: string; to?: string }
+): Set<string> {
+  return new Set(
+    listAvailableVanTimeslots(data.appointments, data.availability, options).map((slot) =>
+      openVanSlotKey(slot.date, slot.time)
+    )
+  );
+}
+
+/** Returns an error message when incoming shifts claim unavailable van slots. */
+export function rejectUnavailableGroomerShifts(
+  data: SchedulingData,
+  groomerId: GroomerId,
+  incoming: AvailabilityDay[]
+): string | null {
+  const today = getTodayPacificDate();
+  const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
+  const openKeys = buildOpenVanSlotKeySet(data, { from: today, to: maxDate });
+  const existingByDate = new Map(
+    data.availability
+      .filter((day) => day.groomerId === groomerId)
+      .map((day) => [day.date, day.times] as const)
+  );
+
+  for (const day of incoming) {
+    for (const blockStart of BOOKING_BLOCK_STARTS) {
+      if (!isBookingBlockEnabled(day.times, blockStart)) continue;
+      const key = openVanSlotKey(day.date, blockStart);
+      const hadBefore = isBookingBlockEnabled(existingByDate.get(day.date) ?? [], blockStart);
+      if (!openKeys.has(key) && !hadBefore) {
+        return `${formatBookingBlockDisplay(blockStart)} on ${day.date} is no longer available. Refresh and try again.`;
+      }
+    }
+  }
+
+  return null;
+}
+
 /**
  * Ensure each confirmed appointment has a matching shift on that groomer's calendar.
  * Does not remove other open shifts — only allocates required coverage from bookings.

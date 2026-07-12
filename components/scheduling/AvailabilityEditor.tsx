@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BOOKING_BLOCK_STARTS,
   SHIFT_HORIZON_MONTHS,
@@ -58,12 +58,20 @@ function shiftLabel(blockStart: string): string {
   return formatDisplayTime(blockStart);
 }
 
+function slotKey(date: string, time: string): string {
+  return `${date}|${time}`;
+}
+
 export default function AvailabilityEditor({
   apiBase,
   groomerId,
   readOnly = false,
   includeGroomerIdInSave = false,
   addShiftRequest = null,
+  shiftRequest = null,
+  pendingSlotKeys = [],
+  onPendingSlotChange,
+  timeslotsAbove,
   onSaved,
 }: {
   apiBase: string;
@@ -71,8 +79,20 @@ export default function AvailabilityEditor({
   readOnly?: boolean;
   /** When true, PUT body includes groomerId (staff/admin APIs). */
   includeGroomerIdInSave?: boolean;
-  /** External request to enable a shift (e.g. + on available timeslots). */
+  /** @deprecated Use shiftRequest */
   addShiftRequest?: { date: string; time: string; id: number } | null;
+  /** Add or remove shift(s) from the available-timeslots list (before save). */
+  shiftRequest?: {
+    slots: { date: string; time: string }[];
+    action: "add" | "remove";
+    id: number;
+  } | null;
+  /** Keys for unsaved shifts queued from the timeslots list (`date|time`). */
+  pendingSlotKeys?: string[];
+  /** Keep pending timeslot keys in sync when toggling shifts on the calendar. */
+  onPendingSlotChange?: (date: string, time: string, queued: boolean) => void;
+  /** Open van timeslots panel — sits above the calendar in the left column. */
+  timeslotsAbove?: ReactNode;
   onSaved?: () => void;
 }) {
   const today = getTodayPacificDate();
@@ -82,6 +102,7 @@ export default function AvailabilityEditor({
   const [selectedDate, setSelectedDate] = useState<string | null>(today);
   const [rows, setRows] = useState<Record<string, string[]>>({});
   const [lockedHours, setLockedHours] = useState<Record<string, string[]>>({});
+  const [openSlotKeys, setOpenSlotKeys] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -125,6 +146,7 @@ export default function AvailabilityEditor({
     }
     setRows(map);
     setLockedHours((data.locked as Record<string, string[]>) ?? {});
+    setOpenSlotKeys(new Set((data.openSlotKeys as string[]) ?? []));
     if (data.persistence?.writable === false) {
       setPersistenceNote(data.persistence.message);
     } else {
@@ -138,33 +160,114 @@ export default function AvailabilityEditor({
   }, [load]);
 
   useEffect(() => {
-    if (!addShiftRequest || readOnly) return;
-    const { date, time } = addShiftRequest;
-    if (date < today || date > maxDate) {
-      setMessage("That timeslot is outside the shift window.");
-      return;
+    const request =
+      shiftRequest ??
+      (addShiftRequest
+        ? {
+            slots: [{ date: addShiftRequest.date, time: addShiftRequest.time }],
+            action: "add" as const,
+            id: addShiftRequest.id,
+          }
+        : null);
+    if (!request || readOnly || request.slots.length === 0) return;
+
+    const { slots, action } = request;
+    const first = slots[0];
+
+    for (const slot of slots) {
+      if (slot.date < today || slot.date > maxDate) {
+        setMessage("That timeslot is outside the shift window.");
+        return;
+      }
+      if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(slot.time)) {
+        setMessage("That timeslot is not a valid shift start.");
+        return;
+      }
     }
-    if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(time)) {
-      setMessage("That timeslot is not a valid shift start.");
+
+    if (action === "remove") {
+      for (const slot of slots) {
+        const dayLocked = new Set(lockedHours[slot.date] ?? []);
+        const block = bookingBlockHours(slot.time, GROOMER_AVAILABILITY_BLOCK_MINUTES);
+        if (block.some((hour) => dayLocked.has(hour))) {
+          setMessage("That shift has a booked appointment and cannot be removed.");
+          return;
+        }
+      }
+
+      setViewYear(Number(first.date.slice(0, 4)));
+      setViewMonth(Number(first.date.slice(5, 7)));
+      setSelectedDate(first.date);
+
+      setRows((prev) => {
+        let next = prev;
+        for (const slot of slots) {
+          const current = next[slot.date] ?? [];
+          if (!isBookingBlockEnabled(current, slot.time)) continue;
+          const times = setBookingBlockEnabled(current, slot.time, false);
+          if (times.length === 0) {
+            next = { ...next };
+            delete next[slot.date];
+          } else {
+            next = { ...next, [slot.date]: times };
+          }
+        }
+        return next;
+      });
+
+      setMessage(
+        slots.length === 1
+          ? `Removed ${formatDisplayTime(first.time)} on ${formatDateLabel(first.date)} — not saved yet.`
+          : `Removed ${slots.length} shifts on ${formatDateLabel(first.date)} — not saved yet.`
+      );
       return;
     }
 
-    setViewYear(Number(date.slice(0, 4)));
-    setViewMonth(Number(date.slice(5, 7)));
-    setSelectedDate(date);
+    for (const slot of slots) {
+      if (!openSlotKeys.has(slotKey(slot.date, slot.time))) {
+        setMessage("That timeslot is no longer available.");
+        return;
+      }
+    }
+
+    setViewYear(Number(first.date.slice(0, 4)));
+    setViewMonth(Number(first.date.slice(5, 7)));
+    setSelectedDate(first.date);
 
     setRows((prev) => {
-      const current = prev[date] ?? [];
-      if (isBookingBlockEnabled(current, time)) return prev;
-      return {
-        ...prev,
-        [date]: setBookingBlockEnabled(current, time, true),
-      };
+      let next = prev;
+      for (const slot of slots) {
+        const current = next[slot.date] ?? [];
+        if (isBookingBlockEnabled(current, slot.time)) continue;
+        next = {
+          ...next,
+          [slot.date]: setBookingBlockEnabled(current, slot.time, true),
+        };
+      }
+      return next;
     });
+
     setMessage(
-      `Added ${formatDisplayTime(time)} on ${formatDateLabel(date)} — click Save shifts to lock it in.`
+      slots.length === 1
+        ? `Added ${formatDisplayTime(first.time)} on ${formatDateLabel(first.date)} — click Save shifts to lock it in.`
+        : `Added ${slots.length} shifts on ${formatDateLabel(first.date)} — click Save shifts to lock it in.`
     );
-  }, [addShiftRequest, readOnly, today, maxDate]);
+  }, [shiftRequest, addShiftRequest, readOnly, today, maxDate, openSlotKeys, lockedHours]);
+
+  function isSlotOpen(date: string, blockStart: string): boolean {
+    return openSlotKeys.has(slotKey(date, blockStart));
+  }
+
+  function visibleBlocksForDate(date: string, times: string[] | undefined): string[] {
+    return BOOKING_BLOCK_STARTS.filter(
+      (blockStart) =>
+        isSlotOpen(date, blockStart) || isBookingBlockEnabled(times ?? [], blockStart)
+    );
+  }
+
+  function openBlocksForDate(date: string): string[] {
+    return BOOKING_BLOCK_STARTS.filter((blockStart) => isSlotOpen(date, blockStart));
+  }
 
   function goMonth(delta: number) {
     if (delta < 0 && !canGoPrevMonth) return;
@@ -195,7 +298,14 @@ export default function AvailabilityEditor({
     setRows((prev) => {
       const current = prev[date] ?? [];
       const enabled = isBookingBlockEnabled(current, blockStart);
+      if (!enabled && !isSlotOpen(date, blockStart)) {
+        setMessage("That timeslot is no longer available.");
+        return prev;
+      }
       const times = setBookingBlockEnabled(current, blockStart, !enabled);
+      if (enabled && pendingSlotKeys.includes(slotKey(date, blockStart))) {
+        onPendingSlotChange?.(date, blockStart, false);
+      }
       if (times.length === 0) {
         const next = { ...prev };
         delete next[date];
@@ -257,6 +367,10 @@ export default function AvailabilityEditor({
 
   const selectedTimes = selectedDate ? rows[selectedDate] : undefined;
   const selectedActive = Boolean(selectedTimes?.length);
+  const selectedVisibleBlocks = selectedDate
+    ? visibleBlocksForDate(selectedDate, selectedTimes)
+    : [];
+  const selectedOpenBlocks = selectedDate ? openBlocksForDate(selectedDate) : [];
   const selectedIsPast = selectedDate ? selectedDate < today : false;
   const selectedBeyondHorizon = selectedDate ? selectedDate > maxDate : false;
   const canEditSelected =
@@ -267,32 +381,34 @@ export default function AvailabilityEditor({
   }
 
   return (
-    <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-8 items-start">
-      <div>
-        {!readOnly && (
-          <div className="flex flex-wrap items-center gap-3 mb-6">
-            <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
-              {saving ? "Saving…" : "Save shifts"}
-            </button>
-            <p className="text-sm text-gray-500">
-              Select shifts up to {SHIFT_HORIZON_MONTHS} months ahead (through{" "}
-              {new Date(`${maxDate}T12:00:00`).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-              ). Any day of the week · 8 AM, 11 AM, 2 PM, 5 PM.
-            </p>
-          </div>
-        )}
-        {message && <p className="text-sm text-brand font-semibold mb-4">{message}</p>}
-        {persistenceNote && (
-          <p className="text-sm text-red-600 font-semibold mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            {persistenceNote}
+    <div>
+      {!readOnly && (
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
+            {saving ? "Saving…" : "Save shifts"}
+          </button>
+          <p className="text-sm text-gray-500">
+            Select shifts up to {SHIFT_HORIZON_MONTHS} months ahead (through{" "}
+            {new Date(`${maxDate}T12:00:00`).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+            ). Any day of the week · 8 AM, 11 AM, 2 PM, 5 PM.
           </p>
-        )}
+        </div>
+      )}
+      {message && <p className="text-sm text-brand font-semibold mb-4">{message}</p>}
+      {persistenceNote && (
+        <p className="text-sm text-red-600 font-semibold mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          {persistenceNote}
+        </p>
+      )}
 
-        <div className="site-card p-6">
+      {timeslotsAbove && <div className="mb-4">{timeslotsAbove}</div>}
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:items-start">
+        <div className="site-card p-6 min-w-0">
           <div className="flex items-center justify-between gap-4 mb-6">
             <button
               type="button"
@@ -370,12 +486,11 @@ export default function AvailabilityEditor({
           <p className="text-xs text-gray-500 mt-4">
             {readOnly
               ? "Days with a dot have shifts set. Click a day to view them."
-              : "Click any day (Sun–Sat) to pick shifts. Booked shifts are locked until the appointment is cancelled or moved."}
+              : "Click a day to pick open van shifts (8 AM, 11 AM, 2 PM, 5 PM). Booked or taken slots are hidden."}
           </p>
         </div>
-      </div>
 
-      <div className="site-card p-6 lg:sticky lg:top-8">
+        <div className="site-card p-6 lg:sticky lg:top-8">
         {selectedDate ? (
           <>
             <h3 className="text-lg font-bold text-brand mb-1">{formatDateLabel(selectedDate)}</h3>
@@ -396,21 +511,30 @@ export default function AvailabilityEditor({
               </p>
             )}
 
-            {canEditSelected && (
+            {canEditSelected && selectedVisibleBlocks.length === 0 && (
+              <p className="text-sm text-gray-500 mb-4">
+                No open van timeslots on this day. All shifts are booked or already claimed.
+              </p>
+            )}
+
+            {canEditSelected && selectedVisibleBlocks.length > 0 && (
               <div className="grid grid-cols-2 gap-2 mb-4">
-                {BOOKING_BLOCK_STARTS.map((blockStart) => {
+                {selectedVisibleBlocks.map((blockStart) => {
                   const locked = isBlockLocked(selectedDate, blockStart);
                   const selected = isBookingBlockEnabled(selectedTimes ?? [], blockStart);
+                  const open = isSlotOpen(selectedDate, blockStart);
                   return (
                     <button
                       key={blockStart}
                       type="button"
                       onClick={() => toggleBlock(selectedDate, blockStart)}
-                      disabled={locked}
+                      disabled={locked || (!selected && !open)}
                       title={
                         locked
                           ? "Booked appointment — cannot remove"
-                          : formatBookingBlockDisplay(blockStart)
+                          : !open && selected
+                            ? "Your shift — click to remove"
+                            : formatBookingBlockDisplay(blockStart)
                       }
                       className={`px-3 py-3 rounded-xl text-sm font-semibold border transition-colors ${
                         locked
@@ -458,13 +582,13 @@ export default function AvailabilityEditor({
               </button>
             )}
 
-            {canEditSelected && !selectedActive && (
+            {canEditSelected && !selectedActive && selectedOpenBlocks.length > 0 && (
               <button
                 type="button"
                 onClick={() =>
                   setRows((prev) => ({
                     ...prev,
-                    [selectedDate]: BOOKING_BLOCK_STARTS.reduce(
+                    [selectedDate]: selectedOpenBlocks.reduce(
                       (times, start) => setBookingBlockEnabled(times, start, true),
                       [] as string[]
                     ),
@@ -472,13 +596,14 @@ export default function AvailabilityEditor({
                 }
                 className="site-btn-outline text-sm w-full"
               >
-                Select all shifts (8 AM – 5 PM)
+                Select all open shifts this day
               </button>
             )}
           </>
         ) : (
           <p className="text-sm text-gray-500">Select a day on the calendar to set shifts.</p>
         )}
+        </div>
       </div>
     </div>
   );

@@ -17,18 +17,38 @@ export default function StaffShiftsPanel({
 }) {
   const [groomerId, setGroomerId] = useState<GroomerId>(defaultGroomerId);
   const [overviewKey, setOverviewKey] = useState(0);
-  const [addShiftRequest, setAddShiftRequest] = useState<{
-    date: string;
-    time: string;
+  const [shiftRequest, setShiftRequest] = useState<{
+    slots: { date: string; time: string }[];
+    action: "add" | "remove";
     id: number;
   } | null>(null);
   const [pendingSlotKeys, setPendingSlotKeys] = useState<string[]>([]);
 
-  const handleAddTimeslot = useCallback((date: string, time: string) => {
-    const key = `${date}|${time}`;
-    setPendingSlotKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
-    setAddShiftRequest({ date, time, id: Date.now() });
+  const handleToggleTimeslots = useCallback((slots: { date: string; time: string }[]) => {
+    if (slots.length === 0) return;
+    const keys = slots.map((slot) => `${slot.date}|${slot.time}`);
+    setPendingSlotKeys((prev) => {
+      const allQueued = keys.every((key) => prev.includes(key));
+      setShiftRequest({
+        slots,
+        action: allQueued ? "remove" : "add",
+        id: Date.now(),
+      });
+      if (allQueued) return prev.filter((key) => !keys.includes(key));
+      return [...prev, ...keys.filter((key) => !prev.includes(key))];
+    });
   }, []);
+
+  const handlePendingSlotChange = useCallback(
+    (date: string, time: string, queued: boolean) => {
+      const key = `${date}|${time}`;
+      setPendingSlotKeys((prev) => {
+        if (queued) return prev.includes(key) ? prev : [...prev, key];
+        return prev.filter((k) => k !== key);
+      });
+    },
+    []
+  );
 
   return (
     <div>
@@ -37,7 +57,7 @@ export default function StaffShiftsPanel({
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
             1 van fleet — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
-            Use + on an available timeslot (or select below), then Save shifts to lock it in.
+            Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
           </p>
         </div>
         <label className="block">
@@ -49,7 +69,7 @@ export default function StaffShiftsPanel({
             onChange={(e) => {
               setGroomerId(e.target.value as GroomerId);
               setPendingSlotKeys([]);
-              setAddShiftRequest(null);
+              setShiftRequest(null);
             }}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand"
           >
@@ -62,21 +82,24 @@ export default function StaffShiftsPanel({
         </label>
       </div>
 
-      <VanCapacityOverview
-        key={overviewKey}
-        pendingSlotKeys={pendingSlotKeys}
-        onAddTimeslot={handleAddTimeslot}
-      />
-
       <AvailabilityEditor
         key={groomerId}
         apiBase={`${apiBase}?groomerId=${groomerId}&edit=1`}
         groomerId={groomerId}
         includeGroomerIdInSave
-        addShiftRequest={addShiftRequest}
+        shiftRequest={shiftRequest}
+        pendingSlotKeys={pendingSlotKeys}
+        onPendingSlotChange={handlePendingSlotChange}
+        timeslotsAbove={
+          <VanCapacityOverview
+            key={overviewKey}
+            pendingSlotKeys={pendingSlotKeys}
+            onToggleTimeslots={handleToggleTimeslots}
+          />
+        }
         onSaved={() => {
           setPendingSlotKeys([]);
-          setAddShiftRequest(null);
+          setShiftRequest(null);
           setOverviewKey((k) => k + 1);
         }}
       />

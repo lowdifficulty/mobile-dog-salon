@@ -1,6 +1,7 @@
 import type { GroomerId, SchedulingData } from "./types";
 import { BOOKING_DURATION_MINUTES, GROOMER_AVAILABILITY_BLOCK_MINUTES } from "./services";
 import { BOOKING_BLOCK_STARTS } from "./groomers";
+import { parseSlotFromIso } from "./slots";
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -176,4 +177,36 @@ export function restoreGroomerAvailability(
     ...data.availability[dayIndex],
     times: [...merged].sort(),
   };
+}
+
+/** Drop a groomer's shift block when no confirmed appointment remains at that start time. */
+export function releaseGroomerShiftWithoutAppointment(
+  data: SchedulingData,
+  groomerId: GroomerId,
+  date: string,
+  startTime: string,
+  options?: { ignoreAppointmentId?: string }
+): void {
+  if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(startTime)) return;
+
+  const hasConfirmed = data.appointments.some((ap) => {
+    if (ap.status !== "confirmed") return false;
+    if (options?.ignoreAppointmentId && ap.id === options.ignoreAppointmentId) return false;
+    if (ap.groomerId !== groomerId) return false;
+    const slot = parseSlotFromIso(ap.startAt);
+    return slot.date === date && slot.time === startTime;
+  });
+  if (hasConfirmed) return;
+
+  const dayIndex = data.availability.findIndex(
+    (a) => a.groomerId === groomerId && a.date === date
+  );
+  if (dayIndex === -1) return;
+
+  const times = setBookingBlockEnabled(data.availability[dayIndex].times, startTime, false);
+  if (times.length === 0) {
+    data.availability.splice(dayIndex, 1);
+  } else {
+    data.availability[dayIndex] = { ...data.availability[dayIndex], times };
+  }
 }

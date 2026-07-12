@@ -34,6 +34,7 @@ export default function VanCapacityOverview({
 }) {
   const [summary, setSummary] = useState<VanSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState("");
   const [showAllAvailable, setShowAllAvailable] = useState(false);
   const [showAllGroomerOverlaps, setShowAllGroomerOverlaps] = useState(false);
@@ -70,6 +71,36 @@ export default function VanCapacityOverview({
     load();
   }, [load]);
 
+  async function updateSchedule() {
+    setUpdating(true);
+    setMessage("");
+    try {
+      const res = await fetch(apiBase, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reconcile" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Could not update schedule");
+      }
+      setSummary({
+        vanCount: data.vanCount,
+        availableTimeslots: data.availableTimeslots ?? [],
+        availableCount: data.availableCount ?? 0,
+        conflicts: data.conflicts ?? [],
+        conflictCount: data.conflictCount ?? 0,
+        groomerAvailabilityOverlaps: data.groomerAvailabilityOverlaps ?? [],
+        groomerAvailabilityOverlapCount: data.groomerAvailabilityOverlapCount ?? 0,
+      });
+      setMessage(data.message ?? "Conflicts and overlaps updated.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not update schedule.");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-sm text-gray-500 mb-6">Loading van capacity…</p>;
   }
@@ -90,7 +121,17 @@ export default function VanCapacityOverview({
 
   return (
     <div className="mb-8 space-y-4">
-      {message && <p className="text-sm font-semibold text-brand">{message}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {message && <p className="text-sm font-semibold text-brand">{message}</p>}
+        <button
+          type="button"
+          onClick={() => void updateSchedule()}
+          disabled={updating}
+          className="ml-auto text-sm font-semibold text-brand hover:text-accent disabled:opacity-50"
+        >
+          {updating ? "Updating…" : "Update conflicts & overlaps"}
+        </button>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="site-card p-5 lg:row-span-2">

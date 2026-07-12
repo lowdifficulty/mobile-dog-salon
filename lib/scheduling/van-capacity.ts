@@ -8,6 +8,7 @@ import {
 import {
   hasMinimumAvailabilityForBooking,
   isBookingBlockEnabled,
+  releaseGroomerShiftWithoutAppointment,
   setBookingBlockEnabled,
 } from "./availability";
 import { effectiveAvailability } from "./effective-availability";
@@ -105,7 +106,7 @@ function toConflictAppointment(ap: Appointment): VanConflictAppointment {
 /** Groups of overlapping confirmed appointments that exceed 1-van capacity. */
 export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
   const active = appointments
-    .filter((ap) => ap.status !== "cancelled")
+    .filter((ap) => ap.status === "confirmed")
     .map((ap) => ({ ap, ...appointmentWindow(ap) }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
@@ -188,6 +189,11 @@ export function findGroomerAvailabilityOverlaps(
     for (const time of BOOKING_BLOCK_STARTS) {
       if (!hasMinimumAvailabilityForBooking(melanieTimes, time)) continue;
       if (!hasMinimumAvailabilityForBooking(diamondTimes, time)) continue;
+      if (
+        isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)
+      ) {
+        continue;
+      }
       overlaps.push({
         id: `${date}|${time}`,
         date,
@@ -225,12 +231,25 @@ function eachDateInclusive(from: string, to: string): string[] {
   return dates;
 }
 
+function isVanShiftClaimedByGroomers(
+  date: string,
+  time: string,
+  availability: AvailabilityDay[]
+): boolean {
+  for (const day of availability) {
+    if (day.date !== date) continue;
+    if (isBookingBlockEnabled(day.times, time)) return true;
+  }
+  return false;
+}
+
 /**
- * Open van timeslots: shift starts with no overlapping appointment.
+ * Open van timeslots: shift starts with no overlapping appointment and no groomer shift claim.
  * With 1 van, each start can hold at most one visit fleet-wide.
  */
 export function listAvailableVanTimeslots(
   appointments: Appointment[],
+  availability: AvailabilityDay[] = [],
   options?: { from?: string; to?: string }
 ): AvailableVanTimeslot[] {
   const from = options?.from ?? getTodayPacificDate();
@@ -240,6 +259,9 @@ export function listAvailableVanTimeslots(
   for (const date of eachDateInclusive(from, to)) {
     for (const time of BOOKING_BLOCK_STARTS) {
       if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments)) {
+        continue;
+      }
+      if (isVanShiftClaimedByGroomers(date, time, availability)) {
         continue;
       }
       open.push({
@@ -301,14 +323,36 @@ export function allocateShiftsFromAppointments(
     );
 }
 
+/**
+ * Re-sync groomer shifts and van-capacity views with current appointments.
+ * Clears shift blocks for cancelled bookings and re-allocates coverage for confirmed ones.
+ */
+export function reconcileSchedulingData(data: SchedulingData): SchedulingData {
+  for (const ap of data.appointments) {
+    if (ap.status !== "cancelled") continue;
+    const { date, time } = parseSlotFromIso(ap.startAt);
+    if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(time)) continue;
+    releaseGroomerShiftWithoutAppointment(data, ap.groomerId, date, time, {
+      ignoreAppointmentId: ap.id,
+    });
+  }
+
+  data.availability = allocateShiftsFromAppointments(data);
+  return data;
+}
+
 export function vanCapacitySummary(data: SchedulingData) {
   const today = getTodayPacificDate();
   const nearTermEnd = addMonthsToDate(today, 1);
   const range = { from: today, to: nearTermEnd };
-  const availableNearTerm = listAvailableVanTimeslots(data.appointments, range);
+  const availableNearTerm = listAvailableVanTimeslots(
+    data.appointments,
+    data.availability,
+    range
+  );
   const conflicts = findVanConflicts(
     data.appointments.filter((ap) => {
-      if (ap.status === "cancelled") return false;
+      if (ap.status !== "confirmed") return false;
       const { date } = parseSlotFromIso(ap.startAt);
       return date >= today;
     })

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
+import { hasMinimumAvailabilityForBooking, releaseGroomerShiftWithoutAppointment } from "@/lib/scheduling/availability";
 import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
@@ -14,6 +14,7 @@ import {
   slotToISO,
 } from "@/lib/scheduling/slots";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
+import { allocateShiftsFromAppointments } from "@/lib/scheduling/van-capacity";
 import { consumeSlotHold, createSlotHold, validateSlotHold } from "@/lib/scheduling/slot-holds";
 import {
   listRecurringStaffDates,
@@ -446,7 +447,12 @@ export async function cancelAppointment(
     return { ok: false, error: "Appointment is already cancelled", status: 409 };
   }
 
+  const { date, time } = parseSlotFromIso(appointment.startAt);
   appointment.status = "cancelled";
+  releaseGroomerShiftWithoutAppointment(data, appointment.groomerId, date, time, {
+    ignoreAppointmentId: appointment.id,
+  });
+  data.availability = allocateShiftsFromAppointments(data);
 
   await writeSchedulingData(data, {
     action: "appointment_cancel",
@@ -473,7 +479,13 @@ export async function deleteAppointment(
     return { ok: false, error: "Appointment not found", status: 404 };
   }
 
+  const { date, time } = parseSlotFromIso(appointment.startAt);
+  releaseGroomerShiftWithoutAppointment(data, appointment.groomerId, date, time, {
+    ignoreAppointmentId: appointment.id,
+  });
+
   data.appointments.splice(index, 1);
+  data.availability = allocateShiftsFromAppointments(data);
 
   await writeSchedulingData(data, {
     action: "appointment_delete",
@@ -539,6 +551,14 @@ export async function rescheduleAppointment(
     return { ok: true, appointment };
   }
 
+  releaseGroomerShiftWithoutAppointment(
+    data,
+    appointment.groomerId,
+    oldSlot.date,
+    oldSlot.time,
+    { ignoreAppointmentId: appointment.id }
+  );
+
   if (!options?.overrideAvailability) {
     const dayAvail = data.availability.find(
       (a) => a.groomerId === groomerId && a.date === date
@@ -603,6 +623,7 @@ export async function rescheduleAppointment(
   appointment.durationMinutes = BOOKING_DURATION_MINUTES;
   appointment.status = "confirmed";
   clearReminderFlags(appointment);
+  data.availability = allocateShiftsFromAppointments(data);
 
   await writeSchedulingData(data, {
     action: "appointment_reschedule",

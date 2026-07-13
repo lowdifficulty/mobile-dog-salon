@@ -133,13 +133,41 @@ export function isCompletedVisitLead(lead: {
   return lead.funnelStep === "appointment_completed" && Boolean(lead.lastAppointmentAt);
 }
 
+/** Past the scheduled grace window — appears on the Complete / Customers tab. */
+export function isPastVisitLead(
+  lead: {
+    funnelStep: LeadFunnelStep;
+    appointmentStartAt?: string;
+    lastAppointmentAt?: string;
+  },
+  now: Date = new Date()
+): boolean {
+  if (lead.funnelStep === "appointment_completed" && lead.lastAppointmentAt) {
+    return true;
+  }
+  if (!lead.appointmentStartAt) return false;
+  if (funnelStepOrder(lead.funnelStep) < funnelStepOrder("scheduled")) return false;
+  return !isStaffUpcomingAppointment(
+    { startAt: lead.appointmentStartAt, status: "confirmed" },
+    now
+  );
+}
+
+export function defaultVisitOutcome(
+  lead: Pick<Lead, "funnelStep" | "appointmentStartAt" | "lastAppointmentAt">,
+  now: Date = new Date()
+): Lead["visitOutcome"] {
+  if (isAppointmentInProgress(lead, now.getTime())) return "incomplete";
+  return isPastVisitLead(lead, now) ? "complete" : "incomplete";
+}
+
 export function withLeadDefaults(lead: Lead): Lead {
   return {
     ...lead,
     notes: lead.notes ?? [],
     photos: lead.photos ?? [],
     followUpMode: lead.followUpMode ?? "fu",
-    visitOutcome: lead.visitOutcome ?? "incomplete",
+    visitOutcome: lead.visitOutcome ?? defaultVisitOutcome(lead),
     listStatus: lead.listStatus ?? "active",
   };
 }

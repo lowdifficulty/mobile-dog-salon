@@ -221,6 +221,7 @@ export async function updateLeadFields(
       Lead,
       | "followUpMode"
       | "visitOutcome"
+      | "visitOutcomeManual"
       | "listStatus"
       | "groomerId"
       | "groomerName"
@@ -249,6 +250,7 @@ export async function updateLeadFields(
   }
   if (patch.visitOutcome !== undefined) {
     lead.visitOutcome = patch.visitOutcome;
+    lead.visitOutcomeManual = true;
   }
   if (patch.listStatus !== undefined) {
     lead.listStatus = patch.listStatus;

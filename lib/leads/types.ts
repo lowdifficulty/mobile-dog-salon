@@ -101,6 +101,8 @@ export interface Lead {
   lastAppointmentAt?: string;
   followUpMode?: LeadFollowUpMode;
   visitOutcome?: VisitOutcome;
+  /** Set when staff toggles Complete/Incomplete so sync does not overwrite. */
+  visitOutcomeManual?: boolean;
   listStatus?: LeadListStatus;
   lastActiveAt?: string;
   notes: LeadNote[];

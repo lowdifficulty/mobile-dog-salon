@@ -493,7 +493,6 @@ export default function LeadsPanel({
             ...lead,
             notes: lead.notes ?? [],
             followUpMode: lead.followUpMode ?? "fu",
-            visitOutcome: lead.visitOutcome ?? "incomplete",
             listStatus: lead.listStatus ?? "active",
           }))
         )

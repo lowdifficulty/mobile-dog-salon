@@ -49,18 +49,27 @@ export async function syncLeadsWithAppointments(): Promise<Lead[]> {
         appointment.durationMinutes * 60 * 1000;
 
       if (endMs <= now) {
+        const autoComplete = !next.visitOutcomeManual;
         if (next.funnelStep !== "appointment_completed") {
           next = {
             ...next,
             funnelStep: "appointment_completed",
             appointmentId: appointment.id,
             lastAppointmentAt: appointment.startAt,
-            visitOutcome: next.visitOutcome ?? "incomplete",
+            visitOutcome: autoComplete ? "complete" : (next.visitOutcome ?? "complete"),
             ...bookingFields,
           };
           changed = true;
         } else if (next.lastAppointmentAt !== appointment.startAt) {
-          next = { ...next, lastAppointmentAt: appointment.startAt, ...bookingFields };
+          next = {
+            ...next,
+            lastAppointmentAt: appointment.startAt,
+            visitOutcome: autoComplete ? "complete" : next.visitOutcome,
+            ...bookingFields,
+          };
+          changed = true;
+        } else if (autoComplete && next.visitOutcome === "incomplete") {
+          next = { ...next, visitOutcome: "complete" };
           changed = true;
         } else if (needsBookingFields) {
           next = { ...next, ...bookingFields };

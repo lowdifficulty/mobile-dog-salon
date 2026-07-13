@@ -1,7 +1,12 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { hasMinimumAvailabilityForBooking, releaseGroomerShiftWithoutAppointment } from "@/lib/scheduling/availability";
+import {
+  hasMinimumAvailabilityForBooking,
+  isBookingBlockEnabled,
+  releaseGroomerShiftWithoutAppointment,
+  setBookingBlockEnabled,
+} from "@/lib/scheduling/availability";
 import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
@@ -670,15 +675,25 @@ export async function transferAppointmentToGroomer(
   }
 
   const { date, time } = parseSlotFromIso(appointment.startAt);
-  const dayAvail = data.availability.find(
+
+  // Accepting a transfer accepts that shift — open it on the receiving calendar if needed.
+  const dayIndex = data.availability.findIndex(
     (a) => a.groomerId === toGroomerId && a.date === date
   );
-  if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
-    return {
-      ok: false,
-      error: "Groomer is not available at that time",
-      status: 409,
-    };
+  if (dayIndex >= 0) {
+    const day = data.availability[dayIndex];
+    if (!isBookingBlockEnabled(day.times, time)) {
+      data.availability[dayIndex] = {
+        ...day,
+        times: setBookingBlockEnabled(day.times, time, true),
+      };
+    }
+  } else {
+    data.availability.push({
+      groomerId: toGroomerId,
+      date,
+      times: setBookingBlockEnabled([], time, true),
+    });
   }
 
   if (isGroomerFullyBooked(toGroomerId, date, data.appointments, appointment.id)) {
@@ -699,7 +714,11 @@ export async function transferAppointmentToGroomer(
       appointment.id
     )
   ) {
-    return { ok: false, error: "That time slot is no longer available", status: 409 };
+    return {
+      ok: false,
+      error: "That groomer already has another appointment at that time",
+      status: 409,
+    };
   }
 
   appointment.groomerId = toGroomerId;

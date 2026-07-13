@@ -609,3 +609,45 @@ body:has(.a2p-verification-page) iframe[src*="leadconnectorhq.com/chat"] {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/*
+ * Van shift navy shades — outside @layer so Tailwind purge cannot strip shades 2–4.
+ * 1 block (3h) = lightest · 4 blocks (12h) = darkest.
+ */
+.van-slot-shade-1,
+.van-slot-shade-2,
+.van-slot-shade-3,
+.van-slot-shade-4 {
+  border-width: 1px;
+  border-style: solid;
+  color: #1b3a6e;
+}
+
+.van-slot-shade-1 {
+  border-color: #a8bdd4;
+  background-color: #dce8f4;
+}
+
+.van-slot-shade-2 {
+  border-color: #7a94b8;
+  background-color: #b8cde3;
+}
+
+.van-slot-shade-3 {
+  border-color: #5578a0;
+  background-color: #94b0cf;
+}
+
+.van-slot-shade-4 {
+  border-color: #3d5f85;
+  background-color: #7095bc;
+}
+
+@media (min-width: 768px) {
+  .van-slot-shade-1:hover,
+  .van-slot-shade-2:hover,
+  .van-slot-shade-3:hover,
+  .van-slot-shade-4:hover {
+    filter: brightness(0.96);
+  }
+}

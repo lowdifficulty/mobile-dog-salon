@@ -5,6 +5,7 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -32,6 +33,12 @@ const config: Config = {
     },
   },
   plugins: [],
+  safelist: [
+    "van-slot-shade-1",
+    "van-slot-shade-2",
+    "van-slot-shade-3",
+    "van-slot-shade-4",
+  ],
 };
 
 export default config;

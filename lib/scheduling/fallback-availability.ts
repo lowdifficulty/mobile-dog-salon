@@ -5,7 +5,7 @@ import {
   groomerAcceptsBookings,
   groomerClientDisplayName,
 } from "./groomers";
-import { addDays, isBookableDate, isPastCalendarDate, preferMelanieOnOverlapSlots } from "./slots";
+import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listSelfBookingStarts } from "./availability";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {
@@ -60,9 +60,7 @@ export function buildFallbackRangeDays(
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
       isPast: isPastCalendarDate(date),
-      slots: preferMelanieOnOverlapSlots(
-        slots.sort((a, b) => a.time.localeCompare(b.time))
-      ),
+      slots: slots.sort((a, b) => a.time.localeCompare(b.time)),
     };
   });
 }

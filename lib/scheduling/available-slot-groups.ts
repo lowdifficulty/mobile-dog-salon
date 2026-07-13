@@ -19,6 +19,13 @@ export function hoursForBlockCount(blockCount: number): number {
   return blockCount * HOURS_PER_VAN_BLOCK;
 }
 
+/** Navy shade class for 1–4 open shift blocks (1 = lightest, 4 = darkest). */
+export function navyShadeClassesForBlockCount(blockCount: number): string {
+  const clamped = Math.min(4, Math.max(0, Math.round(blockCount)));
+  if (clamped === 0) return "";
+  return `van-slot-shade-${clamped}`;
+}
+
 function blockIndex(time: string): number {
   return (BOOKING_BLOCK_STARTS as readonly string[]).indexOf(time);
 }

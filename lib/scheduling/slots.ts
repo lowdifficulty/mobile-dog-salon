@@ -122,23 +122,7 @@ export function getAvailableSlotsForDate(
     }
   }
 
-  return preferMelanieOnOverlapSlots(
-    slots.sort((a, b) => a.time.localeCompare(b.time))
-  );
-}
-
-/** When Melanie and Diamond are both open at the same time, public booking shows Melanie only (1 van). */
-export function preferMelanieOnOverlapSlots(slots: AvailableSlot[]): AvailableSlot[] {
-  const melanieSlotTimes = new Set(
-    slots
-      .filter((slot) => slot.groomerId === "melanie")
-      .map((slot) => `${slot.date}|${slot.time}`)
-  );
-
-  return slots.filter((slot) => {
-    if (slot.groomerId !== "diamond") return true;
-    return !melanieSlotTimes.has(`${slot.date}|${slot.time}`);
-  });
+  return slots.sort((a, b) => a.time.localeCompare(b.time));
 }
 
 export function getDatesWithAvailability(

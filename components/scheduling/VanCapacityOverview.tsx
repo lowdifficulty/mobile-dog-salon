@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { groupAvailableVanTimeslots, hoursForBlockCount } from "@/lib/scheduling/available-slot-groups";
+import { groupAvailableVanTimeslots, hoursForBlockCount, navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import type { AvailableVanTimeslot } from "@/lib/scheduling/van-capacity";
 
 type VanSummary = {
@@ -49,26 +49,10 @@ function formatHoursLabel(hours: number): string {
   return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
-/** Navy background/border scales with shift length (3h → 12h). */
-function navyShadeClasses(hours: number): string {
-  switch (hours) {
-    case 3:
-      return "border-[#b8c9de] bg-[#e8eef5]";
-    case 6:
-      return "border-[#8fa8c4] bg-[#d0dce9]";
-    case 9:
-      return "border-[#6d8ab0] bg-[#b8c9de]";
-    case 12:
-      return "border-[#5578a0] bg-[#9bb0cc]";
-    default:
-      return "border-[#b8c9de] bg-[#e8eef5]";
-  }
-}
-
 function TimeslotRow({
   displayDate,
   displayTime,
-  hours,
+  blockCount,
   detail,
   queued,
   onToggle,
@@ -76,15 +60,17 @@ function TimeslotRow({
 }: {
   displayDate: string;
   displayTime: string;
-  hours: number;
+  blockCount: number;
   detail?: string;
   queued: boolean;
   onToggle: () => void;
   toggleLabel: string;
 }) {
+  const hours = hoursForBlockCount(blockCount);
+
   return (
     <li
-      className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm text-brand transition-[background-color,border-color,filter] md:hover:brightness-[0.97] ${navyShadeClasses(hours)}`}
+      className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-[background-color,border-color,filter] ${navyShadeClassesForBlockCount(blockCount)}`}
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
@@ -219,7 +205,7 @@ export default function VanCapacityOverview({
                 key={key}
                 displayDate={slot.displayDate}
                 displayTime={slot.displayTime}
-                hours={hoursForBlockCount(1)}
+                blockCount={1}
                 queued={queued}
                 onToggle={() => onToggleTimeslots?.([{ date: slot.date, time: slot.time }])}
                 toggleLabel={
@@ -243,7 +229,7 @@ export default function VanCapacityOverview({
                 key={group.id}
                 displayDate={group.displayDate}
                 displayTime={group.displayTime}
-                hours={group.hours}
+                blockCount={group.slots.length}
                 detail={detail}
                 queued={queued}
                 onToggle={() =>

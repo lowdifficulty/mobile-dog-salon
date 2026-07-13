@@ -13,6 +13,7 @@ import {
   listBookingBlockStarts,
   setBookingBlockEnabled,
 } from "@/lib/scheduling/availability";
+import { navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import { GROOMER_AVAILABILITY_BLOCK_MINUTES } from "@/lib/scheduling/services";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 import {
@@ -376,6 +377,10 @@ export default function AvailabilityEditor({
   const canEditSelected =
     selectedDate && !readOnly && !selectedIsPast && !selectedBeyondHorizon;
 
+  function dayOpenSlotCount(date: string): number {
+    return openBlocksForDate(date).length;
+  }
+
   if (loading) {
     return <p className="text-gray-500 text-sm">Loading shifts…</p>;
   }
@@ -414,7 +419,7 @@ export default function AvailabilityEditor({
               type="button"
               onClick={() => goMonth(-1)}
               disabled={!canGoPrevMonth}
-              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-brand disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Previous month"
             >
               ←
@@ -424,7 +429,7 @@ export default function AvailabilityEditor({
               type="button"
               onClick={() => goMonth(1)}
               disabled={!canGoNextMonth}
-              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-2 rounded-full border border-gray-200 text-sm font-semibold text-brand hover:border-brand disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Next month"
             >
               →
@@ -452,9 +457,15 @@ export default function AvailabilityEditor({
               const isBeyond = date > maxDate;
               const isToday = date === today;
               const isSelected = date === selectedDate;
-              const hasHours = Boolean(rows[date]?.length) && !isPast;
+              const openSlotCount = dayOpenSlotCount(date);
+              const hasSelectedShifts =
+                listBookingBlockStarts(rows[date] ?? []).length > 0 && !isPast;
               const weekday = new Date(`${date}T12:00:00`).getDay();
               const isWeekend = weekday === 0 || weekday === 6;
+              const navyDay =
+                openSlotCount > 0 && !isSelected && !isBeyond && !isPast
+                  ? navyShadeClassesForBlockCount(openSlotCount)
+                  : "";
 
               return (
                 <button
@@ -467,15 +478,14 @@ export default function AvailabilityEditor({
                       ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
                       : isSelected
                         ? "bg-brand text-white border-brand shadow-md scale-[1.02]"
-                        : hasHours
-                          ? "bg-accent/15 text-brand border-accent/40"
-                          : isWeekend
+                        : navyDay ||
+                          (isWeekend
                             ? "bg-gray-50 text-gray-400 border-gray-100"
-                            : "bg-white text-gray-700 border-gray-100 hover:border-accent/40"
-                  } ${isPast ? "opacity-50" : ""} ${isToday && !isSelected ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                            : "bg-white text-gray-700 border-gray-100 hover:border-[#b8c9de]")
+                  } ${isPast ? "opacity-50" : ""} ${isToday && !isSelected ? "ring-2 ring-brand ring-offset-1" : ""}`}
                 >
                   <span>{Number(date.slice(8, 10))}</span>
-                  {hasHours && !isSelected && !isBeyond && (
+                  {hasSelectedShifts && !isSelected && !isBeyond && (
                     <span className="w-1.5 h-1.5 rounded-full bg-brand" />
                   )}
                 </button>
@@ -485,8 +495,8 @@ export default function AvailabilityEditor({
 
           <p className="text-xs text-gray-500 mt-4">
             {readOnly
-              ? "Days with a dot have shifts set. Click a day to view them."
-              : "Click a day to pick open van shifts (8 AM, 11 AM, 2 PM, 5 PM). Booked or taken slots are hidden."}
+              ? "Days with a dot have shifts set. Darker navy = more open slots to reserve."
+              : "Darker navy = more open van slots left to reserve (1–4). Dot = shifts already on your calendar."}
           </p>
         </div>
 
@@ -541,7 +551,9 @@ export default function AvailabilityEditor({
                           ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                           : selected
                             ? "bg-brand text-white border-brand"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-accent"
+                            : open
+                              ? navyShadeClassesForBlockCount(1)
+                              : "bg-white text-gray-700 border-gray-200 hover:border-brand"
                       }`}
                     >
                       <span className="block">{shiftLabel(blockStart)}</span>
@@ -564,7 +576,7 @@ export default function AvailabilityEditor({
                 {listBookingBlockStarts(selectedTimes!).map((blockStart) => (
                   <span
                     key={blockStart}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold bg-accent/15 text-brand border border-accent/30"
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold van-slot-shade-1"
                   >
                     {formatBookingBlockDisplay(blockStart)}
                   </span>

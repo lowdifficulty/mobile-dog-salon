@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import AvailabilityEditor from "./AvailabilityEditor";
+import ShiftAnalytics from "./ShiftAnalytics";
 import VanCapacityOverview from "./VanCapacityOverview";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
@@ -81,6 +82,8 @@ export default function StaffShiftsPanel({
           </select>
         </label>
       </div>
+
+      <ShiftAnalytics refreshKey={overviewKey} />
 
       <AvailabilityEditor
         key={groomerId}

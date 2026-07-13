@@ -13,7 +13,8 @@ export type BookingHash = (typeof BOOKING_HASHES)[keyof typeof BOOKING_HASHES];
 export interface BookingVariant {
   id: BookingVariantId;
   hash: BookingHash;
-  groomerId: GroomerId;
+  /** When set, the booking calendar only shows this groomer's open slots. */
+  groomerId?: GroomerId;
   /** Prefilled on the address step */
   defaultCity: string;
   zipPlaceholder: string;
@@ -32,7 +33,6 @@ export const BOOKING_VARIANTS: Record<Exclude<BookingVariantId, "default">, Book
   bookoc: {
     id: "bookoc",
     hash: "#bookoc",
-    groomerId: "melanie",
     defaultCity: "Newport Beach",
     zipPlaceholder: "92663",
     leadSource: "booking-oc",
@@ -45,7 +45,7 @@ const HASH_TO_VARIANT: Record<BookingHash, BookingVariantId> = {
   "#bookoc": "bookoc",
 };
 
-/** Territory ad pages map plain #book to a groomer-specific calendar. */
+/** Territory ad pages map plain #book to territory defaults (city, lead source). */
 export function resolveBookingVariantId(pathname: string, hash: string): BookingVariantId {
   if (hash === "#bookhb") return "bookhb";
   if (hash === "#bookoc") return "bookoc";

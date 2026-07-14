@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import type { InterviewOutcome } from "@/lib/interviews/types";
 
 interface InterviewBookingRow {
   id: string;
@@ -14,6 +15,7 @@ interface InterviewBookingRow {
   roleTitle: string;
   payDescription: string;
   bookedAt: string;
+  outcome?: InterviewOutcome;
 }
 
 function formatWhen(iso: string) {
@@ -35,6 +37,31 @@ function formatInterviewDate(date: string) {
     year: "numeric",
     timeZone: "America/Los_Angeles",
   });
+}
+
+function bookingCardClass(outcome?: InterviewOutcome) {
+  if (outcome === "declined") {
+    return "border-red-200 bg-red-50";
+  }
+  return "border-emerald-200 bg-emerald-50";
+}
+
+function bookingDividerClass(outcome?: InterviewOutcome) {
+  return outcome === "declined" ? "border-red-200/80" : "border-emerald-200/80";
+}
+
+function bookingRoleBadgeClass(outcome?: InterviewOutcome) {
+  if (outcome === "declined") {
+    return "text-red-900 bg-red-200";
+  }
+  return "text-emerald-900 bg-emerald-200";
+}
+
+function bookingPayBadgeClass(outcome?: InterviewOutcome) {
+  if (outcome === "declined") {
+    return "text-red-800 bg-white/80 border-red-200";
+  }
+  return "text-emerald-800 bg-white/80 border-emerald-200";
 }
 
 export default function JobInterviewsPanel() {
@@ -60,6 +87,37 @@ export default function JobInterviewsPanel() {
   useEffect(() => {
     loadBookings();
   }, [loadBookings]);
+
+  async function setOutcome(id: string, outcome: InterviewOutcome | undefined) {
+    setBusyId(id);
+    setError(null);
+    const previous = bookings;
+    setBookings((current) =>
+      current.map((booking) =>
+        booking.id === id
+          ? { ...booking, outcome: outcome ?? undefined }
+          : booking
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/admin/interview-bookings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome: outcome ?? null }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setBookings((current) =>
+        current.map((booking) => (booking.id === id ? data.booking : booking))
+      );
+    } catch {
+      setBookings(previous);
+      setError("Could not update interview status.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function deleteBooking(id: string) {
     if (!window.confirm("Cancel this interview booking and free the time slot?")) return;
@@ -116,21 +174,25 @@ export default function JobInterviewsPanel() {
           {bookings.map((booking) => {
             const expanded = expandedId === booking.id;
             const busy = busyId === booking.id;
+            const declined = booking.outcome === "declined";
+            const continued = booking.outcome === "continue";
 
             return (
               <article
                 key={booking.id}
-                className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden"
+                className={`rounded-xl border overflow-hidden ${bookingCardClass(booking.outcome)}`}
               >
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : booking.id)}
-                  className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                >
-                  <div className="min-w-0">
+                <div className="px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : booking.id)}
+                    className="min-w-0 flex-1 text-left"
+                  >
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-gray-900">{booking.fullName}</p>
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-900 bg-emerald-200 px-2 py-0.5 rounded-full">
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${bookingRoleBadgeClass(booking.outcome)}`}
+                      >
                         {booking.roleTitle}
                       </span>
                     </div>
@@ -143,14 +205,66 @@ export default function JobInterviewsPanel() {
                     <p className="text-xs text-gray-500 mt-1">
                       Booked {formatWhen(booking.bookedAt)}
                     </p>
+                  </button>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+                    <div
+                      className="flex flex-wrap items-center gap-4 text-sm font-semibold"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <label
+                        className={`inline-flex items-center gap-2 cursor-pointer ${
+                          declined ? "text-gray-500" : "text-emerald-900"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={continued || !declined}
+                          disabled={busy}
+                          onChange={() => {
+                            if (continued) {
+                              void setOutcome(booking.id, undefined);
+                            } else {
+                              void setOutcome(booking.id, "continue");
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-50"
+                        />
+                        Continue
+                      </label>
+                      <label
+                        className={`inline-flex items-center gap-2 cursor-pointer ${
+                          declined ? "text-red-800" : "text-gray-600"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={declined}
+                          disabled={busy}
+                          onChange={() => {
+                            if (declined) {
+                              void setOutcome(booking.id, undefined);
+                            } else {
+                              void setOutcome(booking.id, "declined");
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-red-300 text-red-600 focus:ring-red-500 disabled:opacity-50"
+                        />
+                        Declined
+                      </label>
+                    </div>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-full border shrink-0 ${bookingPayBadgeClass(booking.outcome)}`}
+                    >
+                      {booking.payDescription}
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold text-emerald-800 bg-white/80 border border-emerald-200 px-2 py-1 rounded-full shrink-0">
-                    {booking.payDescription}
-                  </span>
-                </button>
+                </div>
 
                 {expanded && (
-                  <div className="border-t border-emerald-200/80 px-4 py-4 space-y-3 bg-white/60">
+                  <div
+                    className={`border-t px-4 py-4 space-y-3 bg-white/60 ${bookingDividerClass(booking.outcome)}`}
+                  >
                     <div className="grid sm:grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">

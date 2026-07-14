@@ -20,7 +20,12 @@ export const ANALYTICS_SUPPLIES_MONTHLY = 200;
 export const ANALYTICS_TRUCK_COUNT = 2;
 /** Estimated monthly insurance per van (USD). */
 export const ANALYTICS_TRUCK_INSURANCE_MONTHLY_PER_TRUCK = 250;
-export const ANALYTICS_PAYROLL_PER_DOG = 60;
+/** Estimated groomer hours per dog for payroll. */
+export const ANALYTICS_PAYROLL_HOURS_PER_DOG = 3;
+/** Estimated groomer hourly pay (USD). */
+export const ANALYTICS_PAYROLL_HOURLY_RATE = 20;
+export const ANALYTICS_PAYROLL_PER_DOG =
+  ANALYTICS_PAYROLL_HOURS_PER_DOG * ANALYTICS_PAYROLL_HOURLY_RATE;
 export const ANALYTICS_EXPENSE_BUFFER_PERCENT = 5;
 
 const DAYS_PER_MONTH = 30;

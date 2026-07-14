@@ -1,3 +1,5 @@
+export type InterviewOutcome = "continue" | "declined";
+
 export interface InterviewBooking {
   id: string;
   slotKey: string;
@@ -9,6 +11,8 @@ export interface InterviewBooking {
   roleTitle: string;
   payDescription: string;
   bookedAt: string;
+  /** Admin review: continue keeps the booking green; declined turns it red. */
+  outcome?: InterviewOutcome;
 }
 
 export interface InterviewBookingInput {

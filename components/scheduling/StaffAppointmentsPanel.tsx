@@ -15,11 +15,13 @@ export default function StaffAppointmentsPanel({
   apiUrl,
   currentGroomerId,
   allowOverrideAvailability = false,
+  allowDelete = false,
   refreshKey = 0,
 }: {
   apiUrl: string;
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
+  allowDelete?: boolean;
   refreshKey?: number;
 }) {
   const [filter, setFilter] = useState<StaffAppointmentFilter>("upcoming");
@@ -48,6 +50,7 @@ export default function StaffAppointmentsPanel({
         filter={filter}
         currentGroomerId={currentGroomerId}
         allowOverrideAvailability={allowOverrideAvailability}
+        allowDelete={allowDelete}
       />
     </div>
   );

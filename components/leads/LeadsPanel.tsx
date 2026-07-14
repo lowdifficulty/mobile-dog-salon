@@ -375,7 +375,7 @@ export default function LeadsPanel({
   allowDelete?: boolean;
   apiBase?: string;
   currentGroomerId?: GroomerId;
-  /** Admin Contacts tab: Customers, Scheduled, Leads (no cold storage / applicants). */
+  /** Admin Contacts tab: Customers and Scheduled only (no leads funnel / applicants). */
   contactsLayout?: boolean;
 }) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
@@ -645,22 +645,16 @@ export default function LeadsPanel({
         {contactsLayout ? (
           <>
             <LeadTabButton
-              label="Customers"
-              active={view === "complete"}
-              badgeCount={view === "complete" ? 0 : badgeCounts.complete}
-              onClick={() => switchToView("complete")}
-            />
-            <LeadTabButton
               label="Scheduled"
               active={view === "scheduled"}
               badgeCount={view === "scheduled" ? 0 : badgeCounts.scheduled}
               onClick={() => switchToView("scheduled")}
             />
             <LeadTabButton
-              label="Leads"
-              active={view === "abandoned"}
-              badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
-              onClick={() => switchToView("abandoned")}
+              label="Customers"
+              active={view === "complete"}
+              badgeCount={view === "complete" ? 0 : badgeCounts.complete}
+              onClick={() => switchToView("complete")}
             />
           </>
         ) : (

@@ -15,6 +15,7 @@ import type {
   InterviewBooking,
   InterviewBookingInput,
   InterviewBookingsData,
+  InterviewOutcome,
 } from "./types";
 
 const FILE_PATH = path.join(process.cwd(), "data", "interview-bookings.json");
@@ -125,4 +126,22 @@ export async function deleteInterviewBooking(id: string): Promise<boolean> {
   data.bookings.splice(index, 1);
   await writeInterviewBookingsData(data);
   return true;
+}
+
+export async function updateInterviewBookingOutcome(
+  id: string,
+  outcome: InterviewOutcome | undefined
+): Promise<InterviewBooking | null> {
+  const data = await readInterviewBookingsData();
+  const booking = data.bookings.find((b) => b.id === id);
+  if (!booking) return null;
+
+  if (outcome) {
+    booking.outcome = outcome;
+  } else {
+    delete booking.outcome;
+  }
+
+  await writeInterviewBookingsData(data);
+  return booking;
 }

@@ -29,6 +29,7 @@ export const ROUTES = {
   clientLogin: "/client/login",
   clientHub: "/client/portal",
   clientRegister: "/client/register",
+  myAppointment: "/my-appointment",
   /** @deprecated use clientLogin */
   clientPortal: "/client/login",
 } as const;
@@ -56,6 +57,7 @@ export const NAV_COMPANY = [
   { label: "Blog", href: ROUTES.blog },
   { label: "Franchise", href: ROUTES.franchise },
   { label: "Contact", href: ROUTES.contact },
+  { label: "My Appointment", href: ROUTES.myAppointment },
   { label: "Book Online", href: ROUTES.book },
   { label: "Staff Login", href: ROUTES.groomerLogin },
 ];

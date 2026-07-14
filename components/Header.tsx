@@ -174,6 +174,12 @@ export default function Header() {
             >
               Careers
             </Link>
+            <Link
+              href={ROUTES.myAppointment}
+              className="text-sm font-semibold text-brand hover:text-accent transition-colors"
+            >
+              My Appointment
+            </Link>
             {!hideBookingUi && (
               <button
                 type="button"
@@ -235,6 +241,13 @@ export default function Header() {
               onClick={closeMobile}
             >
               Careers
+            </Link>
+            <Link
+              href={ROUTES.myAppointment}
+              className="text-sm font-medium text-gray-800 hover:text-accent"
+              onClick={closeMobile}
+            >
+              My Appointment
             </Link>
             {!hideBookingUi && (
               <button

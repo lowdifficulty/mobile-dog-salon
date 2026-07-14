@@ -56,6 +56,19 @@ export interface AvailableVanTimeslot {
   displayDate: string;
 }
 
+export type VanSlotOccupancyStatus = "open" | "groomer" | "booked";
+
+/** Fleet-wide status for one 3-hour van block (shift calendar monthly view). */
+export interface VanSlotOccupancy {
+  date: string;
+  time: string;
+  displayTime: string;
+  status: VanSlotOccupancyStatus;
+  groomerId?: GroomerId;
+  groomerName?: string;
+  petName?: string;
+}
+
 /** Melanie and Diamond both open for the same shift (1 van can't serve both). */
 export interface GroomerAvailabilityOverlap {
   id: string;
@@ -236,11 +249,86 @@ function isVanShiftClaimedByGroomers(
   time: string,
   availability: AvailabilityDay[]
 ): boolean {
+  return findGroomerClaimingSlot(date, time, availability) !== null;
+}
+
+function findGroomerClaimingSlot(
+  date: string,
+  time: string,
+  availability: AvailabilityDay[]
+): GroomerId | null {
   for (const day of availability) {
     if (day.date !== date) continue;
-    if (isBookingBlockEnabled(day.times, time)) return true;
+    if (isBookingBlockEnabled(day.times, time)) return day.groomerId;
   }
-  return false;
+  return null;
+}
+
+function findConfirmedAppointmentAtBlockStart(
+  date: string,
+  time: string,
+  appointments: Appointment[]
+): Appointment | null {
+  for (const ap of appointments) {
+    if (ap.status !== "confirmed") continue;
+    const slot = parseSlotFromIso(ap.startAt);
+    if (slot.date === date && slot.time === time) return ap;
+  }
+  return null;
+}
+
+/** Per-block fleet occupancy for the shift calendar (open, groomer shift, or customer booking). */
+export function buildVanSlotOccupancy(
+  data: SchedulingData,
+  options?: { from?: string; to?: string }
+): VanSlotOccupancy[] {
+  const from = options?.from ?? getTodayPacificDate();
+  const to = options?.to ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
+  const result: VanSlotOccupancy[] = [];
+
+  for (const date of eachDateInclusive(from, to)) {
+    for (const time of BOOKING_BLOCK_STARTS) {
+      const booking = findConfirmedAppointmentAtBlockStart(
+        date,
+        time,
+        data.appointments
+      );
+      if (booking) {
+        result.push({
+          date,
+          time,
+          displayTime: formatBookingBlockDisplay(time),
+          status: "booked",
+          groomerId: booking.groomerId,
+          groomerName: groomerName(booking.groomerId),
+          petName: booking.petName,
+        });
+        continue;
+      }
+
+      const groomerId = findGroomerClaimingSlot(date, time, data.availability);
+      if (groomerId) {
+        result.push({
+          date,
+          time,
+          displayTime: formatBookingBlockDisplay(time),
+          status: "groomer",
+          groomerId,
+          groomerName: groomerName(groomerId),
+        });
+        continue;
+      }
+
+      result.push({
+        date,
+        time,
+        displayTime: formatBookingBlockDisplay(time),
+        status: "open",
+      });
+    }
+  }
+
+  return result;
 }
 
 /**

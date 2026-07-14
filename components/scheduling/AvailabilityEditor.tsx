@@ -16,6 +16,7 @@ import {
 import { navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import { GROOMER_AVAILABILITY_BLOCK_MINUTES } from "@/lib/scheduling/services";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
+import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
 import {
   getShiftHorizonEndDate,
   getTodayPacificDate,
@@ -63,6 +64,50 @@ function slotKey(date: string, time: string): string {
   return `${date}|${time}`;
 }
 
+function compactBlockTime(time: string): string {
+  const [h] = time.split(":").map(Number);
+  const period = h >= 12 ? "p" : "a";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}${period}`;
+}
+
+function groomerShiftChipClass(groomerId: GroomerId, selected: boolean): string {
+  if (selected) return "bg-white/20 text-white border-white/40";
+  if (groomerId === "diamond") return "bg-blue-100 text-blue-800 border-blue-300";
+  return "bg-green-100 text-green-800 border-green-300";
+}
+
+function bookedShiftChipClass(selected: boolean): string {
+  return selected
+    ? "bg-white/15 text-white/90 border-white/30 border-dashed"
+    : "bg-gray-100 text-gray-600 border-gray-300 border-dashed";
+}
+
+function openShiftChipClass(selected: boolean): string {
+  return selected
+    ? "bg-white/25 text-white border-white/40"
+    : "bg-gray-100 text-gray-600 border-gray-300";
+}
+
+function monthSlotChipClass(slot: VanSlotOccupancy, selected: boolean): string {
+  if (slot.status === "booked") return bookedShiftChipClass(selected);
+  if (slot.status === "groomer") return groomerShiftChipClass(slot.groomerId!, selected);
+  return openShiftChipClass(selected);
+}
+
+function monthSlotLabel(slot: VanSlotOccupancy): string {
+  if (slot.status === "open") return "Open";
+  return slot.groomerName ?? "";
+}
+
+function monthSlotTitle(slot: VanSlotOccupancy): string {
+  if (slot.status === "booked") {
+    return `Booked — ${slot.groomerName}${slot.petName ? ` (${slot.petName})` : ""}`;
+  }
+  if (slot.status === "groomer") return `${slot.groomerName} — shift reserved`;
+  return "Open van slot";
+}
+
 export default function AvailabilityEditor({
   apiBase,
   groomerId,
@@ -104,6 +149,7 @@ export default function AvailabilityEditor({
   const [rows, setRows] = useState<Record<string, string[]>>({});
   const [lockedHours, setLockedHours] = useState<Record<string, string[]>>({});
   const [openSlotKeys, setOpenSlotKeys] = useState<Set<string>>(() => new Set());
+  const [slotOccupancy, setSlotOccupancy] = useState<VanSlotOccupancy[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -113,6 +159,17 @@ export default function AvailabilityEditor({
     () => getMonthGrid(viewYear, viewMonth),
     [viewYear, viewMonth]
   );
+
+  const monthSlotsByDate = useMemo(() => {
+    const byDate: Record<string, VanSlotOccupancy[]> = {};
+    for (const slot of slotOccupancy) {
+      (byDate[slot.date] ??= []).push(slot);
+    }
+    for (const date of Object.keys(byDate)) {
+      byDate[date].sort((a, b) => a.time.localeCompare(b.time));
+    }
+    return byDate;
+  }, [slotOccupancy]);
 
   const canGoPrevMonth = useMemo(() => {
     const firstOfView = `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`;
@@ -148,6 +205,7 @@ export default function AvailabilityEditor({
     setRows(map);
     setLockedHours((data.locked as Record<string, string[]>) ?? {});
     setOpenSlotKeys(new Set((data.openSlotKeys as string[]) ?? []));
+    setSlotOccupancy((data.slotOccupancy as VanSlotOccupancy[]) ?? []);
     if (data.persistence?.writable === false) {
       setPersistenceNote(data.persistence.message);
     } else {
@@ -377,10 +435,6 @@ export default function AvailabilityEditor({
   const canEditSelected =
     selectedDate && !readOnly && !selectedIsPast && !selectedBeyondHorizon;
 
-  function dayOpenSlotCount(date: string): number {
-    return openBlocksForDate(date).length;
-  }
-
   if (loading) {
     return <p className="text-gray-500 text-sm">Loading shifts…</p>;
   }
@@ -457,15 +511,10 @@ export default function AvailabilityEditor({
               const isBeyond = date > maxDate;
               const isToday = date === today;
               const isSelected = date === selectedDate;
-              const openSlotCount = dayOpenSlotCount(date);
-              const hasSelectedShifts =
-                listBookingBlockStarts(rows[date] ?? []).length > 0 && !isPast;
+              const daySlots = monthSlotsByDate[date] ?? [];
+              const hasVisibleSlots = daySlots.length > 0;
               const weekday = new Date(`${date}T12:00:00`).getDay();
               const isWeekend = weekday === 0 || weekday === 6;
-              const navyDay =
-                openSlotCount > 0 && !isSelected && !isBeyond && !isPast
-                  ? navyShadeClassesForBlockCount(openSlotCount)
-                  : "";
 
               return (
                 <button
@@ -473,20 +522,35 @@ export default function AvailabilityEditor({
                   type="button"
                   onClick={() => selectDate(date)}
                   disabled={isBeyond}
-                  className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-sm font-semibold border transition-all ${
+                  className={`rounded-xl flex flex-col items-stretch justify-start gap-0.5 text-sm font-semibold border transition-all p-1 min-h-[4.75rem] ${
                     isBeyond
                       ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
                       : isSelected
                         ? "bg-brand text-white border-brand shadow-md scale-[1.02]"
-                        : navyDay ||
-                          (isWeekend
-                            ? "bg-gray-50 text-gray-400 border-gray-100"
-                            : "bg-white text-gray-700 border-gray-100 hover:border-[#b8c9de]")
+                        : isWeekend
+                          ? "bg-gray-50 text-gray-400 border-gray-100"
+                          : "bg-white text-gray-700 border-gray-100 hover:border-[#b8c9de]"
                   } ${isPast ? "opacity-50" : ""} ${isToday && !isSelected ? "ring-2 ring-brand ring-offset-1" : ""}`}
                 >
-                  <span>{Number(date.slice(8, 10))}</span>
-                  {hasSelectedShifts && !isSelected && !isBeyond && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                  <span className="text-center leading-none">{Number(date.slice(8, 10))}</span>
+                  {hasVisibleSlots && !isBeyond && (
+                    <div className="flex flex-col gap-0.5 w-full min-w-0">
+                      {daySlots.map((slot) => (
+                        <div
+                          key={slot.time}
+                          title={monthSlotTitle(slot)}
+                          className={`flex items-center gap-0.5 rounded px-1 py-px border text-[9px] leading-tight min-w-0 ${monthSlotChipClass(
+                            slot,
+                            isSelected
+                          )}`}
+                        >
+                          <span className="shrink-0 font-bold opacity-80">
+                            {compactBlockTime(slot.time)}
+                          </span>
+                          <span className="truncate font-semibold">{monthSlotLabel(slot)}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </button>
               );
@@ -495,8 +559,8 @@ export default function AvailabilityEditor({
 
           <p className="text-xs text-gray-500 mt-4">
             {readOnly
-              ? "Days with a dot have shifts set. Darker navy = more open slots to reserve."
-              : "Darker navy = more open van slots left to reserve (1–4). Dot = shifts already on your calendar."}
+              ? "Grey = open. Blue = Diamond. Green = Melanie. Dashed gray = customer booked."
+              : "Grey = open slot. Blue = Diamond. Green = Melanie. Dashed gray = booked appointment."}
           </p>
         </div>
 

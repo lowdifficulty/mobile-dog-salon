@@ -13,6 +13,7 @@ import {
 import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
 import {
   buildOpenVanSlotKeySet,
+  buildVanSlotOccupancy,
   rejectUnavailableGroomerShifts,
 } from "@/lib/scheduling/van-capacity";
 import type { AvailabilityDay } from "@/lib/scheduling/types";
@@ -26,11 +27,13 @@ export async function GET() {
     const today = getTodayPacificDate();
     const maxDate = getShiftHorizonEndDate();
     const openSlotKeys = [...buildOpenVanSlotKeySet(data, { from: today, to: maxDate })];
+    const slotOccupancy = buildVanSlotOccupancy(data, { from: today, to: maxDate });
 
     return NextResponse.json({
       availability: mine,
       locked,
       openSlotKeys,
+      slotOccupancy,
       persistence: getSchedulingPersistenceStatus(),
     });
   } catch {

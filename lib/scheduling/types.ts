@@ -1,3 +1,7 @@
+import type { VanId } from "./vans";
+
+export type { VanId };
+
 export type GroomerId = "melanie" | "diamond";
 
 export type AppointmentStatus = "confirmed" | "cancelled";
@@ -11,6 +15,8 @@ export interface AvailabilityDay {
 export interface Appointment {
   id: string;
   groomerId: GroomerId;
+  /** Grooming van — defaults from groomer (Melanie → Nissan, Diamond → Dodge). */
+  van?: VanId;
   startAt: string; // ISO
   durationMinutes: number;
   status: AppointmentStatus;

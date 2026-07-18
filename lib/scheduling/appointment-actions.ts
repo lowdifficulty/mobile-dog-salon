@@ -26,6 +26,7 @@ import {
   staffRecurrenceLabel,
   type StaffRecurrenceFrequency,
 } from "@/lib/scheduling/recurring-appointments";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -187,10 +188,19 @@ export async function createAppointment(
     return { ok: false, error: "That time slot is no longer available", status: 409 };
   }
 
-  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      BOOKING_DURATION_MINUTES,
+      data.appointments,
+      undefined,
+      vanForGroomer(groomerId)
+    )
+  ) {
     return {
       ok: false,
-      error: "The van is already booked at that time (1 van — only one visit at a time).",
+      error: "That van is already booked at that time.",
       status: 409,
     };
   }
@@ -216,6 +226,7 @@ export async function createAppointment(
   const appointment: Appointment = {
     id: randomUUID(),
     groomerId,
+    van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
     durationMinutes: BOOKING_DURATION_MINUTES,
     status: "confirmed",
@@ -278,6 +289,7 @@ function buildAppointmentRecord(
   return {
     id: randomUUID(),
     groomerId,
+    van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
     durationMinutes: BOOKING_DURATION_MINUTES,
     status: "confirmed",
@@ -311,7 +323,16 @@ function slotConflictReason(
     return "Groomer already booked at that time";
   }
 
-  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments)) {
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      BOOKING_DURATION_MINUTES,
+      appointments,
+      undefined,
+      vanForGroomer(groomerId)
+    )
+  ) {
     return "Van already booked at that time";
   }
 
@@ -613,17 +634,19 @@ export async function rescheduleAppointment(
       time,
       BOOKING_DURATION_MINUTES,
       data.appointments,
-      appointment.id
+      appointment.id,
+      vanForGroomer(groomerId)
     )
   ) {
     return {
       ok: false,
-      error: "The van is already booked at that time (1 van — only one visit at a time).",
+      error: "That van is already booked at that time.",
       status: 409,
     };
   }
 
   appointment.groomerId = groomerId;
+  appointment.van = vanForGroomer(groomerId);
   appointment.startAt = slotToISO(date, time);
   appointment.durationMinutes = BOOKING_DURATION_MINUTES;
   appointment.status = "confirmed";
@@ -722,6 +745,7 @@ export async function transferAppointmentToGroomer(
   }
 
   appointment.groomerId = toGroomerId;
+  appointment.van = vanForGroomer(toGroomerId);
   clearReminderFlags(appointment);
 
   await writeSchedulingData(data, {

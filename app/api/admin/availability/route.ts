@@ -14,9 +14,10 @@ import {
 } from "@/lib/scheduling/store";
 import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
 import {
-  buildOpenVanSlotKeySet,
+  buildEditorOpenSlotKeys,
   buildVanSlotOccupancy,
 } from "@/lib/scheduling/van-capacity";
+import { isVanId, vanForGroomer } from "@/lib/scheduling/vans";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 function isGroomerId(value: string | null): value is GroomerId {
@@ -37,8 +38,14 @@ export async function GET(request: Request) {
       const locked = appointmentLockedHourSlots(groomerIdParam, data.appointments);
       const today = getTodayPacificDate();
       const maxDate = getShiftHorizonEndDate();
-      const openSlotKeys = [...buildOpenVanSlotKeySet(data, { from: today, to: maxDate })];
-      const slotOccupancy = buildVanSlotOccupancy(data, { from: today, to: maxDate });
+      const vanParam = searchParams.get("van");
+      const van = isVanId(vanParam) ? vanParam : vanForGroomer(groomerIdParam);
+      const openSlotKeys = buildEditorOpenSlotKeys(data, groomerIdParam, {
+        from: today,
+        to: maxDate,
+        van,
+      });
+      const slotOccupancy = buildVanSlotOccupancy(data, { from: today, to: maxDate, van });
       return NextResponse.json({
         availability: mine,
         locked,

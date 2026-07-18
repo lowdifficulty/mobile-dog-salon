@@ -7,6 +7,7 @@ import {
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
+import { appointmentVan, vanForGroomer, VAN_COUNT, type VanId } from "./vans";
 import type {
   Appointment,
   AvailabilityDay,
@@ -14,8 +15,7 @@ import type {
   GroomerId,
 } from "./types";
 
-/** Fleet size — only this many appointments can run at the same time. */
-export const VAN_COUNT = 1;
+export { VAN_COUNT } from "./vans";
 
 const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
@@ -61,13 +61,14 @@ export function isSlotTaken(
   });
 }
 
-/** True if the van fleet already has a visit overlapping this window (any groomer). */
+/** True if a van (or the full fleet when van omitted) already has a visit overlapping this window. */
 export function isVanSlotTaken(
   date: string,
   time: string,
   durationMinutes: number,
   appointments: Appointment[],
-  excludeAppointmentId?: string
+  excludeAppointmentId?: string,
+  vanId?: VanId
 ): boolean {
   const start = parsePacificDateTime(date, time);
   const end = new Date(
@@ -78,13 +79,15 @@ export function isVanSlotTaken(
   for (const ap of appointments) {
     if (ap.id === excludeAppointmentId) continue;
     if (ap.status === "cancelled") continue;
+    if (vanId && appointmentVan(ap) !== vanId) continue;
     const apStart = new Date(ap.startAt);
     const apEnd = new Date(
       apStart.getTime() + appointmentBlockMinutes(ap.durationMinutes) * 60 * 1000
     );
     if (!overlaps(start, end, apStart, apEnd)) continue;
     overlapping += 1;
-    if (overlapping >= VAN_COUNT) return true;
+    const limit = vanId ? 1 : VAN_COUNT;
+    if (overlapping >= limit) return true;
   }
   return false;
 }
@@ -107,7 +110,14 @@ export function getAvailableSlotsForDate(
 
     const blockStarts = listSelfBookingStarts(day.times, (time) =>
       isSlotTaken(day.groomerId, date, time, duration, appointments) ||
-      isVanSlotTaken(date, time, duration, appointments)
+      isVanSlotTaken(
+        date,
+        time,
+        duration,
+        appointments,
+        undefined,
+        vanForGroomer(day.groomerId)
+      )
     );
 
     for (const time of blockStarts) {

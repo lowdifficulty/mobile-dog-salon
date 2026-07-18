@@ -1,0 +1,76 @@
+{
+  "ranAt": "2026-06-19T03:32:26.779Z",
+  "trigger": "manual",
+  "overall": "not_working",
+  "checks": [
+    {
+      "id": "website",
+      "label": "Website running",
+      "status": "working",
+      "message": "Homepage responded HTTP 200.",
+      "details": {
+        "url": "https://mobiledog-salon.com",
+        "statusCode": 200
+      }
+    },
+    {
+      "id": "email",
+      "label": "Emails sending (Resend)",
+      "status": "not_working",
+      "message": "RESEND_API_KEY is not set — confirmation and reminder emails will not send."
+    },
+    {
+      "id": "sms",
+      "label": "SMS working (Twilio)",
+      "status": "working",
+      "message": "Twilio account active. Sender +19497558994 is on this account.",
+      "details": {
+        "accountStatus": "active",
+        "fromNumberConfigured": true
+      }
+    },
+    {
+      "id": "melanie_calendar",
+      "label": "Melanie's calendar",
+      "status": "not_working",
+      "message": "No availability published for Melanie in the next 30 days.",
+      "details": {
+        "availabilityDays": 0,
+        "bookableSlots": 0
+      }
+    },
+    {
+      "id": "diamond_calendar",
+      "label": "Diamond's calendar",
+      "status": "not_working",
+      "message": "No availability published for Diamond in the next 30 days.",
+      "details": {
+        "availabilityDays": 0,
+        "bookableSlots": 0
+      }
+    },
+    {
+      "id": "available_slots",
+      "label": "Available appointment slots",
+      "status": "not_working",
+      "message": "No bookable slots in the next 14 days.",
+      "details": {
+        "total": 0,
+        "melanie": 0,
+        "diamond": 0,
+        "horizonDays": 14
+      }
+    },
+    {
+      "id": "booking",
+      "label": "Appointments can be booked",
+      "status": "warning",
+      "message": "Persistence OK but no open slots — customers cannot complete a booking right now.",
+      "details": {
+        "persistenceMode": "file",
+        "writable": true,
+        "openSlots": 0
+      }
+    }
+  ]
+}

@@ -11,10 +11,16 @@ import {
   releaseGroomerShiftWithoutAppointment,
   setBookingBlockEnabled,
 } from "./availability";
-import { effectiveAvailability } from "./effective-availability";
 import { appointmentBlockMinutes, BOOKING_DURATION_MINUTES } from "./services";
 import {
+  appointmentVan,
+  groomerForVan,
+  vanForGroomer,
   VAN_COUNT,
+  VAN_IDS,
+  type VanId,
+} from "./vans";
+import {
   addMonthsToDate,
   getShiftHorizonEndDate,
   getTodayPacificDate,
@@ -50,6 +56,7 @@ export interface VanConflict {
 }
 
 export interface AvailableVanTimeslot {
+  van: VanId;
   date: string;
   time: string;
   displayTime: string;
@@ -60,6 +67,7 @@ export type VanSlotOccupancyStatus = "open" | "groomer" | "booked";
 
 /** Fleet-wide status for one 3-hour van block (shift calendar monthly view). */
 export interface VanSlotOccupancy {
+  van: VanId;
   date: string;
   time: string;
   displayTime: string;
@@ -69,7 +77,7 @@ export interface VanSlotOccupancy {
   petName?: string;
 }
 
-/** Melanie and Diamond both open for the same shift (1 van can't serve both). */
+/** Legacy overlap type — no longer reported with dedicated vans per groomer. */
 export interface GroomerAvailabilityOverlap {
   id: string;
   date: string;
@@ -116,11 +124,11 @@ function toConflictAppointment(ap: Appointment): VanConflictAppointment {
   };
 }
 
-/** Groups of overlapping confirmed appointments that exceed 1-van capacity. */
+/** Groups of overlapping confirmed appointments that exceed capacity on one van. */
 export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
   const active = appointments
     .filter((ap) => ap.status === "confirmed")
-    .map((ap) => ({ ap, ...appointmentWindow(ap) }))
+    .map((ap) => ({ ap, van: appointmentVan(ap), ...appointmentWindow(ap) }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const parent = new Map<string, string>();
@@ -143,6 +151,7 @@ export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
 
   for (let i = 0; i < active.length; i++) {
     for (let j = i + 1; j < active.length; j++) {
+      if (active[i].van !== active[j].van) continue;
       if (overlaps(active[i].start, active[i].end, active[j].start, active[j].end)) {
         union(active[i].ap.id, active[j].ap.id);
       }
@@ -159,7 +168,7 @@ export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
 
   const conflicts: VanConflict[] = [];
   for (const group of groups.values()) {
-    if (group.length <= VAN_COUNT) continue;
+    if (group.length <= 1) continue;
     const first = group[0];
     const times = [...new Set(group.map((g) => g.time))].sort();
     conflicts.push({
@@ -173,53 +182,12 @@ export function findVanConflicts(appointments: Appointment[]): VanConflict[] {
   return conflicts.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** Shifts where Melanie and Diamond are both effectively available at once. */
+/** With dedicated vans, groomers can share the same shift start on different vans. */
 export function findGroomerAvailabilityOverlaps(
-  data: SchedulingData,
-  options?: { from?: string; to?: string }
+  _data: SchedulingData,
+  _options?: { from?: string; to?: string }
 ): GroomerAvailabilityOverlap[] {
-  const from = options?.from ?? getTodayPacificDate();
-  const to = options?.to ?? addMonthsToDate(from, 1);
-  const effective = effectiveAvailability(data);
-
-  const timesByGroomer: Record<GroomerId, Map<string, string[]>> = {
-    melanie: new Map(),
-    diamond: new Map(),
-  };
-
-  for (const day of effective) {
-    if (day.groomerId !== "melanie" && day.groomerId !== "diamond") continue;
-    timesByGroomer[day.groomerId].set(day.date, day.times);
-  }
-
-  const overlaps: GroomerAvailabilityOverlap[] = [];
-
-  for (const date of eachDateInclusive(from, to)) {
-    const melanieTimes = timesByGroomer.melanie.get(date) ?? [];
-    const diamondTimes = timesByGroomer.diamond.get(date) ?? [];
-    if (!melanieTimes.length || !diamondTimes.length) continue;
-
-    for (const time of BOOKING_BLOCK_STARTS) {
-      if (!hasMinimumAvailabilityForBooking(melanieTimes, time)) continue;
-      if (!hasMinimumAvailabilityForBooking(diamondTimes, time)) continue;
-      if (
-        isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)
-      ) {
-        continue;
-      }
-      overlaps.push({
-        id: `${date}|${time}`,
-        date,
-        time,
-        displayTime: formatBookingBlockDisplay(time),
-        displayDate: formatShortDate(date),
-      });
-    }
-  }
-
-  return overlaps.sort((a, b) =>
-    a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date)
-  );
+  return [];
 }
 
 function formatShortDate(date: string): string {
@@ -244,87 +212,93 @@ function eachDateInclusive(from: string, to: string): string[] {
   return dates;
 }
 
-function isVanShiftClaimedByGroomers(
+function isVanShiftClaimed(
   date: string,
   time: string,
-  availability: AvailabilityDay[]
+  availability: AvailabilityDay[],
+  vanId: VanId
 ): boolean {
-  return findGroomerClaimingSlot(date, time, availability) !== null;
-}
-
-function findGroomerClaimingSlot(
-  date: string,
-  time: string,
-  availability: AvailabilityDay[]
-): GroomerId | null {
+  const groomerId = groomerForVan(vanId);
   for (const day of availability) {
-    if (day.date !== date) continue;
-    if (isBookingBlockEnabled(day.times, time)) return day.groomerId;
+    if (day.date !== date || day.groomerId !== groomerId) continue;
+    if (isBookingBlockEnabled(day.times, time)) return true;
   }
-  return null;
+  return false;
 }
 
 function findConfirmedAppointmentAtBlockStart(
   date: string,
   time: string,
-  appointments: Appointment[]
+  appointments: Appointment[],
+  vanId: VanId
 ): Appointment | null {
   for (const ap of appointments) {
     if (ap.status !== "confirmed") continue;
+    if (appointmentVan(ap) !== vanId) continue;
     const slot = parseSlotFromIso(ap.startAt);
     if (slot.date === date && slot.time === time) return ap;
   }
   return null;
 }
 
-/** Per-block fleet occupancy for the shift calendar (open, groomer shift, or customer booking). */
+/** Per-block occupancy for one van (shift calendar monthly view). */
 export function buildVanSlotOccupancy(
   data: SchedulingData,
-  options?: { from?: string; to?: string }
+  options?: { from?: string; to?: string; van?: VanId }
 ): VanSlotOccupancy[] {
   const from = options?.from ?? getTodayPacificDate();
   const to = options?.to ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
+  const vans = options?.van ? [options.van] : VAN_IDS;
   const result: VanSlotOccupancy[] = [];
 
-  for (const date of eachDateInclusive(from, to)) {
-    for (const time of BOOKING_BLOCK_STARTS) {
-      const booking = findConfirmedAppointmentAtBlockStart(
-        date,
-        time,
-        data.appointments
-      );
-      if (booking) {
+  for (const vanId of vans) {
+    for (const date of eachDateInclusive(from, to)) {
+      for (const time of BOOKING_BLOCK_STARTS) {
+        const booking = findConfirmedAppointmentAtBlockStart(
+          date,
+          time,
+          data.appointments,
+          vanId
+        );
+        if (booking) {
+          result.push({
+            van: vanId,
+            date,
+            time,
+            displayTime: formatBookingBlockDisplay(time),
+            status: "booked",
+            groomerId: booking.groomerId,
+            groomerName: groomerName(booking.groomerId),
+            petName: booking.petName,
+          });
+          continue;
+        }
+
+        const groomerId = groomerForVan(vanId);
+        const day = data.availability.find(
+          (a) => a.groomerId === groomerId && a.date === date
+        );
+        if (day && isBookingBlockEnabled(day.times, time)) {
+          result.push({
+            van: vanId,
+            date,
+            time,
+            displayTime: formatBookingBlockDisplay(time),
+            status: "groomer",
+            groomerId,
+            groomerName: groomerName(groomerId),
+          });
+          continue;
+        }
+
         result.push({
+          van: vanId,
           date,
           time,
           displayTime: formatBookingBlockDisplay(time),
-          status: "booked",
-          groomerId: booking.groomerId,
-          groomerName: groomerName(booking.groomerId),
-          petName: booking.petName,
+          status: "open",
         });
-        continue;
       }
-
-      const groomerId = findGroomerClaimingSlot(date, time, data.availability);
-      if (groomerId) {
-        result.push({
-          date,
-          time,
-          displayTime: formatBookingBlockDisplay(time),
-          status: "groomer",
-          groomerId,
-          groomerName: groomerName(groomerId),
-        });
-        continue;
-      }
-
-      result.push({
-        date,
-        time,
-        displayTime: formatBookingBlockDisplay(time),
-        status: "open",
-      });
     }
   }
 
@@ -332,51 +306,68 @@ export function buildVanSlotOccupancy(
 }
 
 /**
- * Open van timeslots: shift starts with no overlapping appointment and no groomer shift claim.
- * With 1 van, each start can hold at most one visit fleet-wide.
+ * Open van timeslots for one van: no overlapping appointment and no shift claim on that van.
  */
 export function listAvailableVanTimeslots(
   appointments: Appointment[],
   availability: AvailabilityDay[] = [],
-  options?: { from?: string; to?: string }
+  options?: { from?: string; to?: string; van?: VanId }
 ): AvailableVanTimeslot[] {
   const from = options?.from ?? getTodayPacificDate();
   const to = options?.to ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
+  const vans = options?.van ? [options.van] : VAN_IDS;
   const open: AvailableVanTimeslot[] = [];
 
-  for (const date of eachDateInclusive(from, to)) {
-    for (const time of BOOKING_BLOCK_STARTS) {
-      if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments)) {
-        continue;
+  for (const vanId of vans) {
+    for (const date of eachDateInclusive(from, to)) {
+      for (const time of BOOKING_BLOCK_STARTS) {
+        if (
+          isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments, undefined, vanId)
+        ) {
+          continue;
+        }
+        if (isVanShiftClaimed(date, time, availability, vanId)) {
+          continue;
+        }
+        open.push({
+          van: vanId,
+          date,
+          time,
+          displayTime: formatBookingBlockDisplay(time),
+          displayDate: formatShortDate(date),
+        });
       }
-      if (isVanShiftClaimedByGroomers(date, time, availability)) {
-        continue;
-      }
-      open.push({
-        date,
-        time,
-        displayTime: formatBookingBlockDisplay(time),
-        displayDate: formatShortDate(date),
-      });
     }
   }
 
   return open;
 }
 
-export function openVanSlotKey(date: string, time: string): string {
-  return `${date}|${time}`;
+export function openVanSlotKey(van: VanId, date: string, time: string): string {
+  return `${van}|${date}|${time}`;
 }
 
 export function buildOpenVanSlotKeySet(
   data: SchedulingData,
-  options?: { from?: string; to?: string }
+  options?: { from?: string; to?: string; van?: VanId }
 ): Set<string> {
   return new Set(
     listAvailableVanTimeslots(data.appointments, data.availability, options).map((slot) =>
-      openVanSlotKey(slot.date, slot.time)
+      openVanSlotKey(slot.van, slot.date, slot.time)
     )
   );
+}
+
+export function buildEditorOpenSlotKeys(
+  data: SchedulingData,
+  groomerId: GroomerId,
+  options?: { from?: string; to?: string; van?: VanId }
+): string[] {
+  const van = options?.van ?? vanForGroomer(groomerId);
+  return [...buildOpenVanSlotKeySet(data, { ...options, van })].map((key) => {
+    const [, date, time] = key.split("|");
+    return `${date}|${time}`;
+  });
 }
 
 /** Returns an error message when incoming shifts claim unavailable van slots. */
@@ -387,7 +378,8 @@ export function rejectUnavailableGroomerShifts(
 ): string | null {
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
-  const openKeys = buildOpenVanSlotKeySet(data, { from: today, to: maxDate });
+  const vanId = vanForGroomer(groomerId);
+  const openKeys = buildOpenVanSlotKeySet(data, { from: today, to: maxDate, van: vanId });
   const existingByDate = new Map(
     data.availability
       .filter((day) => day.groomerId === groomerId)
@@ -397,7 +389,7 @@ export function rejectUnavailableGroomerShifts(
   for (const day of incoming) {
     for (const blockStart of BOOKING_BLOCK_STARTS) {
       if (!isBookingBlockEnabled(day.times, blockStart)) continue;
-      const key = openVanSlotKey(day.date, blockStart);
+      const key = openVanSlotKey(vanId, day.date, blockStart);
       const hadBefore = isBookingBlockEnabled(existingByDate.get(day.date) ?? [], blockStart);
       if (!openKeys.has(key) && !hadBefore) {
         return `${formatBookingBlockDisplay(blockStart)} on ${day.date} is no longer available. Refresh and try again.`;
@@ -473,10 +465,10 @@ export function reconcileSchedulingData(data: SchedulingData): SchedulingData {
   return data;
 }
 
-export function vanCapacitySummary(data: SchedulingData) {
+export function vanCapacitySummary(data: SchedulingData, options?: { van?: VanId }) {
   const today = getTodayPacificDate();
   const nearTermEnd = addMonthsToDate(today, 1);
-  const range = { from: today, to: nearTermEnd };
+  const range = { from: today, to: nearTermEnd, van: options?.van };
   const availableNearTerm = listAvailableVanTimeslots(
     data.appointments,
     data.availability,

@@ -12,10 +12,13 @@ import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
 import VanCapacityOverview from "./VanCapacityOverview";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
+import type { VanId } from "@/lib/scheduling/vans";
 
 function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
   const [overviewKey, setOverviewKey] = useState(0);
+  const [selectedVan, setSelectedVan] = useState<VanId>(() => vanForGroomer(groomerId));
   const [shiftRequest, setShiftRequest] = useState<{
     slots: { date: string; time: string }[];
     action: "add" | "remove";
@@ -54,14 +57,19 @@ function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
       <AvailabilityEditor
         apiBase="/api/groomer/availability"
         groomerId={groomerId}
+        selectedVan={selectedVan}
+        onVanChange={setSelectedVan}
         shiftRequest={shiftRequest}
         pendingSlotKeys={pendingSlotKeys}
         onPendingSlotChange={handlePendingSlotChange}
-        timeslotsAbove={
+        refreshKey={overviewKey}
+        timeslotsBelow={
           <VanCapacityOverview
-            key={overviewKey}
+            selectedVan={selectedVan}
+            onVanChange={setSelectedVan}
             pendingSlotKeys={pendingSlotKeys}
             onToggleTimeslots={handleToggleTimeslots}
+            refreshKey={overviewKey}
           />
         }
         onSaved={() => {
@@ -103,11 +111,11 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "appointments", label: "Appointments" },
+    { id: "availability", label: "Shifts" },
     { id: "clients", label: "Active clients" },
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
     { id: "team-calendar", label: "Calendar" },
-    { id: "availability", label: "Shifts" },
   ];
 
   return (

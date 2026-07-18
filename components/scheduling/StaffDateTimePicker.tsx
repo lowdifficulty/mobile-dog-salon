@@ -9,6 +9,7 @@ import {
 } from "@/lib/scheduling/groomers";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { getTodayPacificDate, isSlotTaken, isVanSlotTaken } from "@/lib/scheduling/slots";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export function buildSlotKey(groomerId: GroomerId, date: string, time: string): string {
@@ -71,7 +72,8 @@ export default function StaffDateTimePicker({
             time,
             BOOKING_DURATION_MINUTES,
             appointments,
-            excludeAppointmentId
+            excludeAppointmentId,
+            vanForGroomer(groomerId)
           )
       )
     );

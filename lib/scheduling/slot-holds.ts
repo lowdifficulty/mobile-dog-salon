@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { isSlotTaken, isVanSlotTaken, parseSlotKey } from "@/lib/scheduling/slots";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { hasRedisEnv, isVercelServerless } from "@/lib/scheduling/persistence";
 import type { GroomerId } from "@/lib/scheduling/types";
@@ -310,8 +311,17 @@ async function createSlotHoldInner(
   if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
     return { ok: false, error: "That time was just booked — pick another." };
   }
-  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
-    return { ok: false, error: "The van is already booked at that time — pick another." };
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      BOOKING_DURATION_MINUTES,
+      data.appointments,
+      undefined,
+      vanForGroomer(groomerId)
+    )
+  ) {
+    return { ok: false, error: "That van is already booked at that time — pick another." };
   }
 
   const existing = await readHold(slotKey);

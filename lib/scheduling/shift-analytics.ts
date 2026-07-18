@@ -1,6 +1,7 @@
 import { BOOKABLE_GROOMER_IDS, groomerName } from "./groomers";
 import { listBookingBlockStarts } from "./availability";
 import { listAvailableVanTimeslots } from "./van-capacity";
+import { VAN_IDS } from "./vans";
 import { addDays, getTodayPacificDate } from "./slots";
 import type { GroomerId, SchedulingData } from "./types";
 
@@ -34,8 +35,13 @@ function countAvailableShifts(
   from: string,
   to: string
 ): number {
-  return listAvailableVanTimeslots(data.appointments, data.availability, { from, to })
-    .length;
+  return VAN_IDS.reduce(
+    (sum, van) =>
+      sum +
+      listAvailableVanTimeslots(data.appointments, data.availability, { from, to, van })
+        .length,
+    0
+  );
 }
 
 function countGroomerShifts(

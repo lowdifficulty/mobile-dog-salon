@@ -17,6 +17,9 @@ import { navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-g
 import { GROOMER_AVAILABILITY_BLOCK_MINUTES } from "@/lib/scheduling/services";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
+import { vanLabel, type VanId } from "@/lib/scheduling/vans";
+import VanToggle from "./VanToggle";
+import { useVanPrefetchCache } from "./useVanPrefetchCache";
 import {
   getShiftHorizonEndDate,
   getTodayPacificDate,
@@ -117,8 +120,11 @@ export default function AvailabilityEditor({
   shiftRequest = null,
   pendingSlotKeys = [],
   onPendingSlotChange,
-  timeslotsAbove,
+  timeslotsBelow,
+  selectedVan,
+  onVanChange,
   onSaved,
+  refreshKey = 0,
 }: {
   apiBase: string;
   groomerId?: GroomerId;
@@ -137,9 +143,14 @@ export default function AvailabilityEditor({
   pendingSlotKeys?: string[];
   /** Keep pending timeslot keys in sync when toggling shifts on the calendar. */
   onPendingSlotChange?: (date: string, time: string, queued: boolean) => void;
-  /** Open van timeslots panel — sits above the calendar in the left column. */
-  timeslotsAbove?: ReactNode;
+  /** Open van timeslots panel — sits below the monthly calendar. */
+  timeslotsBelow?: ReactNode;
+  /** Shared Nissan / Dodge selection (monthly calendar + available timeslots). */
+  selectedVan: VanId;
+  onVanChange: (van: VanId) => void;
   onSaved?: () => void;
+  /** Bump to re-fetch both vans without remounting. */
+  refreshKey?: number;
 }) {
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
@@ -150,10 +161,62 @@ export default function AvailabilityEditor({
   const [lockedHours, setLockedHours] = useState<Record<string, string[]>>({});
   const [openSlotKeys, setOpenSlotKeys] = useState<Set<string>>(() => new Set());
   const [slotOccupancy, setSlotOccupancy] = useState<VanSlotOccupancy[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [persistenceNote, setPersistenceNote] = useState("");
+
+  type VanAvailabilityData = {
+    openSlotKeys: Set<string>;
+    slotOccupancy: VanSlotOccupancy[];
+  };
+
+  const fetchVanAvailability = useCallback(
+    async (van: VanId): Promise<VanAvailabilityData | null> => {
+      const separator = apiBase.includes("?") ? "&" : "?";
+      const res = await fetch(`${apiBase}${separator}van=${van}`);
+      if (!res.ok) {
+        setMessage(
+          res.status === 401
+            ? "Session expired — please sign in again."
+            : "Could not load shifts."
+        );
+        return null;
+      }
+      const data = await res.json();
+      const map: Record<string, string[]> = {};
+      for (const a of data.availability as AvailabilityDay[]) {
+        if (a.date > maxDate) continue;
+        map[a.date] = [...a.times];
+      }
+      if (van === "nissan") {
+        setRows(map);
+        setLockedHours((data.locked as Record<string, string[]>) ?? {});
+        if (data.persistence?.writable === false) {
+          setPersistenceNote(data.persistence.message);
+        } else {
+          setPersistenceNote("");
+        }
+      }
+      return {
+        openSlotKeys: new Set((data.openSlotKeys as string[]) ?? []),
+        slotOccupancy: (data.slotOccupancy as VanSlotOccupancy[]) ?? [],
+      };
+    },
+    [apiBase, maxDate]
+  );
+
+  const {
+    cache: vanCache,
+    loading,
+    refresh: refreshAvailability,
+  } = useVanPrefetchCache(fetchVanAvailability, [apiBase, maxDate], refreshKey);
+
+  useEffect(() => {
+    const vanData = vanCache[selectedVan];
+    if (!vanData) return;
+    setOpenSlotKeys(vanData.openSlotKeys);
+    setSlotOccupancy(vanData.slotOccupancy);
+  }, [selectedVan, vanCache]);
 
   const monthCells = useMemo(
     () => getMonthGrid(viewYear, viewMonth),
@@ -184,39 +247,8 @@ export default function AvailabilityEditor({
   }, [viewYear, viewMonth, maxDate]);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
-    const res = await fetch(apiBase);
-    if (!res.ok) {
-      setMessage(
-        res.status === 401
-          ? "Session expired — please sign in again."
-          : "Could not load shifts."
-      );
-      setLoading(false);
-      return;
-    }
-    const data = await res.json();
-    const map: Record<string, string[]> = {};
-    for (const a of data.availability as AvailabilityDay[]) {
-      if (a.date > maxDate) continue;
-      map[a.date] = [...a.times];
-    }
-    setRows(map);
-    setLockedHours((data.locked as Record<string, string[]>) ?? {});
-    setOpenSlotKeys(new Set((data.openSlotKeys as string[]) ?? []));
-    setSlotOccupancy((data.slotOccupancy as VanSlotOccupancy[]) ?? []);
-    if (data.persistence?.writable === false) {
-      setPersistenceNote(data.persistence.message);
-    } else {
-      setPersistenceNote("");
-    }
-    setLoading(false);
-  }, [apiBase, maxDate]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    await refreshAvailability();
+  }, [refreshAvailability]);
 
   useEffect(() => {
     const request =
@@ -435,7 +467,9 @@ export default function AvailabilityEditor({
   const canEditSelected =
     selectedDate && !readOnly && !selectedIsPast && !selectedBeyondHorizon;
 
-  if (loading) {
+  const showLoading = loading && !vanCache[selectedVan];
+
+  if (showLoading) {
     return <p className="text-gray-500 text-sm">Loading shifts…</p>;
   }
 
@@ -464,11 +498,9 @@ export default function AvailabilityEditor({
         </p>
       )}
 
-      {timeslotsAbove && <div className="mb-4">{timeslotsAbove}</div>}
-
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:items-start">
         <div className="site-card p-6 min-w-0">
-          <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center justify-between gap-3 mb-6">
             <button
               type="button"
               onClick={() => goMonth(-1)}
@@ -478,7 +510,10 @@ export default function AvailabilityEditor({
             >
               ←
             </button>
-            <h2 className="text-lg font-bold text-brand">{monthLabel(viewYear, viewMonth)}</h2>
+            <div className="flex flex-wrap items-center justify-center gap-3 min-w-0">
+              <h2 className="text-lg font-bold text-brand">{monthLabel(viewYear, viewMonth)}</h2>
+              <VanToggle selectedVan={selectedVan} onVanChange={onVanChange} />
+            </div>
             <button
               type="button"
               onClick={() => goMonth(1)}
@@ -489,6 +524,9 @@ export default function AvailabilityEditor({
               →
             </button>
           </div>
+          <p className="text-xs text-gray-500 text-center -mt-4 mb-4">
+            Showing {vanLabel(selectedVan)} van capacity
+          </p>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
             {WEEKDAY_LABELS.map((label) => (
@@ -681,6 +719,8 @@ export default function AvailabilityEditor({
         )}
         </div>
       </div>
+
+      {timeslotsBelow && <div className="mt-8">{timeslotsBelow}</div>}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   persistenceStatus,
 } from "./persistence";
 import { appendAvailabilityHistory } from "./history";
+import { normalizeAppointmentVan } from "./vans";
 import type { SchedulingData, WriteSchedulingMeta } from "./types";
 
 const FILE_PATH = path.join(process.cwd(), "data", "scheduling.json");
@@ -18,9 +19,16 @@ const READ_CACHE_MS = 15_000;
 let readCache: { data: SchedulingData; at: number } | null = null;
 
 function cloneSchedulingData(data: SchedulingData): SchedulingData {
-  return {
+  return normalizeSchedulingData({
     availability: data.availability ?? [],
     appointments: data.appointments ?? [],
+  });
+}
+
+export function normalizeSchedulingData(data: SchedulingData): SchedulingData {
+  return {
+    availability: data.availability ?? [],
+    appointments: (data.appointments ?? []).map(normalizeAppointmentVan),
   };
 }
 
@@ -109,10 +117,10 @@ export async function writeSchedulingData(
   assertWritablePersistence();
 
   const before = await readSchedulingData();
-  const normalized: SchedulingData = {
+  const normalized = normalizeSchedulingData({
     availability: data.availability ?? [],
     appointments: data.appointments ?? [],
-  };
+  });
 
   const redis = getRedisClient();
   if (redis) {

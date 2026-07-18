@@ -5,14 +5,11 @@ import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { requireStaff } from "@/lib/scheduling/auth";
 
 import {
-
   allocateShiftsFromAppointments,
-
   reconcileSchedulingData,
-
   vanCapacitySummary,
-
 } from "@/lib/scheduling/van-capacity";
+import { isVanId } from "@/lib/scheduling/vans";
 
 import { shiftAnalyticsSummary } from "@/lib/scheduling/shift-analytics";
 
@@ -28,32 +25,25 @@ import {
 
 
 
-export async function GET() {
-
+export async function GET(request: Request) {
   try {
-
     await requireStaff();
+    const { searchParams } = new URL(request.url);
+    const vanParam = searchParams.get("van");
+    const van = isVanId(vanParam) ? vanParam : undefined;
 
     const data = await readSchedulingData();
-
-    const summary = vanCapacitySummary(data);
+    const summary = vanCapacitySummary(data, { van });
 
     return NextResponse.json({
-
       ...summary,
-
+      van: van ?? "nissan",
       analytics: shiftAnalyticsSummary(data),
-
       persistence: getSchedulingPersistenceStatus(),
-
     });
-
   } catch {
-
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   }
-
 }
 
 

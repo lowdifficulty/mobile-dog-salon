@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { groupAvailableVanTimeslots, hoursForBlockCount, navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import type { AvailableVanTimeslot } from "@/lib/scheduling/van-capacity";
+import { vanLabel, type VanId } from "@/lib/scheduling/vans";
+import VanToggle from "./VanToggle";
+import { useVanPrefetchCache } from "./useVanPrefetchCache";
 
 type VanSummary = {
   availableTimeslots: AvailableVanTimeslot[];
@@ -89,58 +92,72 @@ function TimeslotRow({
 
 export default function VanCapacityOverview({
   apiBase = "/api/staff/van-capacity",
+  defaultVan = "nissan",
+  selectedVan: selectedVanProp,
+  onVanChange,
   onToggleTimeslots,
   pendingSlotKeys = [],
+  refreshKey = 0,
 }: {
   apiBase?: string;
+  /** Initial van when uncontrolled. */
+  defaultVan?: VanId;
+  /** Controlled van selection — shared with the monthly calendar. */
+  selectedVan?: VanId;
+  onVanChange?: (van: VanId) => void;
   /** Toggle one or more open van timeslots on the shift calendar (before save). */
   onToggleTimeslots?: (slots: { date: string; time: string }[]) => void;
   /** Slots queued in the editor but not saved yet. */
   pendingSlotKeys?: string[];
+  /** Bump to re-fetch both vans without remounting. */
+  refreshKey?: number;
 }) {
-  const [summary, setSummary] = useState<VanSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [view, setView] = useState<TimeslotView>("shifts");
+  const [internalVan, setInternalVan] = useState<VanId>(defaultVan);
+  const selectedVan = selectedVanProp ?? internalVan;
+
+  function setSelectedVan(van: VanId) {
+    if (onVanChange) onVanChange(van);
+    else setInternalVan(van);
+  }
 
   const pending = useMemo(() => new Set(pendingSlotKeys), [pendingSlotKeys]);
+
+  const fetchVanSummary = useCallback(
+    async (van: VanId): Promise<VanSummary | null> => {
+      const res = await fetch(`${apiBase}?van=${van}`);
+      if (!res.ok) {
+        setMessage(
+          res.status === 401
+            ? "Session expired — please sign in again."
+            : "Could not load van capacity."
+        );
+        return null;
+      }
+      const data = await res.json();
+      return {
+        availableTimeslots: data.availableTimeslots ?? [],
+        availableCount: data.availableCount ?? 0,
+      };
+    },
+    [apiBase]
+  );
+
+  const { cache, loading } = useVanPrefetchCache(fetchVanSummary, [apiBase], refreshKey);
+  const summary = cache[selectedVan] ?? null;
 
   const shiftGroups = useMemo(
     () => (summary ? groupAvailableVanTimeslots(summary.availableTimeslots) : []),
     [summary]
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setMessage("");
-    const res = await fetch(apiBase);
-    if (!res.ok) {
-      setMessage(
-        res.status === 401
-          ? "Session expired — please sign in again."
-          : "Could not load van capacity."
-      );
-      setLoading(false);
-      return;
-    }
-    const data = await res.json();
-    setSummary({
-      availableTimeslots: data.availableTimeslots ?? [],
-      availableCount: data.availableCount ?? 0,
-    });
-    setLoading(false);
-  }, [apiBase]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   function isQueued(slots: { date: string; time: string }[]): boolean {
     const keys = slotKeys(slots);
     return keys.length > 0 && keys.every((key) => pending.has(key));
   }
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <section className="site-card p-5">
         <p className="text-sm text-gray-500">Loading available timeslots…</p>
@@ -158,10 +175,13 @@ export default function VanCapacityOverview({
 
   return (
     <section className="site-card p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-3 shrink-0">
-        <h4 className="text-base font-bold text-brand">Available timeslots</h4>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <h4 className="text-base font-bold text-brand">Available timeslots</h4>
+          <VanToggle selectedVan={selectedVan} onVanChange={setSelectedVan} />
+        </div>
         <span className="text-xs font-semibold text-gray-500">
-          {summary.availableCount} open (next 30 days)
+          {summary.availableCount} open on {vanLabel(selectedVan)} (next 30 days)
         </span>
       </div>
 
@@ -194,7 +214,9 @@ export default function VanCapacityOverview({
       </p>
 
       {summary.availableTimeslots.length === 0 ? (
-        <p className="text-sm text-gray-500">No open van timeslots in the next 30 days.</p>
+        <p className="text-sm text-gray-500">
+          No open {vanLabel(selectedVan)} timeslots in the next 30 days.
+        </p>
       ) : view === "singles" ? (
         <ul className="van-capacity-slots-list">
           {summary.availableTimeslots.map((slot) => {

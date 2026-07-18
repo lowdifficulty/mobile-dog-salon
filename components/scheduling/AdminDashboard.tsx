@@ -39,12 +39,12 @@ export default function AdminDashboard() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
+    { id: "appointments", label: "Appointments" },
+    { id: "shifts", label: "Shifts" },
     { id: "contacts", label: "Contacts" },
     { id: "analytics", label: "Analytics" },
     { id: "accounting", label: "Accounting" },
-    { id: "appointments", label: "Appointments" },
     { id: "team-calendar", label: "Team calendar" },
-    { id: "shifts", label: "Shifts" },
     { id: "job-interviews", label: "Job Interviews" },
     { id: "qa", label: "QA" },
     { id: "payments", label: "Payments Beta" },

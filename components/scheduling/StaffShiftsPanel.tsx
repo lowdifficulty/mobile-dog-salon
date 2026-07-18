@@ -5,7 +5,9 @@ import AvailabilityEditor from "./AvailabilityEditor";
 import ShiftAnalytics from "./ShiftAnalytics";
 import VanCapacityOverview from "./VanCapacityOverview";
 import { GROOMERS } from "@/lib/scheduling/groomers";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { GroomerId } from "@/lib/scheduling/types";
+import type { VanId } from "@/lib/scheduling/vans";
 
 const GROOMER_IDS = Object.keys(GROOMERS) as GroomerId[];
 
@@ -17,6 +19,7 @@ export default function StaffShiftsPanel({
   defaultGroomerId?: GroomerId;
 }) {
   const [groomerId, setGroomerId] = useState<GroomerId>(defaultGroomerId);
+  const [selectedVan, setSelectedVan] = useState<VanId>(vanForGroomer(defaultGroomerId));
   const [overviewKey, setOverviewKey] = useState(0);
   const [shiftRequest, setShiftRequest] = useState<{
     slots: { date: string; time: string }[];
@@ -57,7 +60,7 @@ export default function StaffShiftsPanel({
         <div>
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
-            1 van fleet — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
+            2 vans — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
             Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
           </p>
         </div>
@@ -68,7 +71,9 @@ export default function StaffShiftsPanel({
           <select
             value={groomerId}
             onChange={(e) => {
-              setGroomerId(e.target.value as GroomerId);
+              const id = e.target.value as GroomerId;
+              setGroomerId(id);
+              setSelectedVan(vanForGroomer(id));
               setPendingSlotKeys([]);
               setShiftRequest(null);
             }}
@@ -90,14 +95,19 @@ export default function StaffShiftsPanel({
         apiBase={`${apiBase}?groomerId=${groomerId}&edit=1`}
         groomerId={groomerId}
         includeGroomerIdInSave
+        selectedVan={selectedVan}
+        onVanChange={setSelectedVan}
         shiftRequest={shiftRequest}
         pendingSlotKeys={pendingSlotKeys}
         onPendingSlotChange={handlePendingSlotChange}
-        timeslotsAbove={
+        refreshKey={overviewKey}
+        timeslotsBelow={
           <VanCapacityOverview
-            key={overviewKey}
+            selectedVan={selectedVan}
+            onVanChange={setSelectedVan}
             pendingSlotKeys={pendingSlotKeys}
             onToggleTimeslots={handleToggleTimeslots}
+            refreshKey={overviewKey}
           />
         }
         onSaved={() => {

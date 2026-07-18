@@ -26,6 +26,7 @@ import {
   createSlotHold,
   validateSlotHold,
 } from "@/lib/scheduling/slot-holds";
+import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -157,9 +158,18 @@ async function handleBookPost(request: Request) {
     return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
   }
 
-  if (isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      BOOKING_DURATION_MINUTES,
+      data.appointments,
+      undefined,
+      vanForGroomer(groomerId)
+    )
+  ) {
     return NextResponse.json(
-      { error: "The van is already booked at that time (1 van — only one visit at a time)." },
+      { error: "That van is already booked at that time." },
       { status: 409 }
     );
   }
@@ -181,6 +191,7 @@ async function handleBookPost(request: Request) {
   const appointment: Appointment = {
     id: randomUUID(),
     groomerId,
+    van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
     durationMinutes: BOOKING_DURATION_MINUTES,
     status: "confirmed",

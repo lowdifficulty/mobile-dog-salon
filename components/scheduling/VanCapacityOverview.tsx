@@ -98,6 +98,7 @@ export default function VanCapacityOverview({
   onToggleTimeslots,
   pendingSlotKeys = [],
   refreshKey = 0,
+  lockedVan,
 }: {
   apiBase?: string;
   /** Initial van when uncontrolled. */
@@ -111,6 +112,8 @@ export default function VanCapacityOverview({
   pendingSlotKeys?: string[];
   /** Bump to re-fetch both vans without remounting. */
   refreshKey?: number;
+  /** When set, van switcher is locked to this van. */
+  lockedVan?: VanId;
 }) {
   const [message, setMessage] = useState("");
   const [view, setView] = useState<TimeslotView>("shifts");
@@ -178,7 +181,7 @@ export default function VanCapacityOverview({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3 shrink-0">
         <div className="flex flex-wrap items-center gap-3 min-w-0">
           <h4 className="text-base font-bold text-brand">Available timeslots</h4>
-          <VanToggle selectedVan={selectedVan} onVanChange={setSelectedVan} />
+          <VanToggle selectedVan={selectedVan} onVanChange={setSelectedVan} lockedVan={lockedVan} />
         </div>
         <span className="text-xs font-semibold text-gray-500">
           {summary.availableCount} open on {vanLabel(selectedVan)} (next 30 days)

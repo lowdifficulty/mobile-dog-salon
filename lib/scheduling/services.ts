@@ -1,3 +1,5 @@
+import type { GroomerId } from "./types";
+
 /** Every booked appointment blocks a 3-hour window on the groomer calendar. */
 export const BOOKING_DURATION_MINUTES = 180;
 
@@ -19,9 +21,16 @@ export function serviceDurationMinutes(service: string): number {
   return BOOKING_DURATION_MINUTES;
 }
 
-/** Calendar blocking always uses the full groom visit length, even for legacy shorter records. */
-export function appointmentBlockMinutes(durationMinutes?: number): number {
-  return Math.max(durationMinutes ?? 0, BOOKING_DURATION_MINUTES);
+function minimumBlockMinutes(groomerId?: GroomerId): number {
+  return groomerId === "jessica" ? 120 : BOOKING_DURATION_MINUTES;
+}
+
+/** Calendar blocking uses the full groom visit length for the groomer. */
+export function appointmentBlockMinutes(
+  durationMinutes?: number,
+  groomerId?: GroomerId
+): number {
+  return Math.max(durationMinutes ?? 0, minimumBlockMinutes(groomerId));
 }
 
 export function formatDurationLabel(minutes: number): string {

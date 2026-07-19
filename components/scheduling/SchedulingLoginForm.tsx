@@ -18,7 +18,7 @@ export default function SchedulingLoginForm({
   dashboardPath: string;
 }) {
   const router = useRouter();
-  const [username, setUsername] = useState(role === "admin" ? "" : "melanie");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,15 +59,16 @@ export default function SchedulingLoginForm({
         <form onSubmit={handleSubmit} className="space-y-4">
           {role === "groomer" ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Groomer</label>
-              <select
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+              <input
+                type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white"
-              >
-                <option value="melanie">Melanie</option>
-                <option value="diamond">Diamond</option>
-              </select>
+                required
+                autoComplete="username"
+                placeholder="Melanie, Diamond, Jessica, or Chris"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+              />
             </div>
           ) : (
             <div>

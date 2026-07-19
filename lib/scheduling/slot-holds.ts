@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { randomUUID } from "crypto";
 import { readSchedulingData } from "@/lib/scheduling/store";
-import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
+import { bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
 import { isSlotTaken, isVanSlotTaken, parseSlotKey } from "@/lib/scheduling/slots";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
@@ -308,14 +308,15 @@ async function createSlotHoldInner(
   }
 
   const data = await readSchedulingData();
-  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+  if (isSlotTaken(groomerId, date, time, visitDuration, data.appointments)) {
     return { ok: false, error: "That time was just booked — pick another." };
   }
   if (
     isVanSlotTaken(
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       undefined,
       vanForGroomer(groomerId)

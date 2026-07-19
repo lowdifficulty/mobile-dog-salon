@@ -11,6 +11,7 @@ export function groomerAppointmentCardClass(
   if (options.isOwn) return "border-green-500 bg-green-50";
 
   if (groomerId === "diamond") return "border-blue-500 bg-blue-50";
+  if (groomerId === "jessica") return "border-purple-500 bg-purple-50";
 
   return "border-accent bg-accent-light/50";
 }
@@ -21,5 +22,6 @@ export function groomerAppointmentLegendLabel(groomerId: GroomerId): string {
 
 export function groomerAppointmentLegendDotClass(groomerId: GroomerId): string {
   if (groomerId === "diamond") return "bg-blue-500";
+  if (groomerId === "jessica") return "bg-purple-500";
   return "bg-accent";
 }

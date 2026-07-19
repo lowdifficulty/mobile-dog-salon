@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import {
   BOOKING_BLOCK_STARTS,
   SHIFT_HORIZON_MONTHS,
+  availabilityBlockMinutesForGroomer,
+  bookingBlockStartsForGroomer,
   formatBookingBlockDisplay,
   formatDisplayTime,
 } from "@/lib/scheduling/groomers";
@@ -77,6 +79,7 @@ function compactBlockTime(time: string): string {
 function groomerShiftChipClass(groomerId: GroomerId, selected: boolean): string {
   if (selected) return "bg-white/20 text-white border-white/40";
   if (groomerId === "diamond") return "bg-blue-100 text-blue-800 border-blue-300";
+  if (groomerId === "jessica") return "bg-purple-100 text-purple-800 border-purple-300";
   return "bg-green-100 text-green-800 border-green-300";
 }
 
@@ -123,6 +126,7 @@ export default function AvailabilityEditor({
   timeslotsBelow,
   selectedVan,
   onVanChange,
+  lockedVan,
   onSaved,
   refreshKey = 0,
 }: {
@@ -148,10 +152,18 @@ export default function AvailabilityEditor({
   /** Shared Nissan / Dodge selection (monthly calendar + available timeslots). */
   selectedVan: VanId;
   onVanChange: (van: VanId) => void;
+  /** When set, van switcher is locked to this van. */
+  lockedVan?: VanId;
   onSaved?: () => void;
   /** Bump to re-fetch both vans without remounting. */
   refreshKey?: number;
 }) {
+  const editorBlockStarts = groomerId
+    ? bookingBlockStartsForGroomer(groomerId)
+    : BOOKING_BLOCK_STARTS;
+  const editorBlockMinutes = groomerId
+    ? availabilityBlockMinutesForGroomer(groomerId)
+    : GROOMER_AVAILABILITY_BLOCK_MINUTES;
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -270,7 +282,7 @@ export default function AvailabilityEditor({
         setMessage("That timeslot is outside the shift window.");
         return;
       }
-      if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(slot.time)) {
+      if (!(editorBlockStarts as readonly string[]).includes(slot.time)) {
         setMessage("That timeslot is not a valid shift start.");
         return;
       }
@@ -279,7 +291,7 @@ export default function AvailabilityEditor({
     if (action === "remove") {
       for (const slot of slots) {
         const dayLocked = new Set(lockedHours[slot.date] ?? []);
-        const block = bookingBlockHours(slot.time, GROOMER_AVAILABILITY_BLOCK_MINUTES);
+        const block = bookingBlockHours(slot.time, editorBlockMinutes);
         if (block.some((hour) => dayLocked.has(hour))) {
           setMessage("That shift has a booked appointment and cannot be removed.");
           return;
@@ -294,8 +306,8 @@ export default function AvailabilityEditor({
         let next = prev;
         for (const slot of slots) {
           const current = next[slot.date] ?? [];
-          if (!isBookingBlockEnabled(current, slot.time)) continue;
-          const times = setBookingBlockEnabled(current, slot.time, false);
+          if (!isBookingBlockEnabled(current, slot.time, editorBlockMinutes)) continue;
+          const times = setBookingBlockEnabled(current, slot.time, false, editorBlockMinutes);
           if (times.length === 0) {
             next = { ...next };
             delete next[slot.date];
@@ -329,10 +341,10 @@ export default function AvailabilityEditor({
       let next = prev;
       for (const slot of slots) {
         const current = next[slot.date] ?? [];
-        if (isBookingBlockEnabled(current, slot.time)) continue;
+        if (isBookingBlockEnabled(current, slot.time, editorBlockMinutes)) continue;
         next = {
           ...next,
-          [slot.date]: setBookingBlockEnabled(current, slot.time, true),
+          [slot.date]: setBookingBlockEnabled(current, slot.time, true, editorBlockMinutes),
         };
       }
       return next;
@@ -350,14 +362,15 @@ export default function AvailabilityEditor({
   }
 
   function visibleBlocksForDate(date: string, times: string[] | undefined): string[] {
-    return BOOKING_BLOCK_STARTS.filter(
+    return (editorBlockStarts as readonly string[]).filter(
       (blockStart) =>
-        isSlotOpen(date, blockStart) || isBookingBlockEnabled(times ?? [], blockStart)
+        isSlotOpen(date, blockStart) ||
+        isBookingBlockEnabled(times ?? [], blockStart, editorBlockMinutes)
     );
   }
 
   function openBlocksForDate(date: string): string[] {
-    return BOOKING_BLOCK_STARTS.filter((blockStart) => isSlotOpen(date, blockStart));
+    return (editorBlockStarts as readonly string[]).filter((blockStart) => isSlotOpen(date, blockStart));
   }
 
   function goMonth(delta: number) {
@@ -375,7 +388,7 @@ export default function AvailabilityEditor({
 
   function isBlockLocked(date: string, blockStart: string): boolean {
     const dayLocked = new Set(lockedHours[date] ?? []);
-    const block = bookingBlockHours(blockStart, GROOMER_AVAILABILITY_BLOCK_MINUTES);
+    const block = bookingBlockHours(blockStart, editorBlockMinutes);
     return block.some((hour) => dayLocked.has(hour));
   }
 
@@ -388,12 +401,12 @@ export default function AvailabilityEditor({
     }
     setRows((prev) => {
       const current = prev[date] ?? [];
-      const enabled = isBookingBlockEnabled(current, blockStart);
+      const enabled = isBookingBlockEnabled(current, blockStart, editorBlockMinutes);
       if (!enabled && !isSlotOpen(date, blockStart)) {
         setMessage("That timeslot is no longer available.");
         return prev;
       }
-      const times = setBookingBlockEnabled(current, blockStart, !enabled);
+      const times = setBookingBlockEnabled(current, blockStart, !enabled, editorBlockMinutes);
       if (enabled && pendingSlotKeys.includes(slotKey(date, blockStart))) {
         onPendingSlotChange?.(date, blockStart, false);
       }
@@ -487,7 +500,10 @@ export default function AvailabilityEditor({
               day: "numeric",
               year: "numeric",
             })}
-            ). Any day of the week · 8 AM, 11 AM, 2 PM, 5 PM.
+            ). Any day of the week ·{" "}
+            {groomerId === "jessica"
+              ? "8 AM, 10 AM, 12 PM, 2 PM, 4 PM, 6 PM (2-hour slots)."
+              : "8 AM, 11 AM, 2 PM, 5 PM."}
           </p>
         </div>
       )}
@@ -512,7 +528,11 @@ export default function AvailabilityEditor({
             </button>
             <div className="flex flex-wrap items-center justify-center gap-3 min-w-0">
               <h2 className="text-lg font-bold text-brand">{monthLabel(viewYear, viewMonth)}</h2>
-              <VanToggle selectedVan={selectedVan} onVanChange={onVanChange} />
+              <VanToggle
+                selectedVan={selectedVan}
+                onVanChange={onVanChange}
+                lockedVan={lockedVan}
+              />
             </div>
             <button
               type="button"
@@ -597,8 +617,8 @@ export default function AvailabilityEditor({
 
           <p className="text-xs text-gray-500 mt-4">
             {readOnly
-              ? "Grey = open. Blue = Diamond. Green = Melanie. Dashed gray = customer booked."
-              : "Grey = open slot. Blue = Diamond. Green = Melanie. Dashed gray = booked appointment."}
+              ? "Grey = open. Blue = Diamond. Green = Melanie. Purple = Jessica. Dashed gray = customer booked."
+              : "Grey = open slot. Blue = Diamond. Green = Melanie. Purple = Jessica. Dashed gray = booked appointment."}
           </p>
         </div>
 
@@ -608,8 +628,10 @@ export default function AvailabilityEditor({
             <h3 className="text-lg font-bold text-brand mb-1">{formatDateLabel(selectedDate)}</h3>
             <p className="text-sm text-gray-500 mb-4">
               {selectedActive
-                ? `${listBookingBlockStarts(selectedTimes!).length} shift${
-                    listBookingBlockStarts(selectedTimes!).length === 1 ? "" : "s"
+                ? `${listBookingBlockStarts(selectedTimes!, groomerId ?? "melanie").length} shift${
+                    listBookingBlockStarts(selectedTimes!, groomerId ?? "melanie").length === 1
+                      ? ""
+                      : "s"
                   } selected`
                 : "No shifts set for this day"}
             </p>
@@ -633,7 +655,11 @@ export default function AvailabilityEditor({
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {selectedVisibleBlocks.map((blockStart) => {
                   const locked = isBlockLocked(selectedDate, blockStart);
-                  const selected = isBookingBlockEnabled(selectedTimes ?? [], blockStart);
+                  const selected = isBookingBlockEnabled(
+                    selectedTimes ?? [],
+                    blockStart,
+                    editorBlockMinutes
+                  );
                   const open = isSlotOpen(selectedDate, blockStart);
                   return (
                     <button
@@ -646,7 +672,7 @@ export default function AvailabilityEditor({
                           ? "Booked appointment — cannot remove"
                           : !open && selected
                             ? "Your shift — click to remove"
-                            : formatBookingBlockDisplay(blockStart)
+                            : formatBookingBlockDisplay(blockStart, groomerId)
                       }
                       className={`px-3 py-3 rounded-xl text-sm font-semibold border transition-colors ${
                         locked
@@ -664,7 +690,7 @@ export default function AvailabilityEditor({
                           locked || !selected ? "text-gray-400" : "text-white/80"
                         }`}
                       >
-                        {formatBookingBlockDisplay(blockStart)}
+                        {formatBookingBlockDisplay(blockStart, groomerId)}
                         {locked ? " · booked" : ""}
                       </span>
                     </button>
@@ -675,7 +701,8 @@ export default function AvailabilityEditor({
 
             {readOnly && selectedActive && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {listBookingBlockStarts(selectedTimes!).map((blockStart) => (
+                {listBookingBlockStarts(selectedTimes!, groomerId ?? "melanie").map(
+                  (blockStart) => (
                   <span
                     key={blockStart}
                     className="px-3 py-1.5 rounded-full text-xs font-semibold van-slot-shade-1"

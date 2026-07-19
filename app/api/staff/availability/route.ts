@@ -22,12 +22,12 @@ import { isVanId, vanForGroomer } from "@/lib/scheduling/vans";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 function isGroomerId(value: string | null): value is GroomerId {
-  return value === "melanie" || value === "diamond";
+  return value === "melanie" || value === "diamond" || value === "jessica";
 }
 
 export async function GET(request: Request) {
   try {
-    await requireStaff();
+    const user = await requireStaff();
     const { searchParams } = new URL(request.url);
     const groomerIdParam = searchParams.get("groomerId");
     const edit = searchParams.get("edit") === "1";
@@ -58,8 +58,10 @@ export async function GET(request: Request) {
     }
 
     let list = effectiveAvailability(data);
-    if (isGroomerId(groomerIdParam)) {
-      list = list.filter((a) => a.groomerId === groomerIdParam);
+    const scopeGroomerId =
+      user.role === "groomer" ? user.groomerId : isGroomerId(groomerIdParam) ? groomerIdParam : null;
+    if (scopeGroomerId) {
+      list = list.filter((a) => a.groomerId === scopeGroomerId);
     }
 
     return NextResponse.json({ availability: list });

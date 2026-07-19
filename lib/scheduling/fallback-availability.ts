@@ -41,13 +41,13 @@ export function buildFallbackRangeDays(
     if (isBookableDate(date)) {
       for (const id of groomerIds) {
         const times = [...TIME_SLOT_OPTIONS];
-        for (const time of listSelfBookingStarts(times)) {
+        for (const time of listSelfBookingStarts(times, id)) {
           slots.push({
             groomerId: id,
             groomerName: groomerClientDisplayName(id),
             date,
             time,
-            displayTime: formatSelfBookingSlotDisplay(time),
+            displayTime: formatSelfBookingSlotDisplay(time, id),
             slotKey: `${id}|${date}|${time}`,
           });
         }

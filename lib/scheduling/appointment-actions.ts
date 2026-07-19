@@ -7,9 +7,8 @@ import {
   releaseGroomerShiftWithoutAppointment,
   setBookingBlockEnabled,
 } from "@/lib/scheduling/availability";
-import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
+import { isAllowedBookingBlockStart, bookingDurationMinutesForGroomer, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
-import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import {
   isBookableDate,
   isSlotTaken,
@@ -138,7 +137,7 @@ export async function createAppointment(
     };
   }
 
-  if (!isAllowedBookingBlockStart(time)) {
+  if (!isAllowedBookingBlockStart(time, groomerId)) {
     return {
       ok: false,
       error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
@@ -168,7 +167,7 @@ export async function createAppointment(
     const dayAvail = data.availability.find(
       (a) => a.groomerId === groomerId && a.date === date
     );
-    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, bookingDurationMinutesForGroomer(groomerId))) {
       return {
         ok: false,
         error: "Groomer is not available at that time",
@@ -184,7 +183,9 @@ export async function createAppointment(
     }
   }
 
-  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+
+  if (isSlotTaken(groomerId, date, time, visitDuration, data.appointments)) {
     return { ok: false, error: "That time slot is no longer available", status: 409 };
   }
 
@@ -192,7 +193,7 @@ export async function createAppointment(
     isVanSlotTaken(
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       undefined,
       vanForGroomer(groomerId)
@@ -228,7 +229,7 @@ export async function createAppointment(
     groomerId,
     van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
-    durationMinutes: BOOKING_DURATION_MINUTES,
+    durationMinutes: bookingDurationMinutesForGroomer(groomerId),
     status: "confirmed",
     petName: input.petName?.trim() ?? "",
     petBreed: input.petBreed ?? "",
@@ -291,7 +292,7 @@ function buildAppointmentRecord(
     groomerId,
     van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
-    durationMinutes: BOOKING_DURATION_MINUTES,
+    durationMinutes: bookingDurationMinutesForGroomer(groomerId),
     status: "confirmed",
     petName: input.petName?.trim() ?? "",
     petBreed: input.petBreed ?? "",
@@ -319,7 +320,8 @@ function slotConflictReason(
   time: string,
   appointments: Appointment[]
 ): string | null {
-  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, appointments)) {
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+  if (isSlotTaken(groomerId, date, time, visitDuration, appointments)) {
     return "Groomer already booked at that time";
   }
 
@@ -327,7 +329,7 @@ function slotConflictReason(
     isVanSlotTaken(
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       appointments,
       undefined,
       vanForGroomer(groomerId)
@@ -385,7 +387,7 @@ export async function createRecurringAppointments(
     };
   }
 
-  if (!isAllowedBookingBlockStart(time)) {
+  if (!isAllowedBookingBlockStart(time, groomerId)) {
     return {
       ok: false,
       error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
@@ -419,7 +421,7 @@ export async function createRecurringAppointments(
       const dayAvail = data.availability.find(
         (a) => a.groomerId === groomerId && a.date === date
       );
-      if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+      if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, bookingDurationMinutesForGroomer(groomerId))) {
         skipped.push({ date, reason: "Groomer not available at that time" });
         continue;
       }
@@ -538,7 +540,7 @@ export async function rescheduleAppointment(
     return { ok: false, error: "Invalid slot", status: 400 };
   }
 
-  if (!isAllowedBookingBlockStart(time)) {
+  if (!isAllowedBookingBlockStart(time, groomerId)) {
     return {
       ok: false,
       error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
@@ -615,12 +617,14 @@ export async function rescheduleAppointment(
     }
   }
 
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+
   if (
     isSlotTaken(
       groomerId,
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       appointment.id
     )
@@ -632,7 +636,7 @@ export async function rescheduleAppointment(
     isVanSlotTaken(
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       appointment.id,
       vanForGroomer(groomerId)
@@ -648,7 +652,7 @@ export async function rescheduleAppointment(
   appointment.groomerId = groomerId;
   appointment.van = vanForGroomer(groomerId);
   appointment.startAt = slotToISO(date, time);
-  appointment.durationMinutes = BOOKING_DURATION_MINUTES;
+  appointment.durationMinutes = bookingDurationMinutesForGroomer(groomerId);
   appointment.status = "confirmed";
   clearReminderFlags(appointment);
   data.availability = allocateShiftsFromAppointments(data);
@@ -727,12 +731,13 @@ export async function transferAppointmentToGroomer(
     };
   }
 
+  const visitDuration = bookingDurationMinutesForGroomer(toGroomerId);
   if (
     isSlotTaken(
       toGroomerId,
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       appointment.id
     )

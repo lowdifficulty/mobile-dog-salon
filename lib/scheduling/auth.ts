@@ -5,6 +5,18 @@ import bcrypt from "bcryptjs";
 import type { SessionUser, GroomerId } from "./types";
 import { ADMIN_EMAIL, ADMIN_USERNAME, GROOMERS, groomerIdFromEmail } from "./groomers";
 
+const GROOMER_LOGIN_ALIASES: Record<string, GroomerId> = {
+  melanie: "melanie",
+  diamond: "diamond",
+  jessica: "jessica",
+  chris: "jessica",
+};
+
+export function resolveGroomerLogin(username: string): GroomerId | null {
+  const key = username.trim().toLowerCase();
+  return GROOMER_LOGIN_ALIASES[key] ?? null;
+}
+
 export interface SessionData {
   user?: SessionUser;
 }
@@ -20,6 +32,9 @@ const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
   diamond:
     process.env.SCHEDULING_PASSWORD_HASH_DIAMOND ??
     "$2b$10$fIgTTqJ.fh5P.dS.zHmOw.2K7z8npBMCk6OaXHAUN6YSAlp70tWP.",
+  jessica:
+    process.env.SCHEDULING_PASSWORD_HASH_JESSICA ??
+    "$2b$10$ptiaKlNIZPca/2uWcdJqAO2HHZEG8dXoTtnwQVtt6S0QQj8GB1LZG",
 };
 
 export function getSessionOptions() {
@@ -53,10 +68,8 @@ export async function verifyGroomerPassword(
   groomerId: GroomerId,
   password: string
 ): Promise<boolean> {
-  const plainEnv =
-    groomerId === "melanie"
-      ? process.env.SCHEDULING_PASSWORD_MELANIE
-      : process.env.SCHEDULING_PASSWORD_DIAMOND;
+  const envKey = `SCHEDULING_PASSWORD_${groomerId.toUpperCase()}` as const;
+  const plainEnv = process.env[envKey];
   if (plainEnv) return password === plainEnv;
   return bcrypt.compare(password, GROOMER_PASSWORD_HASHES[groomerId]);
 }

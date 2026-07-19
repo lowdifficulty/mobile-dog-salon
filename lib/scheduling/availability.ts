@@ -1,6 +1,14 @@
 import type { GroomerId, SchedulingData } from "./types";
-import { BOOKING_DURATION_MINUTES, GROOMER_AVAILABILITY_BLOCK_MINUTES } from "./services";
-import { BOOKING_BLOCK_STARTS } from "./groomers";
+import {
+  BOOKING_DURATION_MINUTES,
+  GROOMER_AVAILABILITY_BLOCK_MINUTES,
+} from "./services";
+import {
+  availabilityBlockMinutesForGroomer,
+  bookingBlockStartsForGroomer,
+  bookingDurationMinutesForGroomer,
+  isAllowedBookingBlockStart,
+} from "./groomers";
 import { parseSlotFromIso } from "./slots";
 
 export function timeToMinutes(time: string): number {
@@ -61,15 +69,16 @@ export function bookingBlockHours(
   return slotsCoveredByBooking(startTime, durationMinutes);
 }
 
-/** List 3-hour booking starts from groomer availability (staff / team calendar). */
 export function listBookingBlockStarts(
   times: string[],
-  durationMinutes: number = GROOMER_AVAILABILITY_BLOCK_MINUTES,
+  groomerId: GroomerId,
   isTaken?: (startTime: string) => boolean
 ): string[] {
+  const durationMinutes = availabilityBlockMinutesForGroomer(groomerId);
+  const blockStarts = bookingBlockStartsForGroomer(groomerId);
   const offered: string[] = [];
 
-  for (const time of BOOKING_BLOCK_STARTS) {
+  for (const time of blockStarts) {
     if (!hasMinimumAvailabilityForBooking(times, time, durationMinutes)) continue;
     if (isTaken?.(time)) continue;
 
@@ -87,15 +96,14 @@ export function listBookingBlockStarts(
   return offered;
 }
 
-/**
- * Customer self-booking: 3-hour block starts when groomer marked at least 2 consecutive hours.
- */
 export function listSelfBookingStarts(
   times: string[],
+  groomerId: GroomerId,
   isTaken?: (startTime: string) => boolean
 ): string[] {
-  return BOOKING_BLOCK_STARTS.filter((time) => {
-    if (!hasMinimumAvailabilityForBooking(times, time)) return false;
+  const duration = bookingDurationMinutesForGroomer(groomerId);
+  return bookingBlockStartsForGroomer(groomerId).filter((time) => {
+    if (!hasMinimumAvailabilityForBooking(times, time, duration)) return false;
     if (isTaken?.(time)) return false;
     return true;
   });
@@ -114,8 +122,13 @@ export function setBookingBlockEnabled(
   return times.filter((t) => !block.includes(t)).sort();
 }
 
-export function isBookingBlockEnabled(times: string[], startTime: string): boolean {
-  return hasMinimumAvailabilityForBooking(times, startTime);
+export function isBookingBlockEnabled(
+  times: string[],
+  startTime: string,
+  durationMinutes?: number
+): boolean {
+  const duration = durationMinutes ?? BOOKING_DURATION_MINUTES;
+  return hasMinimumAvailabilityForBooking(times, startTime, duration);
 }
 
 export function removeSlotsFromAvailability(
@@ -187,7 +200,7 @@ export function releaseGroomerShiftWithoutAppointment(
   startTime: string,
   options?: { ignoreAppointmentId?: string }
 ): void {
-  if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(startTime)) return;
+  if (!isAllowedBookingBlockStart(startTime, groomerId)) return;
 
   const hasConfirmed = data.appointments.some((ap) => {
     if (ap.status !== "confirmed") return false;
@@ -203,7 +216,12 @@ export function releaseGroomerShiftWithoutAppointment(
   );
   if (dayIndex === -1) return;
 
-  const times = setBookingBlockEnabled(data.availability[dayIndex].times, startTime, false);
+  const times = setBookingBlockEnabled(
+    data.availability[dayIndex].times,
+    startTime,
+    false,
+    availabilityBlockMinutesForGroomer(groomerId)
+  );
   if (times.length === 0) {
     data.availability.splice(dayIndex, 1);
   } else {

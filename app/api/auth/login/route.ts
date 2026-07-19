@@ -3,9 +3,9 @@ import {
   getSession,
   loginAdmin,
   loginGroomer,
+  resolveGroomerLogin,
 } from "@/lib/scheduling/auth";
 import { appendStaffLoginLog } from "@/lib/staff/login-log";
-import type { GroomerId } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -28,11 +28,11 @@ export async function POST(request: Request) {
     }
     user = await loginAdmin(username, password);
   } else if (role === "groomer") {
-    const id = (username ?? "").toLowerCase() as GroomerId;
-    if (id !== "melanie" && id !== "diamond") {
+    const groomerId = resolveGroomerLogin(username ?? "");
+    if (!groomerId) {
       return NextResponse.json({ error: "Invalid groomer" }, { status: 400 });
     }
-    user = await loginGroomer(id, password);
+    user = await loginGroomer(groomerId, password);
   } else {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }

@@ -64,10 +64,20 @@ function emptyRows(): RowsByGroomer {
 export default function TeamAvailabilityCalendar({
   availabilityApi = "/api/admin/availability",
   refreshKey = 0,
+  scopeGroomerId,
 }: {
   availabilityApi?: string;
   refreshKey?: number;
+  /** When set, only this groomer's shifts are shown (groomer dashboard). */
+  scopeGroomerId?: GroomerId;
 }) {
+  const visibleGroomerIds = useMemo(
+    () =>
+      scopeGroomerId
+        ? ([scopeGroomerId] as GroomerId[])
+        : BOOKABLE_GROOMER_IDS,
+    [scopeGroomerId]
+  );
   const today = getTodayPacificDate();
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth() + 1);
@@ -83,11 +93,11 @@ export default function TeamAvailabilityCalendar({
 
   const legendText = useMemo(
     () =>
-      BOOKABLE_GROOMER_IDS.map((id) => {
+      visibleGroomerIds.map((id) => {
         const color = id === "melanie" ? "Blue" : "Pink";
         return `${color} dot = ${GROOMERS[id].name}`;
       }).join(" · "),
-    []
+    [visibleGroomerIds]
   );
 
   const load = useCallback(async () => {
@@ -102,14 +112,14 @@ export default function TeamAvailabilityCalendar({
     const data = await res.json();
     const next = emptyRows();
     for (const a of data.availability as AvailabilityDay[]) {
-      if (!BOOKABLE_GROOMER_IDS.includes(a.groomerId)) continue;
+      if (!visibleGroomerIds.includes(a.groomerId)) continue;
       const bucket = next[a.groomerId] ?? {};
       bucket[a.date] = [...a.times];
       next[a.groomerId] = bucket;
     }
     setRows(next);
     setLoading(false);
-  }, [availabilityApi]);
+  }, [availabilityApi, visibleGroomerIds]);
 
   useEffect(() => {
     load();
@@ -134,7 +144,7 @@ export default function TeamAvailabilityCalendar({
       <div className="site-card p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex flex-wrap gap-4 text-sm font-semibold">
-            {BOOKABLE_GROOMER_IDS.map((id) => (
+            {visibleGroomerIds.map((id) => (
               <span key={id} className="flex items-center gap-2 text-gray-700">
                 <span className={`w-3 h-3 rounded-full ${groomerDotClass(id, false)}`} />
                 {GROOMERS[id].name}
@@ -188,9 +198,9 @@ export default function TeamAvailabilityCalendar({
             }
 
             const isPast = date < today;
-            const blockCounts = BOOKABLE_GROOMER_IDS.map((id) => ({
+            const blockCounts = visibleGroomerIds.map((id) => ({
               id,
-              blocks: isPast ? [] : listBookingBlockStarts(rows[id]?.[date] ?? []),
+              blocks: isPast ? [] : listBookingBlockStarts(rows[id]?.[date] ?? [], id),
             }));
             const hasAny = blockCounts.some((g) => g.blocks.length > 0);
             const isSelected = date === selectedDate;
@@ -240,7 +250,7 @@ export default function TeamAvailabilityCalendar({
         {selectedDate && selectedDate >= today ? (
           <>
             <h3 className="text-lg font-bold text-brand">{formatDateLabel(selectedDate)}</h3>
-            {BOOKABLE_GROOMER_IDS.map((id) => {
+            {visibleGroomerIds.map((id) => {
               const times = rows[id]?.[selectedDate];
               const active = Boolean(times?.length);
               return (
@@ -251,7 +261,7 @@ export default function TeamAvailabilityCalendar({
                   </h4>
                   {active ? (
                     <div className="flex flex-wrap gap-2">
-                      {listBookingBlockStarts(times!).map((blockStart) => (
+                      {listBookingBlockStarts(times!, id).map((blockStart) => (
                         <span
                           key={blockStart}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${groomerChipClass(id)}`}

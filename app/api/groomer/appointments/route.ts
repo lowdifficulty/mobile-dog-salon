@@ -19,11 +19,7 @@ export async function GET(request: Request) {
     const now = new Date();
 
     const data = await readSchedulingData();
-    let list =
-      filter === "past"
-        ? data.appointments.filter((a) => a.groomerId === user.groomerId)
-        : data.appointments;
-
+    let list = data.appointments.filter((a) => a.groomerId === user.groomerId);
     list = filterStaffAppointments(list, filter, now);
 
     return NextResponse.json({ appointments: list });

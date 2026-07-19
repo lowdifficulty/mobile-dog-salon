@@ -9,16 +9,16 @@ import {
   getRangeAvailability,
   getTodayPacificDate,
 } from "@/lib/scheduling/slots";
-import type { AvailableSlot } from "@/lib/scheduling/types";
+import type { AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 
 function sanitizeDays(days: number | undefined): number {
   if (typeof days !== "number" || !Number.isFinite(days)) return 14;
   return Math.min(30, Math.max(1, Math.round(days)));
 }
 
-function sanitizeGroomerId(raw: string | undefined): "melanie" | "diamond" | undefined {
+function sanitizeGroomerId(raw: string | undefined): GroomerId | undefined {
   const id = raw?.trim().toLowerCase();
-  if (id === "melanie" || id === "diamond") {
+  if (id === "melanie" || id === "diamond" || id === "jessica") {
     return groomerAcceptsBookings(id) ? id : undefined;
   }
   return undefined;
@@ -37,7 +37,7 @@ export async function getLickyAvailabilitySlots(options: {
   from: string;
   days: number;
   service: string;
-  groomerId?: "melanie" | "diamond";
+  groomerId?: GroomerId;
   source: "live" | "fallback";
   persistenceMode: string;
 }> {

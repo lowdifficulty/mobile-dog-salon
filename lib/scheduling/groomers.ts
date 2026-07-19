@@ -1,5 +1,5 @@
 import type { GroomerId } from "./types";
-import { BOOKING_DURATION_MINUTES } from "./services";
+import { BOOKING_DURATION_MINUTES, GROOMER_AVAILABILITY_BLOCK_MINUTES } from "./services";
 
 export const GROOMERS: Record<
   GroomerId,
@@ -25,6 +25,12 @@ export const GROOMERS: Record<
     name: "Diamond",
     email: "diamond@mobiledog-salon.com",
     calendarEmail: "diamond@mobiledog-salon.com",
+  },
+  jessica: {
+    id: "jessica",
+    name: "Jessica",
+    email: "jessica@mobiledog-salon.com",
+    calendarEmail: "jessica@mobiledog-salon.com",
   },
 };
 
@@ -68,8 +74,48 @@ export const BOOKING_BLOCK_STARTS = [
   "17:00",
 ] as const;
 
-export function isAllowedBookingBlockStart(time: string): boolean {
+/** 2-hour shifts for Jessica (Dodge van). */
+export const JESSICA_BOOKING_BLOCK_STARTS = [
+  "08:00",
+  "10:00",
+  "12:00",
+  "14:00",
+  "16:00",
+  "18:00",
+] as const;
+
+export function bookingDurationMinutesForGroomer(groomerId: GroomerId): number {
+  return groomerId === "jessica" ? 120 : BOOKING_DURATION_MINUTES;
+}
+
+export function availabilityBlockMinutesForGroomer(groomerId: GroomerId): number {
+  return groomerId === "jessica" ? 120 : GROOMER_AVAILABILITY_BLOCK_MINUTES;
+}
+
+export function bookingBlockStartsForGroomer(groomerId: GroomerId): readonly string[] {
+  return groomerId === "jessica" ? JESSICA_BOOKING_BLOCK_STARTS : BOOKING_BLOCK_STARTS;
+}
+
+export function isAllowedBookingBlockStart(time: string, groomerId?: GroomerId): boolean {
+  if (groomerId) {
+    return (bookingBlockStartsForGroomer(groomerId) as readonly string[]).includes(time);
+  }
   return (BOOKING_BLOCK_STARTS as readonly string[]).includes(time);
+}
+
+/** Jessica trial: customers can only book within N days ahead (lift via env). */
+export function isJessicaTrialBookingRestricted(): boolean {
+  const flag = process.env.JESSICA_TRIAL_BOOKING_RESTRICTED;
+  if (flag === "0" || flag === "false") return false;
+  return true;
+}
+
+export function customerBookingHorizonDaysForGroomer(groomerId: GroomerId): number | null {
+  if (groomerId !== "jessica") return null;
+  if (!isJessicaTrialBookingRestricted()) return null;
+  const raw = process.env.JESSICA_BOOKING_HORIZON_DAYS ?? "7";
+  const days = parseInt(raw, 10);
+  return Number.isFinite(days) && days > 0 ? days : 7;
 }
 
 function formatTimeRangeDisplay(startTime24: string, durationMinutes: number): string {
@@ -82,13 +128,25 @@ function formatTimeRangeDisplay(startTime24: string, durationMinutes: number): s
 }
 
 /** Staff / groomer views — full appointment length. */
-export function formatBookingBlockDisplay(startTime24: string): string {
-  return formatTimeRangeDisplay(startTime24, BOOKING_DURATION_MINUTES);
+export function formatBookingBlockDisplay(
+  startTime24: string,
+  groomerId?: GroomerId
+): string {
+  const duration = groomerId
+    ? bookingDurationMinutesForGroomer(groomerId)
+    : BOOKING_DURATION_MINUTES;
+  return formatTimeRangeDisplay(startTime24, duration);
 }
 
-/** Customer self-booking — 3-hour calendar slots. */
-export function formatSelfBookingSlotDisplay(startTime24: string): string {
-  return formatTimeRangeDisplay(startTime24, BOOKING_DURATION_MINUTES);
+/** Customer self-booking calendar slots. */
+export function formatSelfBookingSlotDisplay(
+  startTime24: string,
+  groomerId?: GroomerId
+): string {
+  const duration = groomerId
+    ? bookingDurationMinutesForGroomer(groomerId)
+    : BOOKING_DURATION_MINUTES;
+  return formatTimeRangeDisplay(startTime24, duration);
 }
 
 export function formatDisplayTime(time24: string): string {

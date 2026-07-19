@@ -20,7 +20,14 @@ export function isVanId(value: string | null | undefined): value is VanId {
 }
 
 export function vanForGroomer(groomerId: GroomerId): VanId {
-  return groomerId === "diamond" ? "dodge" : "nissan";
+  if (groomerId === "diamond" || groomerId === "jessica") return "dodge";
+  return "nissan";
+}
+
+/** Groomers who share a van (Dodge: Diamond + Jessica). */
+export function groomersForVan(vanId: VanId): GroomerId[] {
+  if (vanId === "nissan") return ["melanie"];
+  return ["diamond", "jessica"];
 }
 
 export function groomerForVan(vanId: VanId): GroomerId {

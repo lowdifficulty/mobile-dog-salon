@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  BOOKING_BLOCK_STARTS,
   BOOKABLE_GROOMER_IDS,
+  bookingBlockStartsForGroomer,
+  bookingDurationMinutesForGroomer,
   formatBookingBlockDisplay,
   GROOMERS,
 } from "@/lib/scheduling/groomers";
-import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { getTodayPacificDate, isSlotTaken, isVanSlotTaken } from "@/lib/scheduling/slots";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
@@ -54,30 +54,33 @@ export default function StaffDateTimePicker({
     };
   }, [groomerId]);
 
+  const blockStarts = bookingBlockStartsForGroomer(groomerId);
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+
   const takenBlocks = useMemo(() => {
     if (!selectedDate) return new Set<string>();
     return new Set(
-      BOOKING_BLOCK_STARTS.filter(
+      blockStarts.filter(
         (time) =>
           isSlotTaken(
             groomerId,
             selectedDate,
             time,
-            BOOKING_DURATION_MINUTES,
+            visitDuration,
             appointments,
             excludeAppointmentId
           ) ||
           isVanSlotTaken(
             selectedDate,
             time,
-            BOOKING_DURATION_MINUTES,
+            visitDuration,
             appointments,
             excludeAppointmentId,
             vanForGroomer(groomerId)
           )
       )
     );
-  }, [appointments, excludeAppointmentId, groomerId, selectedDate]);
+  }, [appointments, blockStarts, excludeAppointmentId, groomerId, selectedDate, visitDuration]);
 
   return (
     <div className="space-y-4">
@@ -108,14 +111,14 @@ export default function StaffDateTimePicker({
           className="w-full px-4 py-2 border border-gray-200 rounded-xl bg-white text-sm"
         />
         <p className="text-xs text-gray-500 mt-1">
-          Staff can book any future date. Each slot is a 3-hour visit — booked blocks are disabled.
+          Staff can book any future date. Booked blocks are disabled.
         </p>
       </div>
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">Time</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {BOOKING_BLOCK_STARTS.map((time) => {
+          {blockStarts.map((time) => {
             const selected = selectedTime === time;
             const taken = takenBlocks.has(time);
             return (
@@ -124,7 +127,7 @@ export default function StaffDateTimePicker({
                 type="button"
                 onClick={() => !taken && onSelectTime(time)}
                 disabled={!selectedDate || taken}
-                title={taken ? "Already booked — 3-hour block in use" : undefined}
+                title={taken ? "Already booked" : undefined}
                 className={`px-4 py-3 rounded-xl text-sm font-semibold border transition-colors text-left disabled:opacity-50 ${
                   taken
                     ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
@@ -133,7 +136,7 @@ export default function StaffDateTimePicker({
                       : "bg-white text-brand border-gray-200 hover:border-accent"
                 }`}
               >
-                {formatBookingBlockDisplay(time)}
+                {formatBookingBlockDisplay(time, groomerId)}
                 {taken ? " · booked" : ""}
               </button>
             );

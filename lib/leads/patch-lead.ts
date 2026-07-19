@@ -89,7 +89,9 @@ async function syncLeadContactToMatchingAppointments(
 
   if (changed) {
     const groomerId =
-      lead.groomerId === "melanie" || lead.groomerId === "diamond"
+      lead.groomerId === "melanie" ||
+      lead.groomerId === "diamond" ||
+      lead.groomerId === "jessica"
         ? lead.groomerId
         : undefined;
     await writeSchedulingData(data, {

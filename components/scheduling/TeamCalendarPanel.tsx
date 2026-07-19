@@ -24,11 +24,13 @@ export default function TeamCalendarPanel({
   availabilityApi = "/api/admin/availability",
   calendarRefreshKey: externalCalendarRefreshKey = 0,
   allowDeleteAppointments = false,
+  scopeGroomerId,
 }: {
   availabilityOnly?: boolean;
   availabilityApi?: string;
   calendarRefreshKey?: number;
   allowDeleteAppointments?: boolean;
+  scopeGroomerId?: GroomerId;
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
@@ -88,6 +90,7 @@ export default function TeamCalendarPanel({
         <TeamAvailabilityCalendar
           availabilityApi={availabilityApi}
           refreshKey={calendarRefreshKey}
+          scopeGroomerId={scopeGroomerId}
         />
       )}
       {tab === "history" && <AvailabilityHistoryPanel />}

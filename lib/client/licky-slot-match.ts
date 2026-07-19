@@ -73,6 +73,7 @@ function scoreSlot(
   if (opts.groomerId && slot.groomerId === opts.groomerId) score += 40;
   if (/\bmelanie\b/.test(pref) && slot.groomerId === "melanie") score += 35;
   if (/\b(diamond|sarah)\b/.test(pref) && slot.groomerId === "diamond") score += 35;
+  if (/\b(jessica|chris)\b/.test(pref) && slot.groomerId === "jessica") score += 35;
 
   if (opts.targetDate && slot.date === opts.targetDate) score += 50;
   else if (opts.targetDate) {

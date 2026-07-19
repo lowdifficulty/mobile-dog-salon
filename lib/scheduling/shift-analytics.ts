@@ -54,7 +54,7 @@ function countGroomerShifts(
   for (const day of data.availability) {
     if (day.groomerId !== groomerId) continue;
     if (day.date < from || day.date > to) continue;
-    count += listBookingBlockStarts(day.times).length;
+    count += listBookingBlockStarts(day.times, groomerId).length;
   }
   return count;
 }

@@ -1,5 +1,7 @@
 import {
   BOOKABLE_GROOMER_IDS,
+  bookingDurationMinutesForGroomer,
+  customerBookingHorizonDaysForGroomer,
   formatSelfBookingSlotDisplay,
   groomerAcceptsBookings,
   groomerClientDisplayName,
@@ -47,7 +49,7 @@ export function isSlotTaken(
 ): boolean {
   const start = parsePacificDateTime(date, time);
   const end = new Date(
-    start.getTime() + appointmentBlockMinutes(durationMinutes) * 60 * 1000
+    start.getTime() + appointmentBlockMinutes(durationMinutes, groomerId) * 60 * 1000
   );
 
   return appointments.some((ap) => {
@@ -55,7 +57,8 @@ export function isSlotTaken(
     if (ap.groomerId !== groomerId || ap.status === "cancelled") return false;
     const apStart = new Date(ap.startAt);
     const apEnd = new Date(
-      apStart.getTime() + appointmentBlockMinutes(ap.durationMinutes) * 60 * 1000
+      apStart.getTime() +
+        appointmentBlockMinutes(ap.durationMinutes, ap.groomerId) * 60 * 1000
     );
     return overlaps(start, end, apStart, apEnd);
   });
@@ -82,7 +85,8 @@ export function isVanSlotTaken(
     if (vanId && appointmentVan(ap) !== vanId) continue;
     const apStart = new Date(ap.startAt);
     const apEnd = new Date(
-      apStart.getTime() + appointmentBlockMinutes(ap.durationMinutes) * 60 * 1000
+      apStart.getTime() +
+        appointmentBlockMinutes(ap.durationMinutes, ap.groomerId) * 60 * 1000
     );
     if (!overlaps(start, end, apStart, apEnd)) continue;
     overlapping += 1;
@@ -100,15 +104,16 @@ export function getAvailableSlotsForDate(
 ): AvailableSlot[] {
   if (!isBookableDate(date)) return [];
 
-  const duration = BOOKING_DURATION_MINUTES;
   const slots: AvailableSlot[] = [];
 
   for (const day of availability) {
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
+    if (!isCustomerBookableDateForGroomer(day.groomerId, date)) continue;
     if (isGroomerFullyBooked(day.groomerId, date, appointments)) continue;
 
-    const blockStarts = listSelfBookingStarts(day.times, (time) =>
+    const duration = bookingDurationMinutesForGroomer(day.groomerId);
+    const blockStarts = listSelfBookingStarts(day.times, day.groomerId, (time) =>
       isSlotTaken(day.groomerId, date, time, duration, appointments) ||
       isVanSlotTaken(
         date,
@@ -126,7 +131,7 @@ export function getAvailableSlotsForDate(
         groomerName: groomerClientDisplayName(day.groomerId),
         date,
         time,
-        displayTime: formatSelfBookingSlotDisplay(time),
+        displayTime: formatSelfBookingSlotDisplay(time, day.groomerId),
         slotKey: `${day.groomerId}|${date}|${time}`,
       });
     }
@@ -193,6 +198,13 @@ export function getShiftHorizonEndDate(months = 3): string {
 /** Customers must book at least one day ahead (no same-day appointments). */
 export function isBookableDate(date: string): boolean {
   return date > getTodayPacificDate();
+}
+
+export function isCustomerBookableDateForGroomer(groomerId: GroomerId, date: string): boolean {
+  if (!isBookableDate(date)) return false;
+  const horizonDays = customerBookingHorizonDaysForGroomer(groomerId);
+  if (horizonDays === null) return true;
+  return date <= addDays(getTodayPacificDate(), horizonDays);
 }
 
 /** Today or earlier in Pacific time — not shown as open on calendars. */

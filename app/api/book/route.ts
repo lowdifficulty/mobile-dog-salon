@@ -7,14 +7,14 @@ import { effectiveAvailability } from "@/lib/scheduling/effective-availability";
 import {
   getAvailableSlotsForDate,
   isBookableDate,
+  isCustomerBookableDateForGroomer,
   isSlotTaken,
   isVanSlotTaken,
   parseSlotKey,
   slotToISO,
 } from "@/lib/scheduling/slots";
-import { BOOKING_DURATION_MINUTES } from "@/lib/scheduling/services";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
-import { isAllowedBookingBlockStart, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
+import { isAllowedBookingBlockStart, groomerAcceptsBookings, bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
 import { upsertLead } from "@/lib/leads/store";
@@ -106,19 +106,21 @@ async function handleBookPost(request: Request) {
     );
   }
 
-  if (!isBookableDate(date)) {
+  if (!isCustomerBookableDateForGroomer(groomerId, date)) {
     return NextResponse.json(
-      { error: "Same-day appointments are not available. Please choose a future date." },
+      { error: "That date is outside the booking window for this groomer. Please choose a nearer date." },
       { status: 400 }
     );
   }
 
-  if (!isAllowedBookingBlockStart(time)) {
+  if (!isAllowedBookingBlockStart(time, groomerId)) {
     return NextResponse.json(
-      { error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM." },
+      { error: "That time slot is not available." },
       { status: 400 }
     );
   }
+
+  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
 
   const data = await readSchedulingData();
   const devBooking = isLocalhostDevWithoutProductionData(request);
@@ -143,7 +145,7 @@ async function handleBookPost(request: Request) {
     const dayAvail = data.availability.find(
       (a) => a.groomerId === groomerId && a.date === date
     );
-    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time)) {
+    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, visitDuration)) {
       return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
     }
     if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
@@ -154,7 +156,7 @@ async function handleBookPost(request: Request) {
     }
   }
 
-  if (isSlotTaken(groomerId, date, time, BOOKING_DURATION_MINUTES, data.appointments)) {
+  if (isSlotTaken(groomerId, date, time, visitDuration, data.appointments)) {
     return NextResponse.json({ error: "That time slot is no longer available" }, { status: 409 });
   }
 
@@ -162,7 +164,7 @@ async function handleBookPost(request: Request) {
     isVanSlotTaken(
       date,
       time,
-      BOOKING_DURATION_MINUTES,
+      visitDuration,
       data.appointments,
       undefined,
       vanForGroomer(groomerId)
@@ -193,7 +195,7 @@ async function handleBookPost(request: Request) {
     groomerId,
     van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
-    durationMinutes: BOOKING_DURATION_MINUTES,
+    durationMinutes: visitDuration,
     status: "confirmed",
     petName: petName?.trim() ?? "",
     petBreed: petBreed ?? "",

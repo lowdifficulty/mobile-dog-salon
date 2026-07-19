@@ -2,7 +2,7 @@ import type { VanId } from "./vans";
 
 export type { VanId };
 
-export type GroomerId = "melanie" | "diamond";
+export type GroomerId = "melanie" | "diamond" | "jessica";
 
 export type AppointmentStatus = "confirmed" | "cancelled";
 

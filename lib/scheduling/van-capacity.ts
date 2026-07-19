@@ -1,9 +1,13 @@
 import {
   BOOKING_BLOCK_STARTS,
   SHIFT_HORIZON_MONTHS,
+  availabilityBlockMinutesForGroomer,
+  bookingBlockStartsForGroomer,
+  bookingDurationMinutesForGroomer,
   formatBookingBlockDisplay,
   formatDisplayTime,
   groomerName,
+  isAllowedBookingBlockStart,
 } from "./groomers";
 import {
   hasMinimumAvailabilityForBooking,
@@ -15,6 +19,7 @@ import { appointmentBlockMinutes, BOOKING_DURATION_MINUTES } from "./services";
 import {
   appointmentVan,
   groomerForVan,
+  groomersForVan,
   vanForGroomer,
   VAN_COUNT,
   VAN_IDS,
@@ -212,18 +217,51 @@ function eachDateInclusive(from: string, to: string): string[] {
   return dates;
 }
 
+function blockStartsForVan(vanId: VanId): string[] {
+  const starts = new Set<string>();
+  for (const groomerId of groomersForVan(vanId)) {
+    for (const time of bookingBlockStartsForGroomer(groomerId)) {
+      starts.add(time);
+    }
+  }
+  return [...starts].sort();
+}
+
+function slotDurationForVanBlock(vanId: VanId, time: string): number {
+  let maxDuration = 0;
+  for (const groomerId of groomersForVan(vanId)) {
+    if (!isAllowedBookingBlockStart(time, groomerId)) continue;
+    maxDuration = Math.max(maxDuration, bookingDurationMinutesForGroomer(groomerId));
+  }
+  return maxDuration || BOOKING_DURATION_MINUTES;
+}
+
+function groomerClaimingVanShift(
+  date: string,
+  time: string,
+  availability: AvailabilityDay[],
+  vanId: VanId
+): GroomerId | null {
+  for (const groomerId of groomersForVan(vanId)) {
+    if (!isAllowedBookingBlockStart(time, groomerId)) continue;
+    const day = availability.find(
+      (entry) => entry.groomerId === groomerId && entry.date === date
+    );
+    const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
+    if (day && isBookingBlockEnabled(day.times, time, blockMinutes)) {
+      return groomerId;
+    }
+  }
+  return null;
+}
+
 function isVanShiftClaimed(
   date: string,
   time: string,
   availability: AvailabilityDay[],
   vanId: VanId
 ): boolean {
-  const groomerId = groomerForVan(vanId);
-  for (const day of availability) {
-    if (day.date !== date || day.groomerId !== groomerId) continue;
-    if (isBookingBlockEnabled(day.times, time)) return true;
-  }
-  return false;
+  return groomerClaimingVanShift(date, time, availability, vanId) !== null;
 }
 
 function findConfirmedAppointmentAtBlockStart(
@@ -253,7 +291,7 @@ export function buildVanSlotOccupancy(
 
   for (const vanId of vans) {
     for (const date of eachDateInclusive(from, to)) {
-      for (const time of BOOKING_BLOCK_STARTS) {
+      for (const time of blockStartsForVan(vanId)) {
         const booking = findConfirmedAppointmentAtBlockStart(
           date,
           time,
@@ -265,7 +303,7 @@ export function buildVanSlotOccupancy(
             van: vanId,
             date,
             time,
-            displayTime: formatBookingBlockDisplay(time),
+            displayTime: formatBookingBlockDisplay(time, booking.groomerId),
             status: "booked",
             groomerId: booking.groomerId,
             groomerName: groomerName(booking.groomerId),
@@ -274,19 +312,21 @@ export function buildVanSlotOccupancy(
           continue;
         }
 
-        const groomerId = groomerForVan(vanId);
-        const day = data.availability.find(
-          (a) => a.groomerId === groomerId && a.date === date
+        const claimedGroomer = groomerClaimingVanShift(
+          date,
+          time,
+          data.availability,
+          vanId
         );
-        if (day && isBookingBlockEnabled(day.times, time)) {
+        if (claimedGroomer) {
           result.push({
             van: vanId,
             date,
             time,
-            displayTime: formatBookingBlockDisplay(time),
+            displayTime: formatBookingBlockDisplay(time, claimedGroomer),
             status: "groomer",
-            groomerId,
-            groomerName: groomerName(groomerId),
+            groomerId: claimedGroomer,
+            groomerName: groomerName(claimedGroomer),
           });
           continue;
         }
@@ -320,9 +360,10 @@ export function listAvailableVanTimeslots(
 
   for (const vanId of vans) {
     for (const date of eachDateInclusive(from, to)) {
-      for (const time of BOOKING_BLOCK_STARTS) {
+      for (const time of blockStartsForVan(vanId)) {
+        const duration = slotDurationForVanBlock(vanId, time);
         if (
-          isVanSlotTaken(date, time, BOOKING_DURATION_MINUTES, appointments, undefined, vanId)
+          isVanSlotTaken(date, time, duration, appointments, undefined, vanId)
         ) {
           continue;
         }
@@ -387,12 +428,18 @@ export function rejectUnavailableGroomerShifts(
   );
 
   for (const day of incoming) {
-    for (const blockStart of BOOKING_BLOCK_STARTS) {
-      if (!isBookingBlockEnabled(day.times, blockStart)) continue;
+    const blockStarts = bookingBlockStartsForGroomer(groomerId);
+    for (const blockStart of blockStarts) {
+      const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
+      if (!isBookingBlockEnabled(day.times, blockStart, blockMinutes)) continue;
       const key = openVanSlotKey(vanId, day.date, blockStart);
-      const hadBefore = isBookingBlockEnabled(existingByDate.get(day.date) ?? [], blockStart);
+      const hadBefore = isBookingBlockEnabled(
+        existingByDate.get(day.date) ?? [],
+        blockStart,
+        blockMinutes
+      );
       if (!openKeys.has(key) && !hadBefore) {
-        return `${formatBookingBlockDisplay(blockStart)} on ${day.date} is no longer available. Refresh and try again.`;
+        return `${formatBookingBlockDisplay(blockStart, groomerId)} on ${day.date} is no longer available. Refresh and try again.`;
       }
     }
   }
@@ -424,7 +471,7 @@ export function allocateShiftsFromAppointments(
     if (ap.status === "cancelled") continue;
     const { date, time } = parseSlotFromIso(ap.startAt);
     if (date < today || date > maxDate) continue;
-    if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(time)) continue;
+    if (!isAllowedBookingBlockStart(time, ap.groomerId)) continue;
 
     const key = `${ap.groomerId}|${date}`;
     const existing = byKey.get(key) ?? {
@@ -432,8 +479,9 @@ export function allocateShiftsFromAppointments(
       date,
       times: [] as string[],
     };
-    if (!isBookingBlockEnabled(existing.times, time)) {
-      existing.times = setBookingBlockEnabled(existing.times, time, true);
+    const blockMinutes = availabilityBlockMinutesForGroomer(ap.groomerId);
+    if (!isBookingBlockEnabled(existing.times, time, blockMinutes)) {
+      existing.times = setBookingBlockEnabled(existing.times, time, true, blockMinutes);
     }
     byKey.set(key, existing);
   }
@@ -455,7 +503,7 @@ export function reconcileSchedulingData(data: SchedulingData): SchedulingData {
   for (const ap of data.appointments) {
     if (ap.status !== "cancelled") continue;
     const { date, time } = parseSlotFromIso(ap.startAt);
-    if (!(BOOKING_BLOCK_STARTS as readonly string[]).includes(time)) continue;
+    if (!isAllowedBookingBlockStart(time, ap.groomerId)) continue;
     releaseGroomerShiftWithoutAppointment(data, ap.groomerId, date, time, {
       ignoreAppointmentId: ap.id,
     });

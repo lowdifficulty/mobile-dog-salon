@@ -6,7 +6,9 @@ import { VAN_IDS, type VanId } from "@/lib/scheduling/vans";
 export function useVanPrefetchCache<T>(
   fetchVan: (van: VanId) => Promise<T | null>,
   deps: DependencyList,
-  refreshKey = 0
+  refreshKey = 0,
+  /** Fetch this van first so the UI can render before the other van loads. */
+  primaryVan?: VanId
 ) {
   const [cache, setCache] = useState<Partial<Record<VanId, T>>>({});
   const [loading, setLoading] = useState(true);
@@ -15,25 +17,42 @@ export function useVanPrefetchCache<T>(
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
+    const order = primaryVan
+      ? [primaryVan, ...VAN_IDS.filter((van) => van !== primaryVan)]
+      : [...VAN_IDS];
+
+    const next: Partial<Record<VanId, T>> = {};
+    let failures = 0;
+
+    const firstVan = order[0];
+    const firstData = await fetchVan(firstVan);
+    if (firstData !== null) next[firstVan] = firstData;
+    else failures += 1;
+    setCache({ ...next });
+    setLoading(false);
+
+    const rest = order.slice(1);
+    if (rest.length === 0) {
+      if (failures === VAN_IDS.length) setError("Could not load data.");
+      return;
+    }
+
     const entries = await Promise.all(
-      VAN_IDS.map(async (van) => {
+      rest.map(async (van) => {
         const data = await fetchVan(van);
         return [van, data] as const;
       })
     );
 
-    const next: Partial<Record<VanId, T>> = {};
-    let failures = 0;
     for (const [van, data] of entries) {
       if (data !== null) next[van] = data;
       else failures += 1;
     }
 
-    setCache(next);
+    setCache({ ...next });
     if (failures === VAN_IDS.length) {
       setError("Could not load data.");
     }
-    setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 

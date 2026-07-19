@@ -154,7 +154,12 @@ export default function VanCapacityOverview({
     [apiBase, groomerId]
   );
 
-  const { cache, loading } = useVanPrefetchCache(fetchVanSummary, [apiBase, groomerId], refreshKey);
+  const { cache, loading } = useVanPrefetchCache(
+    fetchVanSummary,
+    [apiBase, groomerId],
+    refreshKey,
+    selectedVan
+  );
   const summary = cache[selectedVan] ?? null;
 
   const shiftGroups = useMemo(

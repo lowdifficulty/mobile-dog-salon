@@ -34,6 +34,7 @@ import {
 import {
   findVanWindowOccupant,
   isVanSlotTaken,
+  VanOccupancyIndex,
 } from "./van-overlap";
 import type {
   Appointment,
@@ -239,17 +240,15 @@ function slotDurationForVanBlock(vanId: VanId, time: string): number {
   return maxDuration || BOOKING_DURATION_MINUTES;
 }
 
-function groomerClaimingVanShift(
+function groomerClaimingVanShiftFromIndex(
   date: string,
   time: string,
-  availability: AvailabilityDay[],
+  availabilityByKey: Map<string, AvailabilityDay>,
   vanId: VanId
 ): GroomerId | null {
   for (const groomerId of groomersForVan(vanId)) {
     if (!isAllowedBookingBlockStart(time, groomerId)) continue;
-    const day = availability.find(
-      (entry) => entry.groomerId === groomerId && entry.date === date
-    );
+    const day = availabilityByKey.get(`${groomerId}|${date}`);
     const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
     if (day && isBookingBlockEnabled(day.times, time, blockMinutes)) {
       return groomerId;
@@ -258,19 +257,22 @@ function groomerClaimingVanShift(
   return null;
 }
 
-function findConfirmedAppointmentAtBlockStart(
-  date: string,
-  time: string,
-  appointments: Appointment[],
-  vanId: VanId
-): Appointment | null {
+function buildAppointmentBlockIndex(
+  appointments: Appointment[]
+): Map<string, Appointment> {
+  const index = new Map<string, Appointment>();
   for (const ap of appointments) {
     if (ap.status !== "confirmed") continue;
-    if (appointmentVan(ap) !== vanId) continue;
     const slot = parseSlotFromIso(ap.startAt);
-    if (slot.date === date && slot.time === time) return ap;
+    index.set(`${appointmentVan(ap)}|${slot.date}|${slot.time}`, ap);
   }
-  return null;
+  return index;
+}
+
+function buildAvailabilityIndex(
+  availability: AvailabilityDay[]
+): Map<string, AvailabilityDay> {
+  return new Map(availability.map((day) => [`${day.groomerId}|${day.date}`, day]));
 }
 
 /** Per-block occupancy for one van (shift calendar monthly view). */
@@ -283,6 +285,9 @@ export function buildVanSlotOccupancy(
   const vans = options?.van ? [options.van] : VAN_IDS;
   const groomerId = options?.groomerId;
   const result: VanSlotOccupancy[] = [];
+  const occupancyIndex = new VanOccupancyIndex(data.appointments, data.availability);
+  const appointmentBlocks = buildAppointmentBlockIndex(data.appointments);
+  const availabilityByKey = buildAvailabilityIndex(data.availability);
 
   for (const vanId of vans) {
     const blockStarts = groomerId
@@ -291,12 +296,7 @@ export function buildVanSlotOccupancy(
     for (const date of eachDateInclusive(from, to)) {
       for (const time of blockStarts) {
         if (groomerId && !isAllowedBookingBlockStart(time, groomerId)) continue;
-        const booking = findConfirmedAppointmentAtBlockStart(
-          date,
-          time,
-          data.appointments,
-          vanId
-        );
+        const booking = appointmentBlocks.get(`${vanId}|${date}|${time}`) ?? null;
         if (booking) {
           result.push({
             van: vanId,
@@ -311,10 +311,10 @@ export function buildVanSlotOccupancy(
           continue;
         }
 
-        const claimedGroomer = groomerClaimingVanShift(
+        const claimedGroomer = groomerClaimingVanShiftFromIndex(
           date,
           time,
-          data.availability,
+          availabilityByKey,
           vanId
         );
         if (claimedGroomer) {
@@ -337,7 +337,8 @@ export function buildVanSlotOccupancy(
           blockDuration,
           vanId,
           data.appointments,
-          data.availability
+          data.availability,
+          { occupancyIndex }
         );
         if (occupant) {
           result.push({
@@ -379,6 +380,7 @@ export function listAvailableVanTimeslots(
   const vans = options?.van ? [options.van] : VAN_IDS;
   const groomerId = options?.groomerId;
   const open: AvailableVanTimeslot[] = [];
+  const occupancyIndex = new VanOccupancyIndex(appointments, availability);
 
   for (const vanId of vans) {
     const blockStarts = groomerId
@@ -399,7 +401,8 @@ export function listAvailableVanTimeslots(
             undefined,
             vanId,
             availability,
-            groomerId
+            groomerId,
+            occupancyIndex
           )
         ) {
           continue;

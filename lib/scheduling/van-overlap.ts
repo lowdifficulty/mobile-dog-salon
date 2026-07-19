@@ -41,6 +41,94 @@ export interface VanOccupancyWindow {
   source: "shift" | "appointment";
 }
 
+type OccupancyLookupOptions = {
+  excludeGroomerId?: GroomerId;
+  excludeAppointmentId?: string;
+};
+
+/** Per-request cache for van occupancy — avoids rescanning all appointments per timeslot. */
+export class VanOccupancyIndex {
+  private cache = new Map<string, VanOccupancyWindow[]>();
+  private appointmentsByDate = new Map<string, Appointment[]>();
+  private availabilityByKey = new Map<string, AvailabilityDay>();
+
+  constructor(
+    appointments: Appointment[],
+    availability: AvailabilityDay[] = []
+  ) {
+    for (const ap of appointments) {
+      if (ap.status === "cancelled") continue;
+      const slot = parseSlotFromIso(ap.startAt);
+      const list = this.appointmentsByDate.get(slot.date) ?? [];
+      list.push(ap);
+      this.appointmentsByDate.set(slot.date, list);
+    }
+    for (const day of availability) {
+      this.availabilityByKey.set(`${day.groomerId}|${day.date}`, day);
+    }
+  }
+
+  listWindows(
+    date: string,
+    vanId: VanId,
+    options?: OccupancyLookupOptions
+  ): VanOccupancyWindow[] {
+    const key = `${date}|${vanId}|${options?.excludeGroomerId ?? ""}|${
+      options?.excludeAppointmentId ?? ""
+    }`;
+    const cached = this.cache.get(key);
+    if (cached) return cached;
+
+    const windows: VanOccupancyWindow[] = [];
+
+    for (const ap of this.appointmentsByDate.get(date) ?? []) {
+      if (options?.excludeAppointmentId && ap.id === options.excludeAppointmentId) {
+        continue;
+      }
+      if (appointmentVan(ap) !== vanId) continue;
+      const slot = parseSlotFromIso(ap.startAt);
+      const { start, end } = vanTimeWindow(
+        slot.date,
+        slot.time,
+        ap.durationMinutes,
+        ap.groomerId
+      );
+      windows.push({
+        groomerId: ap.groomerId,
+        date,
+        time: slot.time,
+        start,
+        end,
+        source: "appointment",
+      });
+    }
+
+    for (const groomerId of groomersForVan(vanId)) {
+      if (options?.excludeGroomerId && groomerId === options.excludeGroomerId) {
+        continue;
+      }
+      const day = this.availabilityByKey.get(`${groomerId}|${date}`);
+      if (!day) continue;
+      const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
+      for (const blockStart of bookingBlockStartsForGroomer(groomerId)) {
+        if (!isBookingBlockEnabled(day.times, blockStart, blockMinutes)) continue;
+        const { start, end } = vanTimeWindow(date, blockStart, blockMinutes, groomerId);
+        windows.push({
+          groomerId,
+          date,
+          time: blockStart,
+          start,
+          end,
+          source: "shift",
+        });
+      }
+    }
+
+    this.cache.set(key, windows);
+    return windows;
+  }
+}
+
 function overlaps(
   startA: Date,
   endA: Date,
@@ -139,6 +227,7 @@ export function isVanWindowOccupied(
     excludeGroomerId?: GroomerId;
     excludeAppointmentId?: string;
     groomerId?: GroomerId;
+    occupancyIndex?: VanOccupancyIndex;
   }
 ): boolean {
   const { start, end } = vanTimeWindow(
@@ -147,9 +236,10 @@ export function isVanWindowOccupied(
     durationMinutes,
     options?.groomerId
   );
-  return listVanOccupancyWindows(date, vanId, appointments, availability, options).some(
-    (window) => overlaps(start, end, window.start, window.end)
-  );
+  const windows = options?.occupancyIndex
+    ? options.occupancyIndex.listWindows(date, vanId, options)
+    : listVanOccupancyWindows(date, vanId, appointments, availability, options);
+  return windows.some((window) => overlaps(start, end, window.start, window.end));
 }
 
 export function findVanWindowOccupant(
@@ -163,6 +253,7 @@ export function findVanWindowOccupant(
     excludeGroomerId?: GroomerId;
     excludeAppointmentId?: string;
     groomerId?: GroomerId;
+    occupancyIndex?: VanOccupancyIndex;
   }
 ): VanOccupancyWindow | null {
   const { start, end } = vanTimeWindow(
@@ -171,13 +262,10 @@ export function findVanWindowOccupant(
     durationMinutes,
     options?.groomerId
   );
-  for (const window of listVanOccupancyWindows(
-    date,
-    vanId,
-    appointments,
-    availability,
-    options
-  )) {
+  const windows = options?.occupancyIndex
+    ? options.occupancyIndex.listWindows(date, vanId, options)
+    : listVanOccupancyWindows(date, vanId, appointments, availability, options);
+  for (const window of windows) {
     if (overlaps(start, end, window.start, window.end)) return window;
   }
   return null;
@@ -192,7 +280,8 @@ export function isVanSlotTaken(
   excludeAppointmentId?: string,
   vanId?: VanId,
   availability: AvailabilityDay[] = [],
-  groomerId?: GroomerId
+  groomerId?: GroomerId,
+  occupancyIndex?: VanOccupancyIndex
 ): boolean {
   if (vanId) {
     return isVanWindowOccupied(
@@ -202,7 +291,12 @@ export function isVanSlotTaken(
       vanId,
       appointments,
       availability,
-      { excludeAppointmentId, excludeGroomerId: groomerId, groomerId }
+      {
+        excludeAppointmentId,
+        excludeGroomerId: groomerId,
+        groomerId,
+        occupancyIndex,
+      }
     );
   }
 

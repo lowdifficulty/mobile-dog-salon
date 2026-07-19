@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ...summary,
       van: van ?? "nissan",
-      analytics: shiftAnalyticsSummary(data),
+      ...(van ? {} : { analytics: shiftAnalyticsSummary(data) }),
       persistence: getSchedulingPersistenceStatus(),
     });
   } catch {

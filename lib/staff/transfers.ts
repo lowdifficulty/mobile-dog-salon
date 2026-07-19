@@ -108,6 +108,15 @@ export async function getTransferById(id: string): Promise<StaffTransfer | null>
   return data.transfers.find((t) => t.id === id) ?? null;
 }
 
+export async function deleteTransfer(id: string): Promise<boolean> {
+  const data = await readTransfersData();
+  const index = data.transfers.findIndex((t) => t.id === id);
+  if (index === -1) return false;
+  data.transfers.splice(index, 1);
+  await writeTransfersData(data);
+  return true;
+}
+
 export async function resolveTransfer(
   id: string,
   groomerId: GroomerId,

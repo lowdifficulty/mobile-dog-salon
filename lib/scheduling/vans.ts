@@ -24,7 +24,7 @@ export function vanForGroomer(groomerId: GroomerId): VanId {
   return "nissan";
 }
 
-/** Groomers who share a van (Dodge: Diamond + Jessica). */
+/** Groomers whose shifts count against this van's capacity. */
 export function groomersForVan(vanId: VanId): GroomerId[] {
   if (vanId === "nissan") return ["melanie"];
   return ["diamond", "jessica"];

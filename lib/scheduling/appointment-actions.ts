@@ -7,7 +7,12 @@ import {
   releaseGroomerShiftWithoutAppointment,
   setBookingBlockEnabled,
 } from "@/lib/scheduling/availability";
-import { isAllowedBookingBlockStart, bookingDurationMinutesForGroomer, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
+import {
+  availabilityBlockMinutesForGroomer,
+  bookingDurationMinutesForGroomer,
+  groomerAcceptsBookings,
+  isAllowedBookingBlockStart,
+} from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import {
   isBookableDate,
@@ -714,7 +719,9 @@ export async function transferAppointmentToGroomer(
     };
   }
 
+  const fromGroomerId = appointment.groomerId;
   const { date, time } = parseSlotFromIso(appointment.startAt);
+  const toBlockMinutes = availabilityBlockMinutesForGroomer(toGroomerId);
 
   // Accepting a transfer accepts that shift — open it on the receiving calendar if needed.
   const dayIndex = data.availability.findIndex(
@@ -722,17 +729,17 @@ export async function transferAppointmentToGroomer(
   );
   if (dayIndex >= 0) {
     const day = data.availability[dayIndex];
-    if (!isBookingBlockEnabled(day.times, time)) {
+    if (!isBookingBlockEnabled(day.times, time, toBlockMinutes)) {
       data.availability[dayIndex] = {
         ...day,
-        times: setBookingBlockEnabled(day.times, time, true),
+        times: setBookingBlockEnabled(day.times, time, true, toBlockMinutes),
       };
     }
   } else {
     data.availability.push({
       groomerId: toGroomerId,
       date,
-      times: setBookingBlockEnabled([], time, true),
+      times: setBookingBlockEnabled([], time, true, toBlockMinutes),
     });
   }
 
@@ -762,9 +769,34 @@ export async function transferAppointmentToGroomer(
     };
   }
 
+  if (
+    isVanSlotTaken(
+      date,
+      time,
+      visitDuration,
+      data.appointments,
+      appointment.id,
+      vanForGroomer(toGroomerId),
+      data.availability,
+      toGroomerId
+    )
+  ) {
+    return {
+      ok: false,
+      error: "That van is already booked at that time.",
+      status: 409,
+    };
+  }
+
+  releaseGroomerShiftWithoutAppointment(data, fromGroomerId, date, time, {
+    ignoreAppointmentId: appointment.id,
+  });
+
   appointment.groomerId = toGroomerId;
   appointment.van = vanForGroomer(toGroomerId);
+  appointment.durationMinutes = visitDuration;
   clearReminderFlags(appointment);
+  data.availability = allocateShiftsFromAppointments(data);
 
   await writeSchedulingData(data, {
     action: "appointment_reschedule",

@@ -10,6 +10,25 @@ import {
 } from "@/lib/staff/transfers";
 import type { StaffTransfer } from "@/lib/staff/types";
 
+export async function revertDeclinedAppointmentTransfer(
+  transfer: StaffTransfer
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (transfer.type !== "appointment" || !transfer.appointmentId || !transfer.fromGroomerId) {
+    return { ok: false, error: "Cannot revert transfer" };
+  }
+
+  const result = await transferAppointmentToGroomer(
+    transfer.appointmentId,
+    transfer.fromGroomerId,
+    `transfer-decline:${transfer.toGroomerId}`
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true };
+}
+
 export async function applyAcceptedTransfer(
   transfer: StaffTransfer
 ): Promise<{ ok: true } | { ok: false; error: string }> {

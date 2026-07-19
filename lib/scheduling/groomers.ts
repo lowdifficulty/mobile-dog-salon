@@ -74,7 +74,7 @@ export const BOOKING_BLOCK_STARTS = [
   "17:00",
 ] as const;
 
-/** 2-hour shifts for Jessica (Dodge van). */
+/** 2-hour shifts for Jessica. */
 export const JESSICA_BOOKING_BLOCK_STARTS = [
   "08:00",
   "10:00",

@@ -17,7 +17,6 @@ import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
 import type { VanId } from "@/lib/scheduling/vans";
 
 function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
-  const lockedVan = groomerId === "jessica" ? ("dodge" as const) : undefined;
   const [overviewKey, setOverviewKey] = useState(0);
   const [selectedVan, setSelectedVan] = useState<VanId>(() => vanForGroomer(groomerId));
   const [shiftRequest, setShiftRequest] = useState<{
@@ -60,7 +59,6 @@ function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
         groomerId={groomerId}
         selectedVan={selectedVan}
         onVanChange={setSelectedVan}
-        lockedVan={lockedVan}
         shiftRequest={shiftRequest}
         pendingSlotKeys={pendingSlotKeys}
         onPendingSlotChange={handlePendingSlotChange}
@@ -69,7 +67,6 @@ function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
           <VanCapacityOverview
             selectedVan={selectedVan}
             onVanChange={setSelectedVan}
-            lockedVan={lockedVan}
             groomerId={groomerId}
             pendingSlotKeys={pendingSlotKeys}
             onToggleTimeslots={handleToggleTimeslots}

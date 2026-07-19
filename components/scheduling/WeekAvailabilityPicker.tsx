@@ -76,7 +76,7 @@ export default function WeekAvailabilityPicker({
 }: WeekAvailabilityPickerProps) {
   const [days, setDays] = useState<WeekDay[]>([]);
   const [pageStart, setPageStart] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(service));
   const [fallbackMode, setFallbackMode] = useState(false);
   const [devAllSlots, setDevAllSlots] = useState(false);
 

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireGroomer } from "@/lib/scheduling/auth";
-import { applyAcceptedTransfer } from "@/lib/staff/apply-transfer";
+import {
+  applyAcceptedTransfer,
+  revertDeclinedAppointmentTransfer,
+} from "@/lib/staff/apply-transfer";
 import { getTransferById, resolveTransfer } from "@/lib/staff/transfers";
+import { readSchedulingData } from "@/lib/scheduling/store";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,9 +28,25 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (body.accept) {
-      const applied = await applyAcceptedTransfer(existing);
-      if (!applied.ok) {
-        return NextResponse.json({ error: applied.error }, { status: 409 });
+      if (existing.type === "appointment" && existing.appointmentId && existing.fromGroomerId) {
+        const data = await readSchedulingData();
+        const appointment = data.appointments.find((a) => a.id === existing.appointmentId);
+        if (appointment?.groomerId === existing.fromGroomerId) {
+          const applied = await applyAcceptedTransfer(existing);
+          if (!applied.ok) {
+            return NextResponse.json({ error: applied.error }, { status: 409 });
+          }
+        }
+      } else if (existing.type !== "appointment") {
+        const applied = await applyAcceptedTransfer(existing);
+        if (!applied.ok) {
+          return NextResponse.json({ error: applied.error }, { status: 409 });
+        }
+      }
+    } else if (existing.type === "appointment") {
+      const reverted = await revertDeclinedAppointmentTransfer(existing);
+      if (!reverted.ok) {
+        return NextResponse.json({ error: reverted.error }, { status: 409 });
       }
     }
 

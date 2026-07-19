@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CAT_GROOMING_SERVICES,
   CAT_PET_SIZE,
@@ -85,6 +85,13 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
   const [slotHoldError, setSlotHoldError] = useState("");
   const [isLocalhost, setIsLocalhost] = useState(false);
   const [fromFallback, setFromFallback] = useState(false);
+
+  const handleAvailabilityMeta = useCallback(
+    ({ fallbackMode, devAllSlots }: { fallbackMode: boolean; devAllSlots: boolean }) => {
+      setFromFallback(fallbackMode || devAllSlots);
+    },
+    []
+  );
 
   const discountActive = true;
 
@@ -459,9 +466,7 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
                 setSlotHoldError("");
               }}
               onSelectSlot={selectSlot}
-              onAvailabilityMeta={({ fallbackMode, devAllSlots }) => {
-                setFromFallback(fallbackMode || devAllSlots);
-              }}
+              onAvailabilityMeta={handleAvailabilityMeta}
             />
             {slotHoldError ? (
               <p className="text-sm text-red-600" role="alert">

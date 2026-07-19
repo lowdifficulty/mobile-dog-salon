@@ -9,15 +9,17 @@ import {
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
-import { appointmentVan, vanForGroomer, VAN_COUNT, type VanId } from "./vans";
+import { vanForGroomer } from "./vans";
 import type {
   Appointment,
   AvailabilityDay,
   AvailableSlot,
   GroomerId,
 } from "./types";
+import { isVanSlotTaken } from "./van-overlap";
 
 export { VAN_COUNT } from "./vans";
+export { isVanSlotTaken };
 
 const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
@@ -64,38 +66,6 @@ export function isSlotTaken(
   });
 }
 
-/** True if a van (or the full fleet when van omitted) already has a visit overlapping this window. */
-export function isVanSlotTaken(
-  date: string,
-  time: string,
-  durationMinutes: number,
-  appointments: Appointment[],
-  excludeAppointmentId?: string,
-  vanId?: VanId
-): boolean {
-  const start = parsePacificDateTime(date, time);
-  const end = new Date(
-    start.getTime() + appointmentBlockMinutes(durationMinutes) * 60 * 1000
-  );
-
-  let overlapping = 0;
-  for (const ap of appointments) {
-    if (ap.id === excludeAppointmentId) continue;
-    if (ap.status === "cancelled") continue;
-    if (vanId && appointmentVan(ap) !== vanId) continue;
-    const apStart = new Date(ap.startAt);
-    const apEnd = new Date(
-      apStart.getTime() +
-        appointmentBlockMinutes(ap.durationMinutes, ap.groomerId) * 60 * 1000
-    );
-    if (!overlaps(start, end, apStart, apEnd)) continue;
-    overlapping += 1;
-    const limit = vanId ? 1 : VAN_COUNT;
-    if (overlapping >= limit) return true;
-  }
-  return false;
-}
-
 export function getAvailableSlotsForDate(
   date: string,
   availability: AvailabilityDay[],
@@ -121,7 +91,8 @@ export function getAvailableSlotsForDate(
         duration,
         appointments,
         undefined,
-        vanForGroomer(day.groomerId)
+        vanForGroomer(day.groomerId),
+        availability
       )
     );
 

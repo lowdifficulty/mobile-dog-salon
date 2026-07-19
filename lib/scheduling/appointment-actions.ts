@@ -26,7 +26,7 @@ import {
   type StaffRecurrenceFrequency,
 } from "@/lib/scheduling/recurring-appointments";
 import { vanForGroomer } from "@/lib/scheduling/vans";
-import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import type { Appointment, AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
   | { ok: true; appointment: Appointment }
@@ -196,7 +196,8 @@ export async function createAppointment(
       visitDuration,
       data.appointments,
       undefined,
-      vanForGroomer(groomerId)
+      vanForGroomer(groomerId),
+      data.availability
     )
   ) {
     return {
@@ -318,7 +319,8 @@ function slotConflictReason(
   groomerId: GroomerId,
   date: string,
   time: string,
-  appointments: Appointment[]
+  appointments: Appointment[],
+  availability: AvailabilityDay[] = []
 ): string | null {
   const visitDuration = bookingDurationMinutesForGroomer(groomerId);
   if (isSlotTaken(groomerId, date, time, visitDuration, appointments)) {
@@ -332,7 +334,8 @@ function slotConflictReason(
       visitDuration,
       appointments,
       undefined,
-      vanForGroomer(groomerId)
+      vanForGroomer(groomerId),
+      availability
     )
   ) {
     return "Van already booked at that time";
@@ -431,7 +434,13 @@ export async function createRecurringAppointments(
       }
     }
 
-    const conflict = slotConflictReason(groomerId, date, time, data.appointments);
+    const conflict = slotConflictReason(
+      groomerId,
+      date,
+      time,
+      data.appointments,
+      data.availability
+    );
     if (conflict) {
       skipped.push({ date, reason: conflict });
       continue;
@@ -639,7 +648,8 @@ export async function rescheduleAppointment(
       visitDuration,
       data.appointments,
       appointment.id,
-      vanForGroomer(groomerId)
+      vanForGroomer(groomerId),
+      data.availability
     )
   ) {
     return {

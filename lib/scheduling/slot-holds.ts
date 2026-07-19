@@ -319,7 +319,8 @@ async function createSlotHoldInner(
       visitDuration,
       data.appointments,
       undefined,
-      vanForGroomer(groomerId)
+      vanForGroomer(groomerId),
+      data.availability
     )
   ) {
     return { ok: false, error: "That van is already booked at that time — pick another." };

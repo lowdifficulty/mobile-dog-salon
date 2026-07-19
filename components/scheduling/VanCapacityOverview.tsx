@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { groupAvailableVanTimeslots, hoursForBlockCount, navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import type { AvailableVanTimeslot } from "@/lib/scheduling/van-capacity";
 import { vanLabel, type VanId } from "@/lib/scheduling/vans";
+import type { GroomerId } from "@/lib/scheduling/types";
 import VanToggle from "./VanToggle";
 import { useVanPrefetchCache } from "./useVanPrefetchCache";
 
@@ -60,6 +61,7 @@ function TimeslotRow({
   queued,
   onToggle,
   toggleLabel,
+  groomerId,
 }: {
   displayDate: string;
   displayTime: string;
@@ -68,8 +70,9 @@ function TimeslotRow({
   queued: boolean;
   onToggle: () => void;
   toggleLabel: string;
+  groomerId?: GroomerId;
 }) {
-  const hours = hoursForBlockCount(blockCount);
+  const hours = hoursForBlockCount(blockCount, groomerId);
 
   return (
     <li
@@ -99,6 +102,7 @@ export default function VanCapacityOverview({
   pendingSlotKeys = [],
   refreshKey = 0,
   lockedVan,
+  groomerId,
 }: {
   apiBase?: string;
   /** Initial van when uncontrolled. */
@@ -114,6 +118,8 @@ export default function VanCapacityOverview({
   refreshKey?: number;
   /** When set, van switcher is locked to this van. */
   lockedVan?: VanId;
+  /** When set, only show this groomer's allowed shift start times. */
+  groomerId?: GroomerId;
 }) {
   const [message, setMessage] = useState("");
   const [view, setView] = useState<TimeslotView>("shifts");
@@ -129,7 +135,8 @@ export default function VanCapacityOverview({
 
   const fetchVanSummary = useCallback(
     async (van: VanId): Promise<VanSummary | null> => {
-      const res = await fetch(`${apiBase}?van=${van}`);
+      const groomerQuery = groomerId ? `&groomerId=${groomerId}` : "";
+      const res = await fetch(`${apiBase}?van=${van}${groomerQuery}`);
       if (!res.ok) {
         setMessage(
           res.status === 401
@@ -144,16 +151,18 @@ export default function VanCapacityOverview({
         availableCount: data.availableCount ?? 0,
       };
     },
-    [apiBase]
+    [apiBase, groomerId]
   );
 
-  const { cache, loading } = useVanPrefetchCache(fetchVanSummary, [apiBase], refreshKey);
+  const { cache, loading } = useVanPrefetchCache(fetchVanSummary, [apiBase, groomerId], refreshKey);
   const summary = cache[selectedVan] ?? null;
 
   const shiftGroups = useMemo(
-    () => (summary ? groupAvailableVanTimeslots(summary.availableTimeslots) : []),
-    [summary]
+    () => (summary ? groupAvailableVanTimeslots(summary.availableTimeslots, groomerId) : []),
+    [summary, groomerId]
   );
+
+  const blockHours = groomerId === "jessica" ? 2 : 3;
 
   function isQueued(slots: { date: string; time: string }[]): boolean {
     const keys = slotKeys(slots);
@@ -207,8 +216,8 @@ export default function VanCapacityOverview({
         </div>
         <p className="text-xs text-gray-500">
           {view === "shifts"
-            ? "Darker navy = more hours (3–12)"
-            : "Each open block is 3 hours"}
+            ? `Darker navy = more hours (${blockHours * 2}–${blockHours * 6})`
+            : `Each open block is ${blockHours} hours`}
         </p>
       </div>
 
@@ -232,6 +241,7 @@ export default function VanCapacityOverview({
                 displayTime={slot.displayTime}
                 blockCount={1}
                 queued={queued}
+                groomerId={groomerId}
                 onToggle={() => onToggleTimeslots?.([{ date: slot.date, time: slot.time }])}
                 toggleLabel={
                   queued
@@ -257,6 +267,7 @@ export default function VanCapacityOverview({
                 blockCount={group.slots.length}
                 detail={detail}
                 queued={queued}
+                groomerId={groomerId}
                 onToggle={() =>
                   onToggleTimeslots?.(
                     group.slots.map((slot) => ({ date: slot.date, time: slot.time }))

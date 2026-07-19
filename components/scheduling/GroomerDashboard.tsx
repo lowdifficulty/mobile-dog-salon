@@ -70,6 +70,7 @@ function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
             selectedVan={selectedVan}
             onVanChange={setSelectedVan}
             lockedVan={lockedVan}
+            groomerId={groomerId}
             pendingSlotKeys={pendingSlotKeys}
             onToggleTimeslots={handleToggleTimeslots}
             refreshKey={overviewKey}

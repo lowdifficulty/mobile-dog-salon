@@ -21,7 +21,7 @@ import { isVanId, vanForGroomer } from "@/lib/scheduling/vans";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 function isGroomerId(value: string | null): value is GroomerId {
-  return value === "melanie" || value === "diamond";
+  return value === "melanie" || value === "diamond" || value === "jessica";
 }
 
 export async function GET(request: Request) {
@@ -45,7 +45,12 @@ export async function GET(request: Request) {
         to: maxDate,
         van,
       });
-      const slotOccupancy = buildVanSlotOccupancy(data, { from: today, to: maxDate, van });
+      const slotOccupancy = buildVanSlotOccupancy(data, {
+        from: today,
+        to: maxDate,
+        van,
+        groomerId: groomerIdParam,
+      });
       return NextResponse.json({
         availability: mine,
         locked,

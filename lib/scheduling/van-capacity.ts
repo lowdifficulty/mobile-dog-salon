@@ -29,9 +29,12 @@ import {
   addMonthsToDate,
   getShiftHorizonEndDate,
   getTodayPacificDate,
-  isVanSlotTaken,
   parseSlotFromIso,
 } from "./slots";
+import {
+  findVanWindowOccupant,
+  isVanSlotTaken,
+} from "./van-overlap";
 import type {
   Appointment,
   AvailabilityDay,
@@ -255,15 +258,6 @@ function groomerClaimingVanShift(
   return null;
 }
 
-function isVanShiftClaimed(
-  date: string,
-  time: string,
-  availability: AvailabilityDay[],
-  vanId: VanId
-): boolean {
-  return groomerClaimingVanShift(date, time, availability, vanId) !== null;
-}
-
 function findConfirmedAppointmentAtBlockStart(
   date: string,
   time: string,
@@ -282,16 +276,21 @@ function findConfirmedAppointmentAtBlockStart(
 /** Per-block occupancy for one van (shift calendar monthly view). */
 export function buildVanSlotOccupancy(
   data: SchedulingData,
-  options?: { from?: string; to?: string; van?: VanId }
+  options?: { from?: string; to?: string; van?: VanId; groomerId?: GroomerId }
 ): VanSlotOccupancy[] {
   const from = options?.from ?? getTodayPacificDate();
   const to = options?.to ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
   const vans = options?.van ? [options.van] : VAN_IDS;
+  const groomerId = options?.groomerId;
   const result: VanSlotOccupancy[] = [];
 
   for (const vanId of vans) {
+    const blockStarts = groomerId
+      ? [...bookingBlockStartsForGroomer(groomerId)]
+      : blockStartsForVan(vanId);
     for (const date of eachDateInclusive(from, to)) {
-      for (const time of blockStartsForVan(vanId)) {
+      for (const time of blockStarts) {
+        if (groomerId && !isAllowedBookingBlockStart(time, groomerId)) continue;
         const booking = findConfirmedAppointmentAtBlockStart(
           date,
           time,
@@ -331,6 +330,28 @@ export function buildVanSlotOccupancy(
           continue;
         }
 
+        const blockDuration = slotDurationForVanBlock(vanId, time);
+        const occupant = findVanWindowOccupant(
+          date,
+          time,
+          blockDuration,
+          vanId,
+          data.appointments,
+          data.availability
+        );
+        if (occupant) {
+          result.push({
+            van: vanId,
+            date,
+            time,
+            displayTime: formatBookingBlockDisplay(time, occupant.groomerId),
+            status: "groomer",
+            groomerId: occupant.groomerId,
+            groomerName: groomerName(occupant.groomerId),
+          });
+          continue;
+        }
+
         result.push({
           van: vanId,
           date,
@@ -351,30 +372,34 @@ export function buildVanSlotOccupancy(
 export function listAvailableVanTimeslots(
   appointments: Appointment[],
   availability: AvailabilityDay[] = [],
-  options?: { from?: string; to?: string; van?: VanId }
+  options?: { from?: string; to?: string; van?: VanId; groomerId?: GroomerId }
 ): AvailableVanTimeslot[] {
   const from = options?.from ?? getTodayPacificDate();
   const to = options?.to ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
   const vans = options?.van ? [options.van] : VAN_IDS;
+  const groomerId = options?.groomerId;
   const open: AvailableVanTimeslot[] = [];
 
   for (const vanId of vans) {
+    const blockStarts = groomerId
+      ? bookingBlockStartsForGroomer(groomerId)
+      : blockStartsForVan(vanId);
     for (const date of eachDateInclusive(from, to)) {
-      for (const time of blockStartsForVan(vanId)) {
-        const duration = slotDurationForVanBlock(vanId, time);
+      for (const time of blockStarts) {
+        if (groomerId && !isAllowedBookingBlockStart(time, groomerId)) continue;
+        const duration = groomerId
+          ? bookingDurationMinutesForGroomer(groomerId)
+          : slotDurationForVanBlock(vanId, time);
         if (
-          isVanSlotTaken(date, time, duration, appointments, undefined, vanId)
+          isVanSlotTaken(date, time, duration, appointments, undefined, vanId, availability)
         ) {
-          continue;
-        }
-        if (isVanShiftClaimed(date, time, availability, vanId)) {
           continue;
         }
         open.push({
           van: vanId,
           date,
           time,
-          displayTime: formatBookingBlockDisplay(time),
+          displayTime: formatBookingBlockDisplay(time, groomerId),
           displayDate: formatShortDate(date),
         });
       }
@@ -390,7 +415,7 @@ export function openVanSlotKey(van: VanId, date: string, time: string): string {
 
 export function buildOpenVanSlotKeySet(
   data: SchedulingData,
-  options?: { from?: string; to?: string; van?: VanId }
+  options?: { from?: string; to?: string; van?: VanId; groomerId?: GroomerId }
 ): Set<string> {
   return new Set(
     listAvailableVanTimeslots(data.appointments, data.availability, options).map((slot) =>
@@ -405,7 +430,7 @@ export function buildEditorOpenSlotKeys(
   options?: { from?: string; to?: string; van?: VanId }
 ): string[] {
   const van = options?.van ?? vanForGroomer(groomerId);
-  return [...buildOpenVanSlotKeySet(data, { ...options, van })].map((key) => {
+  return [...buildOpenVanSlotKeySet(data, { ...options, van, groomerId })].map((key) => {
     const [, date, time] = key.split("|");
     return `${date}|${time}`;
   });
@@ -420,7 +445,12 @@ export function rejectUnavailableGroomerShifts(
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
   const vanId = vanForGroomer(groomerId);
-  const openKeys = buildOpenVanSlotKeySet(data, { from: today, to: maxDate, van: vanId });
+  const openKeys = buildOpenVanSlotKeySet(data, {
+    from: today,
+    to: maxDate,
+    van: vanId,
+    groomerId,
+  });
   const existingByDate = new Map(
     data.availability
       .filter((day) => day.groomerId === groomerId)
@@ -513,10 +543,13 @@ export function reconcileSchedulingData(data: SchedulingData): SchedulingData {
   return data;
 }
 
-export function vanCapacitySummary(data: SchedulingData, options?: { van?: VanId }) {
+export function vanCapacitySummary(
+  data: SchedulingData,
+  options?: { van?: VanId; groomerId?: GroomerId }
+) {
   const today = getTodayPacificDate();
   const nearTermEnd = addMonthsToDate(today, 1);
-  const range = { from: today, to: nearTermEnd, van: options?.van };
+  const range = { from: today, to: nearTermEnd, van: options?.van, groomerId: options?.groomerId };
   const availableNearTerm = listAvailableVanTimeslots(
     data.appointments,
     data.availability,

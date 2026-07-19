@@ -1,6 +1,14 @@
-import { slotsCoveredByBooking } from "./availability";
+import {
+  bookingBlockHours,
+  isBookingBlockEnabled,
+  slotsCoveredByBooking,
+} from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
-import { SHIFT_HORIZON_MONTHS } from "./groomers";
+import {
+  availabilityBlockMinutesForGroomer,
+  bookingBlockStartsForGroomer,
+  SHIFT_HORIZON_MONTHS,
+} from "./groomers";
 import { appointmentBlockMinutes } from "./services";
 import {
   getShiftHorizonEndDate,
@@ -81,12 +89,23 @@ export function normalizeGroomerAvailabilitySave(
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
 
+  const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
+
   return incoming
-    .map((day) => ({
-      groomerId,
-      date: day.date,
-      times: [...new Set(day.times)].sort(),
-    }))
+    .map((day) => {
+      const kept = new Set<string>();
+      for (const start of bookingBlockStartsForGroomer(groomerId)) {
+        if (!isBookingBlockEnabled(day.times, start, blockMinutes)) continue;
+        for (const hour of bookingBlockHours(start, blockMinutes)) {
+          kept.add(hour);
+        }
+      }
+      return {
+        groomerId,
+        date: day.date,
+        times: [...kept].sort(),
+      };
+    })
     .filter(
       (day) =>
         day.times.length > 0 &&

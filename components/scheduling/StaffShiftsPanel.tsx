@@ -60,8 +60,11 @@ export default function StaffShiftsPanel({
         <div>
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
-            2 vans — pick 8 AM, 11 AM, 2 PM, or 5 PM shifts any day, up to 3 months ahead.
-            Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
+            2 vans — pick shift start times any day, up to 3 months ahead.
+            {groomerId === "jessica"
+              ? " Jessica: 8 AM, 10 AM, 12 PM, 2 PM, 4 PM, 6 PM (2-hour slots)."
+              : " Melanie & Diamond: 8 AM, 11 AM, 2 PM, 5 PM (3-hour slots)."}
+            {" "}Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
           </p>
         </div>
         <label className="block">
@@ -105,6 +108,7 @@ export default function StaffShiftsPanel({
           <VanCapacityOverview
             selectedVan={selectedVan}
             onVanChange={setSelectedVan}
+            groomerId={groomerId}
             pendingSlotKeys={pendingSlotKeys}
             onToggleTimeslots={handleToggleTimeslots}
             refreshKey={overviewKey}

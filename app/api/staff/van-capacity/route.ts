@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 
 import { requireStaff } from "@/lib/scheduling/auth";
-
 import {
   allocateShiftsFromAppointments,
   reconcileSchedulingData,
   vanCapacitySummary,
 } from "@/lib/scheduling/van-capacity";
 import { isVanId } from "@/lib/scheduling/vans";
+import type { GroomerId } from "@/lib/scheduling/types";
 
 import { shiftAnalyticsSummary } from "@/lib/scheduling/shift-analytics";
 
@@ -27,13 +27,22 @@ import {
 
 export async function GET(request: Request) {
   try {
-    await requireStaff();
+    const user = await requireStaff();
     const { searchParams } = new URL(request.url);
     const vanParam = searchParams.get("van");
     const van = isVanId(vanParam) ? vanParam : undefined;
+    const groomerIdParam = searchParams.get("groomerId");
+    const groomerId: GroomerId | undefined =
+      groomerIdParam === "melanie" ||
+      groomerIdParam === "diamond" ||
+      groomerIdParam === "jessica"
+        ? groomerIdParam
+        : user.role === "groomer"
+          ? user.groomerId
+          : undefined;
 
     const data = await readSchedulingData();
-    const summary = vanCapacitySummary(data, { van });
+    const summary = vanCapacitySummary(data, { van, groomerId });
 
     return NextResponse.json({
       ...summary,

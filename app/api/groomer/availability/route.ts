@@ -36,7 +36,12 @@ export async function GET(request: Request) {
       to: maxDate,
       van,
     });
-    const slotOccupancy = buildVanSlotOccupancy(data, { from: today, to: maxDate, van });
+    const slotOccupancy = buildVanSlotOccupancy(data, {
+      from: today,
+      to: maxDate,
+      van,
+      groomerId: user.groomerId!,
+    });
 
     return NextResponse.json({
       availability: mine,

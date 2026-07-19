@@ -76,7 +76,9 @@ export default function StaffDateTimePicker({
             visitDuration,
             appointments,
             excludeAppointmentId,
-            vanForGroomer(groomerId)
+            vanForGroomer(groomerId),
+            undefined,
+            groomerId
           )
       )
     );

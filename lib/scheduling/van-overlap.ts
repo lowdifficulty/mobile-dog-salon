@@ -191,7 +191,8 @@ export function isVanSlotTaken(
   appointments: Appointment[],
   excludeAppointmentId?: string,
   vanId?: VanId,
-  availability: AvailabilityDay[] = []
+  availability: AvailabilityDay[] = [],
+  groomerId?: GroomerId
 ): boolean {
   if (vanId) {
     return isVanWindowOccupied(
@@ -201,7 +202,7 @@ export function isVanSlotTaken(
       vanId,
       appointments,
       availability,
-      { excludeAppointmentId }
+      { excludeAppointmentId, excludeGroomerId: groomerId, groomerId }
     );
   }
 

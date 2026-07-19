@@ -391,7 +391,16 @@ export function listAvailableVanTimeslots(
           ? bookingDurationMinutesForGroomer(groomerId)
           : slotDurationForVanBlock(vanId, time);
         if (
-          isVanSlotTaken(date, time, duration, appointments, undefined, vanId, availability)
+          isVanSlotTaken(
+            date,
+            time,
+            duration,
+            appointments,
+            undefined,
+            vanId,
+            availability,
+            groomerId
+          )
         ) {
           continue;
         }

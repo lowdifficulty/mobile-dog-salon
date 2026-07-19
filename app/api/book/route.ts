@@ -168,7 +168,8 @@ async function handleBookPost(request: Request) {
       data.appointments,
       undefined,
       vanForGroomer(groomerId),
-      data.availability
+      data.availability,
+      groomerId
     )
   ) {
     return NextResponse.json(

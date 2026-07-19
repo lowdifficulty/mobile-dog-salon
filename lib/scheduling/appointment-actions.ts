@@ -197,7 +197,8 @@ export async function createAppointment(
       data.appointments,
       undefined,
       vanForGroomer(groomerId),
-      data.availability
+      data.availability,
+      groomerId
     )
   ) {
     return {
@@ -335,7 +336,8 @@ function slotConflictReason(
       appointments,
       undefined,
       vanForGroomer(groomerId),
-      availability
+      availability,
+      groomerId
     )
   ) {
     return "Van already booked at that time";
@@ -649,7 +651,8 @@ export async function rescheduleAppointment(
       data.appointments,
       appointment.id,
       vanForGroomer(groomerId),
-      data.availability
+      data.availability,
+      groomerId
     )
   ) {
     return {

@@ -92,7 +92,8 @@ export function getAvailableSlotsForDate(
         appointments,
         undefined,
         vanForGroomer(day.groomerId),
-        availability
+        availability,
+        day.groomerId
       )
     );
 

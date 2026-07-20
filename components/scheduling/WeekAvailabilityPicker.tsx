@@ -8,6 +8,7 @@ import {
   buildFallbackRangeDays,
   type FallbackWeekDay,
 } from "@/lib/scheduling/fallback-availability";
+import { resolveGroomerClientDisplayName } from "@/lib/scheduling/groomers";
 
 const DAYS_TO_FETCH = 60;
 const VISIBLE_DAY_COUNT = 5;
@@ -19,6 +20,10 @@ interface WeekAvailabilityPickerProps {
   selectedDate: string;
   selectedSlotKey: string;
   groomerId?: GroomerId;
+  /** When set, only these groomers appear on the calendar. */
+  groomerIds?: GroomerId[];
+  /** Page-specific client-facing name overrides (groomerId in slotKey unchanged). */
+  groomerDisplayNames?: Partial<Record<GroomerId, string>>;
   onSelectDate: (date: string) => void;
   onSelectSlot: (slot: AvailableSlot) => void;
   onAvailabilityMeta?: (meta: { fallbackMode: boolean; devAllSlots: boolean }) => void;
@@ -32,6 +37,39 @@ function filterDaysByGroomer(days: WeekDay[], groomerId?: GroomerId): WeekDay[] 
       slots: day.slots.filter((slot) => slot.groomerId === groomerId),
     }))
     .filter((day) => day.isPast || day.slots.length > 0);
+}
+
+function filterDaysByGroomers(days: WeekDay[], groomerIds?: GroomerId[]): WeekDay[] {
+  if (!groomerIds?.length) return days;
+  const allowed = new Set(groomerIds);
+  return days
+    .map((day) => ({
+      ...day,
+      slots: day.slots.filter((slot) => allowed.has(slot.groomerId)),
+    }))
+    .filter((day) => day.isPast || day.slots.length > 0);
+}
+
+function applyGroomerDisplayNames(
+  days: WeekDay[],
+  groomerDisplayNames?: Partial<Record<GroomerId, string>>
+): WeekDay[] {
+  if (!groomerDisplayNames || !Object.keys(groomerDisplayNames).length) return days;
+  return days.map((day) => ({
+    ...day,
+    slots: day.slots.map((slot) => ({
+      ...slot,
+      groomerName: resolveGroomerClientDisplayName(slot.groomerId, groomerDisplayNames),
+    })),
+  }));
+}
+
+function filterCalendarDays(
+  days: WeekDay[],
+  groomerId?: GroomerId,
+  groomerIds?: GroomerId[]
+): WeekDay[] {
+  return filterDaysByGroomers(filterDaysByGroomer(days, groomerId), groomerIds);
 }
 function formatDayRange(days: WeekDay[]): string {
   if (days.length === 0) return "";
@@ -70,6 +108,8 @@ export default function WeekAvailabilityPicker({
   selectedDate: _selectedDate,
   selectedSlotKey,
   groomerId,
+  groomerIds,
+  groomerDisplayNames,
   onSelectDate,
   onSelectSlot,
   onAvailabilityMeta,
@@ -99,9 +139,13 @@ export default function WeekAvailabilityPicker({
 
       if (isLocalhostHost()) {
         if (cancelled) return;
-        const localDays = filterDaysByGroomer(
-          buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
-          groomerId
+        const localDays = applyGroomerDisplayNames(
+          filterCalendarDays(
+            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+            groomerId,
+            groomerIds
+          ),
+          groomerDisplayNames
         );
         setDays(localDays);
         setDevAllSlots(true);
@@ -114,13 +158,20 @@ export default function WeekAvailabilityPicker({
       try {
         const result = await fetchAvailabilityRange(fromDate, service);
         if (cancelled) return;
-        const filteredDays = filterDaysByGroomer(result.days, groomerId);
+        const filteredDays = applyGroomerDisplayNames(
+          filterCalendarDays(result.days, groomerId, groomerIds),
+          groomerDisplayNames
+        );
         const hasLiveSlots = filteredDays.some((day) => day.slots.length > 0);
         if (!hasLiveSlots) {
           setDays(
-            filterDaysByGroomer(
-              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
-              groomerId
+            applyGroomerDisplayNames(
+              filterCalendarDays(
+                buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+                groomerId,
+                groomerIds
+              ),
+              groomerDisplayNames
             )
           );
           setFallbackMode(true);
@@ -135,9 +186,13 @@ export default function WeekAvailabilityPicker({
       } catch {
         if (cancelled) return;
         setDays(
-          filterDaysByGroomer(
-            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
-            groomerId
+          applyGroomerDisplayNames(
+            filterCalendarDays(
+              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+              groomerId,
+              groomerIds
+            ),
+            groomerDisplayNames
           )
         );
         setDevAllSlots(false);
@@ -152,7 +207,7 @@ export default function WeekAvailabilityPicker({
     return () => {
       cancelled = true;
     };
-  }, [service, groomerId, onAvailabilityMeta]);
+  }, [service, groomerId, groomerIds, groomerDisplayNames, onAvailabilityMeta]);
 
   const availableDays = useMemo(
     () => days.filter((day) => !day.isPast && day.slots.length > 0),

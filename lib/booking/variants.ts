@@ -15,6 +15,10 @@ export interface BookingVariant {
   hash: BookingHash;
   /** When set, the booking calendar only shows this groomer's open slots. */
   groomerId?: GroomerId;
+  /** When set, only these groomers appear (e.g. OC shows Melanie, Diamond, Jessica). */
+  groomerIds?: GroomerId[];
+  /** Client-facing name overrides; groomerId in slotKey is unchanged. */
+  groomerDisplayNames?: Partial<Record<GroomerId, string>>;
   /** Prefilled on the address step */
   defaultCity: string;
   zipPlaceholder: string;
@@ -33,6 +37,8 @@ export const BOOKING_VARIANTS: Record<Exclude<BookingVariantId, "default">, Book
   bookoc: {
     id: "bookoc",
     hash: "#bookoc",
+    groomerIds: ["melanie", "diamond", "jessica"],
+    groomerDisplayNames: { diamond: "Sarah" },
     defaultCity: "Newport Beach",
     zipPlaceholder: "92663",
     leadSource: "booking-oc",

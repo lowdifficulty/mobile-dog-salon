@@ -23,7 +23,7 @@ import { parseSlotKey, slotToISO, getTodayPacificDate, isBookableDate } from "@/
 import {
   defaultBookableGroomerId,
   formatBookingBlockDisplay,
-  groomerClientDisplayName,
+  resolveGroomerClientDisplayName,
 } from "@/lib/scheduling/groomers";
 import {
   isValidBookingContact,
@@ -125,6 +125,11 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
   const discountActive = true;
   const leadSource = variant?.leadSource ?? "booking";
   const groomerFilter = variant?.groomerId;
+  const groomerIds = variant?.groomerIds;
+  const groomerDisplayNames = variant?.groomerDisplayNames;
+
+  const displayGroomerName = (groomerId: Parameters<typeof resolveGroomerClientDisplayName>[0]) =>
+    resolveGroomerClientDisplayName(groomerId, groomerDisplayNames);
 
   useEffect(() => {
     setIsLocalhost(isLocalhostHost());
@@ -192,11 +197,11 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
       slotKey,
       preferredDate: date,
       preferredTime: formatBookingBlockDisplay(time),
-      groomerName: groomerClientDisplayName(groomerId),
+      groomerName: displayGroomerName(groomerId),
     }));
     persistLead("schedule_appointment", {
       groomerId,
-      groomerName: groomerClientDisplayName(groomerId),
+      groomerName: displayGroomerName(groomerId),
       appointmentStartAt: slotToISO(date, time),
     });
     setStep(4);
@@ -554,6 +559,8 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
             <WeekAvailabilityPicker
               service={data.service}
               groomerId={groomerFilter}
+              groomerIds={groomerIds}
+              groomerDisplayNames={groomerDisplayNames}
               selectedDate={data.preferredDate}
               selectedSlotKey={data.slotKey}
               onSelectDate={(date) => {

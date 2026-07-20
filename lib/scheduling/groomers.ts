@@ -178,6 +178,14 @@ export function groomerClientDisplayName(id: GroomerId): string {
   return groomer.clientName ?? groomer.name;
 }
 
+/** Page-specific calendar label; falls back to {@link groomerClientDisplayName}. */
+export function resolveGroomerClientDisplayName(
+  id: GroomerId,
+  overrides?: Partial<Record<GroomerId, string>>
+): string {
+  return overrides?.[id] ?? groomerClientDisplayName(id);
+}
+
 export function groomerIdFromEmail(email: string): GroomerId | null {
   const normalized = email.trim().toLowerCase();
   for (const groomer of Object.values(GROOMERS)) {

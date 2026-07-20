@@ -11,6 +11,7 @@ import { enrichPaymentsWithClients } from "@/lib/payments/staff";
 import { isSquareConfigured, listRecentPayments } from "@/lib/payments/square";
 import { readClientsData } from "@/lib/payments/store";
 import type { ClientAccount, PaymentHistoryItem } from "@/lib/payments/types";
+import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
@@ -199,8 +200,13 @@ export async function listGroomerActiveClients(
 
   const now = Date.now();
 
+  const scopeToOwnAppointments = !groomerSeesTeamAppointments(groomerId);
   const groomerAppointments = appointments
-    .filter((a) => a.groomerId === groomerId && a.status === "confirmed")
+    .filter(
+      (a) =>
+        a.status === "confirmed" &&
+        (!scopeToOwnAppointments || a.groomerId === groomerId)
+    )
     .sort((a, b) => a.startAt.localeCompare(b.startAt));
 
   const groups = new Map<string, Appointment[]>();

@@ -12,6 +12,7 @@ import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
 import VanCapacityOverview from "./VanCapacityOverview";
+import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
 import type { VanId } from "@/lib/scheduling/vans";
@@ -110,6 +111,8 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     );
   }
 
+  const seesTeamAppointments = groomerSeesTeamAppointments(groomerId);
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "appointments", label: "Appointments" },
     { id: "availability", label: "Shifts" },
@@ -171,7 +174,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
               availabilityOnly
               availabilityApi="/api/staff/availability"
               calendarRefreshKey={calendarRefreshKey}
-              scopeGroomerId={groomerId}
+              scopeGroomerId={seesTeamAppointments ? undefined : groomerId}
             />
           )}
           {tab === "availability" && (

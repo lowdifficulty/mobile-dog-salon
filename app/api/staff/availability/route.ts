@@ -6,7 +6,7 @@ import {
   effectiveAvailability,
   normalizeGroomerAvailabilitySave,
 } from "@/lib/scheduling/effective-availability";
-import { GROOMERS } from "@/lib/scheduling/groomers";
+import { GROOMERS, groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import {
   getSchedulingPersistenceStatus,
   readSchedulingData,
@@ -64,7 +64,13 @@ export async function GET(request: Request) {
 
     let list = effectiveAvailability(data);
     const scopeGroomerId =
-      user.role === "groomer" ? user.groomerId : isGroomerId(groomerIdParam) ? groomerIdParam : null;
+      user.role === "groomer"
+        ? groomerSeesTeamAppointments(user.groomerId!)
+          ? null
+          : user.groomerId
+        : isGroomerId(groomerIdParam)
+          ? groomerIdParam
+          : null;
     if (scopeGroomerId) {
       list = list.filter((a) => a.groomerId === scopeGroomerId);
     }

@@ -187,3 +187,8 @@ export function groomerIdFromEmail(email: string): GroomerId | null {
   }
   return null;
 }
+
+/** Melanie and Diamond see the full team schedule; Jessica sees only her own. */
+export function groomerSeesTeamAppointments(groomerId: GroomerId): boolean {
+  return groomerId === "melanie" || groomerId === "diamond";
+}

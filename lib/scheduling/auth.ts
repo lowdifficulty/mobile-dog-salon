@@ -25,17 +25,25 @@ const ADMIN_PASSWORD_HASH =
   process.env.SCHEDULING_PASSWORD_HASH ??
   "$2b$10$n2rK8CRGl/PmwOVuxdSMNuYDuOo0hEovurPXClfc9aAeV1yDB4aUi";
 
-const GROOMER_PASSWORD_HASHES: Record<GroomerId, string> = {
-  melanie:
-    process.env.SCHEDULING_PASSWORD_HASH_MELANIE ??
-    "$2b$10$qDriVgf2RTRmlqJIU.lSt.4AQ5jtACSCehLzD7MGMd3CX9g42Ny7O",
-  diamond:
-    process.env.SCHEDULING_PASSWORD_HASH_DIAMOND ??
-    "$2b$10$fIgTTqJ.fh5P.dS.zHmOw.2K7z8npBMCk6OaXHAUN6YSAlp70tWP.",
-  jessica:
-    process.env.SCHEDULING_PASSWORD_HASH_JESSICA ??
-    "$2b$10$ptiaKlNIZPca/2uWcdJqAO2HHZEG8dXoTtnwQVtt6S0QQj8GB1LZG",
-};
+const MELANIE_DEFAULT_PASSWORD_HASHES = [
+  "$2b$10$Fz1AXz1ZlSaf3fGP4vHTo.Erxa3RhzRsCB.Qa2.nEIhv9FItYTHI2", // Licky
+  "$2b$10$eZjdMtZpR8eKOWmU.d2jpeUf59/6XZf.a0tWvZBM20VBEM1l69iwm", // licky
+  "$2b$10$CS2WQ1klw2MP03YHL8oygOSjNuPi9uPiUHvf9ICjcKkHp7GuSUSbi", // Licky2026!!
+];
+
+function groomerPasswordHashes(groomerId: GroomerId): string[] {
+  const envKey = `SCHEDULING_PASSWORD_HASH_${groomerId.toUpperCase()}` as const;
+  const envHashes = process.env[envKey];
+  if (envHashes) return envHashes.split(",").map((h) => h.trim()).filter(Boolean);
+
+  if (groomerId === "melanie") return MELANIE_DEFAULT_PASSWORD_HASHES;
+
+  const defaults: Record<Exclude<GroomerId, "melanie">, string> = {
+    diamond: "$2b$10$fIgTTqJ.fh5P.dS.zHmOw.2K7z8npBMCk6OaXHAUN6YSAlp70tWP.",
+    jessica: "$2b$10$ptiaKlNIZPca/2uWcdJqAO2HHZEG8dXoTtnwQVtt6S0QQj8GB1LZG",
+  };
+  return [defaults[groomerId]];
+}
 
 export function getSessionOptions() {
   const password =
@@ -71,7 +79,11 @@ export async function verifyGroomerPassword(
   const envKey = `SCHEDULING_PASSWORD_${groomerId.toUpperCase()}` as const;
   const plainEnv = process.env[envKey];
   if (plainEnv) return password === plainEnv;
-  return bcrypt.compare(password, GROOMER_PASSWORD_HASHES[groomerId]);
+
+  for (const hash of groomerPasswordHashes(groomerId)) {
+    if (await bcrypt.compare(password, hash)) return true;
+  }
+  return false;
 }
 
 export async function loginGroomer(

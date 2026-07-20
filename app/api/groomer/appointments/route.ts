@@ -4,6 +4,7 @@ import {
   filterStaffAppointments,
   type StaffAppointmentFilter,
 } from "@/lib/scheduling/appointment-filters";
+import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { readSchedulingData } from "@/lib/scheduling/store";
 
 function parseFilter(value: string | null): StaffAppointmentFilter {
@@ -19,7 +20,10 @@ export async function GET(request: Request) {
     const now = new Date();
 
     const data = await readSchedulingData();
-    let list = data.appointments.filter((a) => a.groomerId === user.groomerId);
+    let list = data.appointments;
+    if (!groomerSeesTeamAppointments(user.groomerId!)) {
+      list = list.filter((a) => a.groomerId === user.groomerId);
+    }
     list = filterStaffAppointments(list, filter, now);
 
     return NextResponse.json({ appointments: list });

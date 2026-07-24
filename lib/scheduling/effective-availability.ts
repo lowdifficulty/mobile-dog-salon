@@ -15,6 +15,12 @@ import {
   getTodayPacificDate,
   parseSlotFromIso,
 } from "./slots";
+import {
+  availabilityVan,
+  groomerHasMultiVanAccess,
+  type VanId,
+  vanForGroomer,
+} from "./vans";
 import type {
   Appointment,
   AvailabilityDay,
@@ -84,12 +90,14 @@ export function appointmentLockedHourSlots(
 /** Store the schedule the groomer sets; booking overlap is enforced at book time. */
 export function normalizeGroomerAvailabilitySave(
   groomerId: GroomerId,
-  incoming: AvailabilityDay[]
+  incoming: AvailabilityDay[],
+  van?: VanId
 ): AvailabilityDay[] {
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
 
   const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
+  const multiVan = groomerHasMultiVanAccess(groomerId);
 
   return incoming
     .map((day) => {
@@ -104,6 +112,7 @@ export function normalizeGroomerAvailabilitySave(
         groomerId,
         date: day.date,
         times: [...kept].sort(),
+        ...(multiVan && van ? { van } : {}),
       };
     })
     .filter(
@@ -112,4 +121,41 @@ export function normalizeGroomerAvailabilitySave(
         day.date >= today &&
         day.date <= maxDate
     );
+}
+
+/** Replace one van's shifts for a multi-van groomer; single-van groomers replace all. */
+export function mergeGroomerVanAvailabilitySave(
+  existing: AvailabilityDay[],
+  groomerId: GroomerId,
+  van: VanId,
+  incomingForVan: AvailabilityDay[]
+): AvailabilityDay[] {
+  if (!groomerHasMultiVanAccess(groomerId)) {
+    return [
+      ...existing.filter((day) => day.groomerId !== groomerId),
+      ...incomingForVan,
+    ];
+  }
+
+  const kept = existing.filter((day) => {
+    if (day.groomerId !== groomerId) return true;
+    return availabilityVan(day) !== van;
+  });
+
+  return [...kept, ...incomingForVan];
+}
+
+/** Shifts for one groomer on one van (editor calendar rows). */
+export function availabilityRowsForVan(
+  availability: AvailabilityDay[],
+  groomerId: GroomerId,
+  van: VanId
+): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const day of availability) {
+    if (day.groomerId !== groomerId) continue;
+    if (availabilityVan(day) !== van) continue;
+    map[day.date] = [...day.times];
+  }
+  return map;
 }

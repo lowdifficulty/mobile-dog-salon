@@ -386,10 +386,8 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
       }
     : null;
 
-  const appointmentSummary = (discountHeading = "50% discount activated") => (
-    <div className="booking-form-summary">
-      <p className="booking-form-summary-title">{discountHeading}</p>
-    </div>
+  const discountBanner = (
+    <div className="booking-form-discount mb-3">50% discount applied</div>
   );
 
   if (submitted && calendarDetails) {
@@ -486,6 +484,7 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
       </div>
 
       <div className="px-4 py-3">
+        {discountBanner}
         {step === 1 && (
           <div className="space-y-3">
             <div>
@@ -512,7 +511,6 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
 
         {step === 2 && (
           <div className="space-y-3">
-            <div className="booking-form-discount">50% discount applied</div>
             <div>
               <h3 className="booking-form-heading">Select service</h3>
               <p className="booking-form-subheading">Tap a package to continue.</p>
@@ -592,7 +590,6 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
 
         {step === 4 && (
           <div className="space-y-4">
-            {appointmentSummary()}
             {!isLocalhost && data.slotKey ? (
               <p className="text-xs text-gray-600 font-medium">
                 Your time is held for 10 minutes while you finish booking.

@@ -318,10 +318,8 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
       }
     : null;
 
-  const appointmentSummary = (discountHeading = "50% discount activated") => (
-    <div className="booking-form-summary">
-      <p className="booking-form-summary-title">{discountHeading}</p>
-    </div>
+  const discountBanner = (
+    <div className="booking-form-discount mb-3">50% discount applied — all cats same price</div>
   );
 
   if (submitted && calendarDetails) {
@@ -408,9 +406,9 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
       </div>
 
       <div className="px-4 py-3">
+        {discountBanner}
         {step === 1 && (
           <div className="space-y-3">
-            <div className="booking-form-discount">50% discount applied — all cats same price</div>
             <div>
               <h3 className="booking-form-heading">Select cat grooming service</h3>
               <p className="booking-form-subheading">Tap a package to continue.</p>
@@ -487,7 +485,6 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
 
         {step === 3 && (
           <div className="space-y-4">
-            {appointmentSummary()}
             {!isLocalhost && data.slotKey ? (
               <p className="text-xs text-gray-600 font-medium">
                 Your time is held for 10 minutes while you finish booking.

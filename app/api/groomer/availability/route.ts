@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { requireGroomer } from "@/lib/scheduling/auth";
 import {
-  appointmentLockedHourSlots,
-  normalizeGroomerAvailabilitySave,
-} from "@/lib/scheduling/effective-availability";
+  applyGroomerAvailabilitySave,
+  availabilitySaveErrorResponse,
+} from "@/lib/scheduling/availability-save";
+import { appointmentLockedHourSlots } from "@/lib/scheduling/effective-availability";
 import {
   getSchedulingPersistenceStatus,
   readSchedulingData,
@@ -13,9 +14,7 @@ import {
 import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
 import {
   buildEditorOpenSlotKeys,
-  buildOpenVanSlotKeySet,
   buildVanSlotOccupancy,
-  rejectUnavailableGroomerShifts,
 } from "@/lib/scheduling/van-capacity";
 import { isVanId, vanForGroomer } from "@/lib/scheduling/vans";
 import type { AvailabilityDay } from "@/lib/scheduling/types";
@@ -62,26 +61,15 @@ export async function PUT(request: Request) {
     const incoming = (body.availability ?? []) as AvailabilityDay[];
 
     const data = await readSchedulingData();
-    const sanitized = normalizeGroomerAvailabilitySave(
+    const { error, sanitized } = applyGroomerAvailabilitySave(
+      data,
       user.groomerId!,
-      incoming
-        .filter((a) => a.date && Array.isArray(a.times))
-        .map((a) => ({
-          groomerId: user.groomerId!,
-          date: a.date,
-          times: [...new Set(a.times)].sort(),
-        }))
+      incoming,
+      body.van
     );
-
-    const shiftError = rejectUnavailableGroomerShifts(data, user.groomerId!, sanitized);
-    if (shiftError) {
-      return NextResponse.json({ error: shiftError }, { status: 409 });
+    if (error) {
+      return availabilitySaveErrorResponse(error);
     }
-
-    data.availability = [
-      ...data.availability.filter((a) => a.groomerId !== user.groomerId),
-      ...sanitized,
-    ];
 
     await writeSchedulingData(data, {
       action: "groomer_save",

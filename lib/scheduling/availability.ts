@@ -211,8 +211,12 @@ export function releaseGroomerShiftWithoutAppointment(
   });
   if (hasConfirmed) return;
 
+  const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
   const dayIndex = data.availability.findIndex(
-    (a) => a.groomerId === groomerId && a.date === date
+    (a) =>
+      a.groomerId === groomerId &&
+      a.date === date &&
+      isBookingBlockEnabled(a.times, startTime, blockMinutes)
   );
   if (dayIndex === -1) return;
 
@@ -220,7 +224,7 @@ export function releaseGroomerShiftWithoutAppointment(
     data.availability[dayIndex].times,
     startTime,
     false,
-    availabilityBlockMinutesForGroomer(groomerId)
+    blockMinutes
   );
   if (times.length === 0) {
     data.availability.splice(dayIndex, 1);

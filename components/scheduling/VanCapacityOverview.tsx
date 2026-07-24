@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { groupAvailableVanTimeslots, hoursForBlockCount, navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import type { AvailableVanTimeslot } from "@/lib/scheduling/van-capacity";
-import { vanLabel, type VanId } from "@/lib/scheduling/vans";
+import { selectableVansForGroomer, vanLabel, type VanId } from "@/lib/scheduling/vans";
 import type { GroomerId } from "@/lib/scheduling/types";
 import VanToggle from "./VanToggle";
 import { useVanPrefetchCache } from "./useVanPrefetchCache";
@@ -195,7 +195,12 @@ export default function VanCapacityOverview({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3 shrink-0">
         <div className="flex flex-wrap items-center gap-3 min-w-0">
           <h4 className="text-base font-bold text-brand">Available timeslots</h4>
-          <VanToggle selectedVan={selectedVan} onVanChange={setSelectedVan} lockedVan={lockedVan} />
+          <VanToggle
+            selectedVan={selectedVan}
+            onVanChange={setSelectedVan}
+            lockedVan={lockedVan}
+            vans={groomerId ? selectableVansForGroomer(groomerId) : undefined}
+          />
         </div>
         <span className="text-xs font-semibold text-gray-500">
           {summary.availableCount} open on {vanLabel(selectedVan)} (next 30 days)

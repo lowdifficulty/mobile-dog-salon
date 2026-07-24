@@ -9,7 +9,7 @@ import {
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
 import { isGroomerFullyBooked } from "./capacity";
-import { vanForGroomer } from "./vans";
+import { availabilityVan } from "./vans";
 import type {
   Appointment,
   AvailabilityDay,
@@ -91,7 +91,7 @@ export function getAvailableSlotsForDate(
         duration,
         appointments,
         undefined,
-        vanForGroomer(day.groomerId),
+        availabilityVan(day),
         availability,
         day.groomerId
       )

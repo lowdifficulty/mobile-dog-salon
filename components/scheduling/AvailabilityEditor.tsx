@@ -17,9 +17,10 @@ import {
 } from "@/lib/scheduling/availability";
 import { navyShadeClassesForBlockCount } from "@/lib/scheduling/available-slot-groups";
 import { GROOMER_AVAILABILITY_BLOCK_MINUTES } from "@/lib/scheduling/services";
+import { availabilityRowsForVan } from "@/lib/scheduling/effective-availability";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
-import { vanLabel, type VanId } from "@/lib/scheduling/vans";
+import { selectableVansForGroomer, vanLabel, type VanId } from "@/lib/scheduling/vans";
 import VanToggle from "./VanToggle";
 import { useVanPrefetchCache } from "./useVanPrefetchCache";
 import {
@@ -180,6 +181,9 @@ export default function AvailabilityEditor({
   type VanAvailabilityData = {
     openSlotKeys: Set<string>;
     slotOccupancy: VanSlotOccupancy[];
+    availability: AvailabilityDay[];
+    locked: Record<string, string[]>;
+    persistence?: { writable?: boolean; message?: string };
   };
 
   const fetchVanAvailability = useCallback(
@@ -195,26 +199,15 @@ export default function AvailabilityEditor({
         return null;
       }
       const data = await res.json();
-      const map: Record<string, string[]> = {};
-      for (const a of data.availability as AvailabilityDay[]) {
-        if (a.date > maxDate) continue;
-        map[a.date] = [...a.times];
-      }
-      if (van === "nissan") {
-        setRows(map);
-        setLockedHours((data.locked as Record<string, string[]>) ?? {});
-        if (data.persistence?.writable === false) {
-          setPersistenceNote(data.persistence.message);
-        } else {
-          setPersistenceNote("");
-        }
-      }
       return {
         openSlotKeys: new Set((data.openSlotKeys as string[]) ?? []),
         slotOccupancy: (data.slotOccupancy as VanSlotOccupancy[]) ?? [],
+        availability: (data.availability as AvailabilityDay[]) ?? [],
+        locked: (data.locked as Record<string, string[]>) ?? {},
+        persistence: data.persistence,
       };
     },
-    [apiBase, maxDate]
+    [apiBase]
   );
 
   const {
@@ -228,7 +221,16 @@ export default function AvailabilityEditor({
     if (!vanData) return;
     setOpenSlotKeys(vanData.openSlotKeys);
     setSlotOccupancy(vanData.slotOccupancy);
-  }, [selectedVan, vanCache]);
+    setLockedHours(vanData.locked);
+    if (groomerId) {
+      setRows(availabilityRowsForVan(vanData.availability, groomerId, selectedVan));
+    }
+    if (vanData.persistence?.writable === false) {
+      setPersistenceNote(vanData.persistence.message ?? "");
+    } else {
+      setPersistenceNote("");
+    }
+  }, [selectedVan, vanCache, groomerId]);
 
   const monthCells = useMemo(
     () => getMonthGrid(viewYear, viewMonth),
@@ -449,9 +451,11 @@ export default function AvailabilityEditor({
     const res = await fetch(apiBase, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        includeGroomerIdInSave ? { groomerId, availability } : { availability }
-      ),
+      body: JSON.stringify({
+        van: selectedVan,
+        ...(includeGroomerIdInSave ? { groomerId } : {}),
+        availability,
+      }),
     });
 
     setSaving(false);
@@ -532,6 +536,7 @@ export default function AvailabilityEditor({
                 selectedVan={selectedVan}
                 onVanChange={onVanChange}
                 lockedVan={lockedVan}
+                vans={groomerId ? selectableVansForGroomer(groomerId) : undefined}
               />
             </div>
             <button

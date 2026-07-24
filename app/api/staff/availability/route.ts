@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { requireStaff } from "@/lib/scheduling/auth";
 import {
+  applyGroomerAvailabilitySave,
+  availabilitySaveErrorResponse,
+} from "@/lib/scheduling/availability-save";
+import {
   appointmentLockedHourSlots,
   effectiveAvailability,
-  normalizeGroomerAvailabilitySave,
 } from "@/lib/scheduling/effective-availability";
 import { GROOMERS, groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import {
@@ -16,7 +19,6 @@ import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/sl
 import {
   buildEditorOpenSlotKeys,
   buildVanSlotOccupancy,
-  rejectUnavailableGroomerShifts,
 } from "@/lib/scheduling/van-capacity";
 import { isVanId, vanForGroomer } from "@/lib/scheduling/vans";
 import type { AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
@@ -102,26 +104,15 @@ export async function PUT(request: Request) {
     }
 
     const data = await readSchedulingData();
-    const sanitized = normalizeGroomerAvailabilitySave(
+    const { error, sanitized } = applyGroomerAvailabilitySave(
+      data,
       groomerId,
-      incoming
-        .filter((a) => a.date && Array.isArray(a.times))
-        .map((a) => ({
-          groomerId,
-          date: a.date,
-          times: [...new Set(a.times)].sort(),
-        }))
+      incoming,
+      body.van
     );
-
-    const shiftError = rejectUnavailableGroomerShifts(data, groomerId, sanitized);
-    if (shiftError) {
-      return NextResponse.json({ error: shiftError }, { status: 409 });
+    if (error) {
+      return availabilitySaveErrorResponse(error);
     }
-
-    data.availability = [
-      ...data.availability.filter((a) => a.groomerId !== groomerId),
-      ...sanitized,
-    ];
 
     await writeSchedulingData(data, {
       action: "groomer_save",

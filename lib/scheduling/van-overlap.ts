@@ -6,8 +6,11 @@ import { isBookingBlockEnabled } from "./availability";
 import { appointmentBlockMinutes } from "./services";
 import {
   appointmentVan,
+  availabilityVan,
   groomersForVan,
+  isVanActiveOnDate,
   VAN_COUNT,
+  vanForGroomer,
   type VanId,
 } from "./vans";
 import type { Appointment, AvailabilityDay, GroomerId } from "./types";
@@ -64,7 +67,12 @@ export class VanOccupancyIndex {
       this.appointmentsByDate.set(slot.date, list);
     }
     for (const day of availability) {
-      this.availabilityByKey.set(`${day.groomerId}|${day.date}`, day);
+      this.availabilityByKey.set(
+        day.van
+          ? `${day.groomerId}|${day.date}|${day.van}`
+          : `${day.groomerId}|${day.date}`,
+        day
+      );
     }
   }
 
@@ -107,8 +115,10 @@ export class VanOccupancyIndex {
       if (options?.excludeGroomerId && groomerId === options.excludeGroomerId) {
         continue;
       }
-      const day = this.availabilityByKey.get(`${groomerId}|${date}`);
-      if (!day) continue;
+      const day =
+        this.availabilityByKey.get(`${groomerId}|${date}|${vanId}`) ??
+        this.availabilityByKey.get(`${groomerId}|${date}`);
+      if (!day || availabilityVan(day) !== vanId) continue;
       const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
       for (const blockStart of bookingBlockStartsForGroomer(groomerId)) {
         if (!isBookingBlockEnabled(day.times, blockStart, blockMinutes)) continue;
@@ -194,7 +204,10 @@ export function listVanOccupancyWindows(
       continue;
     }
     const day = availability.find(
-      (entry) => entry.groomerId === groomerId && entry.date === date
+      (entry) =>
+        entry.groomerId === groomerId &&
+        entry.date === date &&
+        availabilityVan(entry) === vanId
     );
     if (!day) continue;
     const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);

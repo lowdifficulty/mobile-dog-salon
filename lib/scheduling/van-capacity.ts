@@ -18,8 +18,10 @@ import {
 import { appointmentBlockMinutes, BOOKING_DURATION_MINUTES } from "./services";
 import {
   appointmentVan,
+  availabilityVan,
   groomerForVan,
   groomersForVan,
+  isVanActiveOnDate,
   vanForGroomer,
   VAN_COUNT,
   VAN_IDS,
@@ -248,9 +250,12 @@ function groomerClaimingVanShiftFromIndex(
 ): GroomerId | null {
   for (const groomerId of groomersForVan(vanId)) {
     if (!isAllowedBookingBlockStart(time, groomerId)) continue;
-    const day = availabilityByKey.get(`${groomerId}|${date}`);
+    const day =
+      availabilityByKey.get(`${groomerId}|${date}|${vanId}`) ??
+      availabilityByKey.get(`${groomerId}|${date}`);
+    if (!day || availabilityVan(day) !== vanId) continue;
     const blockMinutes = availabilityBlockMinutesForGroomer(groomerId);
-    if (day && isBookingBlockEnabled(day.times, time, blockMinutes)) {
+    if (isBookingBlockEnabled(day.times, time, blockMinutes)) {
       return groomerId;
     }
   }
@@ -272,7 +277,14 @@ function buildAppointmentBlockIndex(
 function buildAvailabilityIndex(
   availability: AvailabilityDay[]
 ): Map<string, AvailabilityDay> {
-  return new Map(availability.map((day) => [`${day.groomerId}|${day.date}`, day]));
+  return new Map(
+    availability.map((day) => [
+      day.van
+        ? `${day.groomerId}|${day.date}|${day.van}`
+        : `${day.groomerId}|${day.date}`,
+      day,
+    ])
+  );
 }
 
 /** Per-block occupancy for one van (shift calendar monthly view). */
@@ -294,6 +306,7 @@ export function buildVanSlotOccupancy(
       ? [...bookingBlockStartsForGroomer(groomerId)]
       : blockStartsForVan(vanId);
     for (const date of eachDateInclusive(from, to)) {
+      if (!isVanActiveOnDate(vanId, date)) continue;
       for (const time of blockStarts) {
         if (groomerId && !isAllowedBookingBlockStart(time, groomerId)) continue;
         const booking = appointmentBlocks.get(`${vanId}|${date}|${time}`) ?? null;
@@ -387,6 +400,7 @@ export function listAvailableVanTimeslots(
       ? bookingBlockStartsForGroomer(groomerId)
       : blockStartsForVan(vanId);
     for (const date of eachDateInclusive(from, to)) {
+      if (!isVanActiveOnDate(vanId, date)) continue;
       for (const time of blockStarts) {
         if (groomerId && !isAllowedBookingBlockStart(time, groomerId)) continue;
         const duration = groomerId
@@ -452,11 +466,11 @@ export function buildEditorOpenSlotKeys(
 export function rejectUnavailableGroomerShifts(
   data: SchedulingData,
   groomerId: GroomerId,
-  incoming: AvailabilityDay[]
+  incoming: AvailabilityDay[],
+  vanId: VanId = vanForGroomer(groomerId)
 ): string | null {
   const today = getTodayPacificDate();
   const maxDate = getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
-  const vanId = vanForGroomer(groomerId);
   const openKeys = buildOpenVanSlotKeySet(data, {
     from: today,
     to: maxDate,
@@ -465,7 +479,9 @@ export function rejectUnavailableGroomerShifts(
   });
   const existingByDate = new Map(
     data.availability
-      .filter((day) => day.groomerId === groomerId)
+      .filter(
+        (day) => day.groomerId === groomerId && availabilityVan(day) === vanId
+      )
       .map((day) => [day.date, day.times] as const)
   );
 
@@ -499,10 +515,14 @@ export function allocateShiftsFromAppointments(
   const byKey = new Map<string, AvailabilityDay>();
 
   for (const day of data.availability) {
-    byKey.set(`${day.groomerId}|${day.date}`, {
+    const key = day.van
+      ? `${day.groomerId}|${day.date}|${day.van}`
+      : `${day.groomerId}|${day.date}`;
+    byKey.set(key, {
       groomerId: day.groomerId,
       date: day.date,
       times: [...day.times],
+      ...(day.van ? { van: day.van } : {}),
     });
   }
 
@@ -515,17 +535,24 @@ export function allocateShiftsFromAppointments(
     if (date < today || date > maxDate) continue;
     if (!isAllowedBookingBlockStart(time, ap.groomerId)) continue;
 
-    const key = `${ap.groomerId}|${date}`;
-    const existing = byKey.get(key) ?? {
+    const van = appointmentVan(ap);
+    const key = `${ap.groomerId}|${date}|${van}`;
+    const legacyKey = `${ap.groomerId}|${date}`;
+    const existing = byKey.get(key) ?? byKey.get(legacyKey) ?? {
       groomerId: ap.groomerId,
       date,
       times: [] as string[],
+      van,
     };
     const blockMinutes = availabilityBlockMinutesForGroomer(ap.groomerId);
     if (!isBookingBlockEnabled(existing.times, time, blockMinutes)) {
       existing.times = setBookingBlockEnabled(existing.times, time, true, blockMinutes);
     }
+    existing.van = van;
     byKey.set(key, existing);
+    if (byKey.has(legacyKey) && legacyKey !== key) {
+      byKey.delete(legacyKey);
+    }
   }
 
   return [...byKey.values()]

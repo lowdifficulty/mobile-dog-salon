@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { requireAdmin, requireStaff } from "@/lib/scheduling/auth";
 import {
+  applyGroomerAvailabilitySave,
+  availabilitySaveErrorResponse,
+} from "@/lib/scheduling/availability-save";
+import {
   appointmentLockedHourSlots,
   effectiveAvailability,
-  normalizeGroomerAvailabilitySave,
 } from "@/lib/scheduling/effective-availability";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import {
@@ -84,21 +87,15 @@ export async function PUT(request: Request) {
     const groomerId = groomerIdRaw;
 
     const data = await readSchedulingData();
-    const sanitized = normalizeGroomerAvailabilitySave(
+    const { error, sanitized } = applyGroomerAvailabilitySave(
+      data,
       groomerId,
-      incoming
-        .filter((a) => a.date && Array.isArray(a.times))
-        .map((a) => ({
-          groomerId,
-          date: a.date,
-          times: [...new Set(a.times)].sort(),
-        }))
+      incoming,
+      body.van
     );
-
-    data.availability = [
-      ...data.availability.filter((a) => a.groomerId !== groomerId),
-      ...sanitized,
-    ];
+    if (error) {
+      return availabilitySaveErrorResponse(error);
+    }
 
     await writeSchedulingData(data, {
       action: "groomer_save",

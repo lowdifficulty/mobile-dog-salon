@@ -6,17 +6,20 @@ export default function VanToggle({
   selectedVan,
   onVanChange,
   lockedVan,
+  vans,
 }: {
   selectedVan: VanId;
   onVanChange: (van: VanId) => void;
   /** When set, only this van is shown (groomer is assigned to one van). */
   lockedVan?: VanId;
+  /** Subset of vans to show (defaults to full fleet). */
+  vans?: VanId[];
 }) {
-  const vans = lockedVan ? [lockedVan] : VAN_IDS;
+  const options = lockedVan ? [lockedVan] : (vans ?? VAN_IDS);
 
   return (
     <div className="inline-flex rounded-full border border-gray-200 bg-white p-0.5">
-      {vans.map((van) => (
+      {options.map((van) => (
         <button
           key={van}
           type="button"

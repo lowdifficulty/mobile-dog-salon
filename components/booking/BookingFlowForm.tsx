@@ -37,6 +37,7 @@ import {
   draftToBookingPet,
   formatPetNames,
   formatPetsList,
+  getPetSizeLabel,
   type BookingPet,
 } from "@/lib/booking/pets";
 import { holdBookingSlot } from "@/lib/booking/slot-hold-client";
@@ -213,6 +214,8 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
     return [];
   };
 
+  const dogCount = Math.max(1, getDraftBookingPets().length);
+
   const persistLead = (funnelStep: LeadFunnelStep, extra?: Partial<SaveLeadPayload>) => {
     const activePets = getDraftBookingPets();
     void saveLead({
@@ -230,6 +233,16 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
       source: leadSource,
       ...extra,
     });
+  };
+
+  const adjustDogCount = (delta: number) => {
+    if (!data.petSize) return;
+    const nextCount = Math.max(1, dogCount + delta);
+    const pets = Array.from({ length: nextCount }, () =>
+      draftToBookingPet({ size: data.petSize })
+    );
+    setBookingPets(pets);
+    persistLead("address", { pets });
   };
 
   const handleSelectSize = (size: string) => {
@@ -527,6 +540,7 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
                     subtitle={subtitle}
                     bullets={service.bullets}
                     variant="text"
+                    tone="service"
                     isFirst={index === 0}
                     isLast={index === DOG_SERVICE_PACKAGES.length - 1}
                     selected={data.service === service.value}
@@ -549,9 +563,12 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
             </div>
             <div className="booking-form-summary-box space-y-0.5">
               <p>
-                <span className="text-gray-900 font-semibold">Pets:</span> {formatPetsList(getDraftBookingPets())} —{" "}
-                {getServiceLabel(data.service)}
-                {selectedPrice != null && ` (${formatPrice(selectedPrice)})`}
+                <span className="text-gray-900 font-semibold">Pets:</span>{" "}
+                {dogCount > 1
+                  ? `${dogCount} dogs (${getPetSizeLabel(data.petSize)})`
+                  : formatPetsList(getDraftBookingPets())}{" "}
+                — {getServiceLabel(data.service)}
+                {selectedPrice != null && ` (${formatPrice(selectedPrice)} each)`}
               </p>
             </div>
             <WeekAvailabilityPicker
@@ -660,6 +677,33 @@ export default function BookingFlowForm({ onClose, variant = null }: BookingFlow
                   placeholder="(714) 555-0123"
                   className={inputClass}
                 />
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-gray-700 mb-1">
+                  Number of dogs
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => adjustDogCount(-1)}
+                    disabled={dogCount <= 1}
+                    className="booking-form-quantity-btn"
+                    aria-label="Remove a dog"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[1.75rem] text-center text-sm font-semibold tabular-nums text-gray-900">
+                    {dogCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => adjustDogCount(1)}
+                    className="booking-form-quantity-btn"
+                    aria-label="Add a dog"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
             {submitError && <p className="text-xs text-red-600">{submitError}</p>}

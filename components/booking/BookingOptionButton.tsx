@@ -8,6 +8,8 @@ interface BookingOptionButtonProps {
   bullets?: readonly string[];
   icon?: ReactNode;
   variant?: "picture" | "text";
+  /** Service packages use a subtle light-blue hover instead of neutral gray. */
+  tone?: "default" | "service";
   selected?: boolean;
   isFirst?: boolean;
   isLast?: boolean;
@@ -20,6 +22,7 @@ export default function BookingOptionButton({
   bullets,
   icon,
   variant = "text",
+  tone = "default",
   selected = false,
   isFirst: _isFirst = true,
   isLast: _isLast = true,
@@ -27,7 +30,9 @@ export default function BookingOptionButton({
 }: BookingOptionButtonProps) {
   const stateClass = selected
     ? "booking-form-option-selected"
-    : "booking-form-option";
+    : tone === "service"
+      ? "booking-form-option-service"
+      : "booking-form-option";
 
   const labelBlock = (
     <span className="min-w-0">

@@ -7,7 +7,9 @@ import {
 import { completedVisitsInRange } from "@/lib/analytics/visits";
 import type { FinancialAnalytics } from "@/lib/analytics/financials";
 import { computeFinancialAnalytics } from "@/lib/analytics/financials";
-import type { Appointment } from "@/lib/scheduling/types";
+import type { VanUtilizationAnalytics } from "@/lib/analytics/van-utilization";
+import { computeVanUtilizationAnalytics } from "@/lib/analytics/van-utilization";
+import type { Appointment, SchedulingData } from "@/lib/scheduling/types";
 import { getTodayPacificDate } from "@/lib/scheduling/slots";
 
 const PACIFIC_TZ = "America/Los_Angeles";
@@ -42,6 +44,7 @@ export interface FunnelAnalyticsResult {
   completedCount: number;
   completedPercent: number;
   financials: FinancialAnalytics;
+  vanUtilization: VanUtilizationAnalytics;
 }
 
 function contactDatePacific(iso: string): string {
@@ -106,7 +109,8 @@ export function computeFunnelAnalytics(
   leads: Lead[],
   range: AnalyticsRange,
   customDate?: string,
-  appointments: Appointment[] = []
+  appointments: Appointment[] = [],
+  scheduling?: SchedulingData
 ): FunnelAnalyticsResult {
   const filtered = leads.filter((lead) => leadInAnalyticsRange(lead, range, customDate));
   const totalLeads = filtered.length;
@@ -147,6 +151,12 @@ export function computeFunnelAnalytics(
     customDate
   );
 
+  const vanUtilization = computeVanUtilizationAnalytics(
+    scheduling ?? { appointments, availability: [] },
+    range,
+    customDate
+  );
+
   return {
     range,
     rangeLabel:
@@ -161,5 +171,6 @@ export function computeFunnelAnalytics(
     completedCount,
     completedPercent: percentOf(completedCount, totalLeads),
     financials,
+    vanUtilization,
   };
 }

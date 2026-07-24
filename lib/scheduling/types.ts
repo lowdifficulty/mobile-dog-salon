@@ -10,7 +10,7 @@ export interface AvailabilityDay {
   groomerId: GroomerId;
   date: string; // YYYY-MM-DD
   times: string[]; // HH:mm 24h start times
-  /** When set, shift only occupies this van (multi-van groomers like Jessica). */
+  /** When set, shift only occupies this van (each groomer may hold shifts on multiple vans). */
   van?: VanId;
 }
 

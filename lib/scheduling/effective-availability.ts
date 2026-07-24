@@ -123,7 +123,7 @@ export function normalizeGroomerAvailabilitySave(
     );
 }
 
-/** Replace one van's shifts for a multi-van groomer; single-van groomers replace all. */
+/** Replace one van's shifts while keeping the groomer's shifts on other vans. */
 export function mergeGroomerVanAvailabilitySave(
   existing: AvailabilityDay[],
   groomerId: GroomerId,

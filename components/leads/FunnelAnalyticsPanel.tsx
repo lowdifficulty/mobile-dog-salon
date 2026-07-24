@@ -201,6 +201,102 @@ export default function FunnelAnalyticsPanel() {
             </div>
           </div>
 
+          <div className="site-card p-5 sm:p-6 space-y-5">
+            <div>
+              <h3 className="font-semibold text-gray-900">Van utilization</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Share of van time blocks from {data.vanUtilization.from} through{" "}
+                {data.vanUtilization.to}: open capacity, groomer shifts without a booking, and
+                booked appointments.
+              </p>
+            </div>
+
+            {data.vanUtilization.totals.totalBlocks === 0 ? (
+              <p className="text-sm text-gray-500 py-6 text-center">
+                No van blocks in this period.
+              </p>
+            ) : (
+              <>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Available
+                    </p>
+                    <p className="text-2xl font-bold text-green-800 mt-2">
+                      {data.vanUtilization.totals.availablePercent}%
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {data.vanUtilization.totals.availableCount} blocks
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Groomer reserved
+                    </p>
+                    <p className="text-2xl font-bold text-amber-900 mt-2">
+                      {data.vanUtilization.totals.groomerReservedPercent}%
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {data.vanUtilization.totals.groomerReservedCount} blocks without booking
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-brand/20 bg-brand/5 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Appointments booked
+                    </p>
+                    <p className="text-2xl font-bold text-brand mt-2">
+                      {data.vanUtilization.totals.bookedPercent}%
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {data.vanUtilization.totals.bookedCount} blocks
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {data.vanUtilization.vans.map((van) =>
+                    van.totalBlocks === 0 ? null : (
+                      <div key={van.vanId}>
+                        <div className="flex flex-wrap items-end justify-between gap-2 mb-1.5">
+                          <p className="text-sm font-semibold text-gray-900">{van.vanLabel}</p>
+                          <p className="text-xs text-gray-500">{van.totalBlocks} blocks</p>
+                        </div>
+                        <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
+                          {van.availablePercent > 0 && (
+                            <div
+                              className="bg-green-500"
+                              style={{ width: `${van.availablePercent}%` }}
+                              title={`Available ${van.availablePercent}%`}
+                            />
+                          )}
+                          {van.groomerReservedPercent > 0 && (
+                            <div
+                              className="bg-amber-400"
+                              style={{ width: `${van.groomerReservedPercent}%` }}
+                              title={`Groomer reserved ${van.groomerReservedPercent}%`}
+                            />
+                          )}
+                          {van.bookedPercent > 0 && (
+                            <div
+                              className="bg-brand"
+                              style={{ width: `${van.bookedPercent}%` }}
+                              title={`Booked ${van.bookedPercent}%`}
+                            />
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                          <span>Available {van.availablePercent}%</span>
+                          <span>Groomer reserved {van.groomerReservedPercent}%</span>
+                          <span>Booked {van.bookedPercent}%</span>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="site-card p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3 mb-6">
               <h3 className="font-semibold text-gray-900">Step completion</h3>

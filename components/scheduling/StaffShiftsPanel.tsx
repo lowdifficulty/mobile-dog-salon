@@ -61,9 +61,8 @@ export default function StaffShiftsPanel({
           <h2 className="text-xl font-bold text-brand">Shifts</h2>
           <p className="text-sm text-gray-500 mt-1">
             3 vans — pick shift start times any day, up to 3 months ahead.
-            {groomerId === "jessica"
-              ? " Jessica can reserve shifts on Nissan, Dodge, or Ford. 8 AM, 10 AM, 12 PM, 2 PM, 4 PM, 6 PM (2-hour slots)."
-              : " Melanie & Diamond: 8 AM, 11 AM, 2 PM, 5 PM (3-hour slots)."}
+            {" "}Each groomer can reserve shifts on Nissan, Dodge, or Ford (Ford from Jul 23, 2026).
+            Slot times depend on groomer: Jessica uses 2-hour blocks; others use 3-hour blocks.
             {" "}Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
           </p>
         </div>

@@ -30,8 +30,14 @@ export async function GET(request: Request) {
         : undefined;
 
     const leads = leadsForAnalytics(await syncLeadsWithAppointments());
-    const { appointments } = await readSchedulingData();
-    const analytics = computeFunnelAnalytics(leads, range, customDate, appointments);
+    const scheduling = await readSchedulingData();
+    const analytics = computeFunnelAnalytics(
+      leads,
+      range,
+      customDate,
+      scheduling.appointments,
+      scheduling
+    );
 
     return NextResponse.json(analytics);
   } catch {

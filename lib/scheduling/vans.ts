@@ -1,4 +1,5 @@
 import type { Appointment, AvailabilityDay, GroomerId } from "./types";
+import { BOOKABLE_GROOMER_IDS } from "./groomers";
 import { getTodayPacificDate } from "./slots";
 
 export type VanId = "nissan" | "dodge" | "ford";
@@ -36,33 +37,28 @@ export function vanForGroomer(groomerId: GroomerId): VanId {
 }
 
 /** Groomers whose shifts count against this van's capacity. */
-export function groomersForVan(vanId: VanId): GroomerId[] {
-  if (vanId === "nissan") return ["melanie", "jessica"];
-  if (vanId === "ford") return ["jessica"];
-  return ["diamond", "jessica"];
+export function groomersForVan(_vanId: VanId): GroomerId[] {
+  return BOOKABLE_GROOMER_IDS;
 }
 
-export function groomerCanReserveVan(groomerId: GroomerId, vanId: VanId): boolean {
-  return groomersForVan(vanId).includes(groomerId);
+export function groomerCanReserveVan(_groomerId: GroomerId, _vanId: VanId): boolean {
+  return true;
 }
 
 /** Vans a groomer may claim shifts on in the shift editor. */
 export function selectableVansForGroomer(
-  groomerId: GroomerId,
+  _groomerId: GroomerId,
   asOfDate: string = getTodayPacificDate()
 ): VanId[] {
-  return VAN_IDS.filter(
-    (vanId) =>
-      groomerCanReserveVan(groomerId, vanId) && isVanActiveOnDate(vanId, asOfDate)
-  );
+  return activeVansOnDate(asOfDate);
 }
 
 export function activeVansOnDate(date: string): VanId[] {
   return VAN_IDS.filter((vanId) => isVanActiveOnDate(vanId, date));
 }
 
-export function groomerHasMultiVanAccess(groomerId: GroomerId): boolean {
-  return groomerId === "jessica";
+export function groomerHasMultiVanAccess(_groomerId: GroomerId): boolean {
+  return true;
 }
 
 export function availabilityVan(day: AvailabilityDay): VanId {

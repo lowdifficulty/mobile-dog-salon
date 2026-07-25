@@ -2,21 +2,16 @@ import { NextResponse } from "next/server";
 import { requireGroomer } from "@/lib/scheduling/auth";
 import {
   filterStaffAppointments,
-  type StaffAppointmentFilter,
+  parseStaffAppointmentFilter,
 } from "@/lib/scheduling/appointment-filters";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { readSchedulingData } from "@/lib/scheduling/store";
-
-function parseFilter(value: string | null): StaffAppointmentFilter {
-  if (value === "past" || value === "all") return value;
-  return "upcoming";
-}
 
 export async function GET(request: Request) {
   try {
     const user = await requireGroomer();
     const { searchParams } = new URL(request.url);
-    const filter = parseFilter(searchParams.get("filter"));
+    const filter = parseStaffAppointmentFilter(searchParams.get("filter"));
     const now = new Date();
 
     const data = await readSchedulingData();

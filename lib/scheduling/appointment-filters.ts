@@ -1,6 +1,13 @@
 export const STAFF_UPCOMING_GRACE_MS = 60 * 60 * 1000;
 
-export type StaffAppointmentFilter = "upcoming" | "past" | "all";
+export type StaffAppointmentFilter = "upcoming" | "past" | "all" | "recent";
+
+export function parseStaffAppointmentFilter(
+  value: string | null
+): StaffAppointmentFilter {
+  if (value === "past" || value === "all" || value === "recent") return value;
+  return "upcoming";
+}
 
 export function staffUpcomingCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - STAFF_UPCOMING_GRACE_MS);
@@ -30,17 +37,23 @@ export function canStaffManageAppointment(
 ): boolean {
   if (appointment.status !== "confirmed") return false;
   if (isStaffUpcomingAppointment(appointment, now)) return true;
-  if (filter === "past" || filter === "all") {
+  if (filter === "past" || filter === "all" || filter === "recent") {
     return new Date(appointment.startAt).getTime() < staffUpcomingCutoff(now).getTime();
   }
   return false;
 }
 
-export function filterStaffAppointments<T extends { startAt: string; status: string }>(
+export function filterStaffAppointments<
+  T extends { startAt: string; status: string; createdAt: string },
+>(
   appointments: T[],
   filter: StaffAppointmentFilter,
   now: Date = new Date()
 ): T[] {
+  if (filter === "recent") {
+    return [...appointments].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   if (filter === "all") {
     return [...appointments].sort((a, b) => b.startAt.localeCompare(a.startAt));
   }

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
 import AvailabilityEditor from "./AvailabilityEditor";
-import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
+import GroomerAppointmentsPanel from "./GroomerAppointmentsPanel";
 import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
@@ -119,7 +119,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     { id: "clients", label: "Active clients" },
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
-    { id: "team-calendar", label: "Calendar" },
+    { id: "team-calendar", label: "Team Availability" },
   ];
 
   return (
@@ -127,7 +127,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Appointments, active clients, daily route, calendar, and shifts."
+        subtitle="Appointments, active clients, daily route, team availability, and shifts."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
@@ -151,11 +151,9 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
           {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
           {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
           {tab === "appointments" && (
-            <StaffAppointmentsPanel
+            <GroomerAppointmentsPanel
+              groomerId={groomerId}
               refreshKey={appointmentRefreshKey}
-              apiUrl="/api/groomer/appointments"
-              currentGroomerId={groomerId}
-              allowOverrideAvailability
             />
           )}
           {tab === "book" && (

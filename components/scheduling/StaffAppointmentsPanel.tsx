@@ -5,31 +5,41 @@ import AppointmentList from "./AppointmentList";
 import type { GroomerId } from "@/lib/scheduling/types";
 import type { StaffAppointmentFilter } from "@/lib/scheduling/appointment-filters";
 
-const SUBTABS: { id: StaffAppointmentFilter; label: string }[] = [
+const BASE_SUBTABS: { id: StaffAppointmentFilter; label: string }[] = [
   { id: "upcoming", label: "Upcoming" },
   { id: "past", label: "Past" },
   { id: "all", label: "All" },
 ];
+
+const RECENT_SUBTAB: { id: StaffAppointmentFilter; label: string } = {
+  id: "recent",
+  label: "Most recent",
+};
 
 export default function StaffAppointmentsPanel({
   apiUrl,
   currentGroomerId,
   allowOverrideAvailability = false,
   allowDelete = false,
+  showRecentFilter = false,
   refreshKey = 0,
 }: {
   apiUrl: string;
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
   allowDelete?: boolean;
+  showRecentFilter?: boolean;
   refreshKey?: number;
 }) {
   const [filter, setFilter] = useState<StaffAppointmentFilter>("upcoming");
+  const subtabs = showRecentFilter
+    ? [...BASE_SUBTABS, RECENT_SUBTAB]
+    : BASE_SUBTABS;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {SUBTABS.map((t) => (
+        {subtabs.map((t) => (
           <button
             key={t.id}
             type="button"

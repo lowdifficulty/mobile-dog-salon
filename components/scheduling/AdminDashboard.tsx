@@ -85,6 +85,7 @@ export default function AdminDashboard() {
           apiUrl="/api/admin/appointments"
           allowOverrideAvailability
           allowDelete
+          showRecentFilter
         />
       )}
       {tab === "team-calendar" && (

@@ -38,6 +38,16 @@ function formatWhen(startAt: string) {
   });
 }
 
+function formatBookedAt(createdAt: string) {
+  return new Date(createdAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Los_Angeles",
+  });
+}
+
 export default function AppointmentList({
   apiUrl,
   filter,
@@ -243,13 +253,15 @@ export default function AppointmentList({
           ? "No upcoming appointments."
           : filter === "past"
             ? "No past appointments yet."
-            : "No appointments yet."}
+            : filter === "recent"
+              ? "No appointments yet."
+              : "No appointments yet."}
       </p>
     );
   }
 
   const colorByGroomer =
-    (filter === "upcoming" || filter === "all") && currentGroomerId;
+    (filter === "upcoming" || filter === "all" || filter === "recent") && currentGroomerId;
   const otherGroomerIds = colorByGroomer
     ? (Object.keys(GROOMERS) as GroomerId[]).filter((id) => id !== currentGroomerId)
     : [];
@@ -299,7 +311,14 @@ export default function AppointmentList({
         return (
           <div key={ap.id} className={`site-card p-4 border-l-4 ${cardAccentClass}`}>
             <div className="flex flex-wrap justify-between gap-2 mb-2">
-              <p className="font-bold text-brand">{formatWhen(ap.startAt)}</p>
+              <div>
+                <p className="font-bold text-brand">{formatWhen(ap.startAt)}</p>
+                {filter === "recent" && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Booked {formatBookedAt(ap.createdAt)}
+                  </p>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 {ap.status === "cancelled" && (
                   <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">

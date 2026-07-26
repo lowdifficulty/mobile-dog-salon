@@ -13,7 +13,7 @@ import StaffLoginLogPanel from "./StaffLoginLogPanel";
 import StaffShiftsPanel from "./StaffShiftsPanel";
 import JobInterviewsPanel from "@/components/interviews/JobInterviewsPanel";
 import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
-import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
+import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 
 type Tab =
   | "contacts"
@@ -30,7 +30,7 @@ type Tab =
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("contacts");
+  const [tab, setTab] = useState<Tab>("appointments");
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -80,14 +80,7 @@ export default function AdminDashboard() {
       )}
       {tab === "analytics" && <FunnelAnalyticsPanel />}
       {tab === "accounting" && <AdminAccountingPanel />}
-      {tab === "appointments" && (
-        <StaffAppointmentsPanel
-          apiUrl="/api/admin/appointments"
-          allowOverrideAvailability
-          allowDelete
-          showRecentFilter
-        />
-      )}
+      {tab === "appointments" && <AdminAppointmentsPanel />}
       {tab === "team-calendar" && (
         <TeamCalendarPanel
           availabilityApi="/api/staff/availability"

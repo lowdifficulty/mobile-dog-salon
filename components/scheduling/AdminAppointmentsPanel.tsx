@@ -3,7 +3,6 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
-import type { GroomerId } from "@/lib/scheduling/types";
 
 const StaffAppointmentCalendar = dynamic(() => import("./StaffAppointmentCalendar"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
@@ -16,13 +15,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "list", label: "List" },
 ];
 
-export default function GroomerAppointmentsPanel({
-  groomerId,
-  refreshKey = 0,
-}: {
-  groomerId: GroomerId;
-  refreshKey?: number;
-}) {
+export default function AdminAppointmentsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [view, setView] = useState<View>("calendar");
 
   return (
@@ -47,12 +40,13 @@ export default function GroomerAppointmentsPanel({
       {view === "list" ? (
         <StaffAppointmentsPanel
           refreshKey={refreshKey}
-          apiUrl="/api/groomer/appointments"
-          currentGroomerId={groomerId}
+          apiUrl="/api/admin/appointments"
           allowOverrideAvailability
+          allowDelete
+          showRecentFilter
         />
       ) : (
-        <StaffAppointmentCalendar mode="groomer" groomerId={groomerId} refreshKey={refreshKey} />
+        <StaffAppointmentCalendar mode="admin" refreshKey={refreshKey} />
       )}
     </div>
   );

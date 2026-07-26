@@ -18,6 +18,7 @@ import {
 import { parseSlotFromIso, getTodayPacificDate } from "@/lib/scheduling/slots";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
+import { activeVansOnDate, vanLabel, type VanId } from "@/lib/scheduling/vans";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -25,8 +26,23 @@ interface AdminOpenSlot {
   date: string;
   time: string;
   displayTime: string;
+  van: VanId;
   groomerId?: GroomerId;
   groomerName?: string;
+}
+
+function adminOpenSlotsByVan(slots: AdminOpenSlot[]): Map<VanId, AdminOpenSlot[]> {
+  const map = new Map<VanId, AdminOpenSlot[]>();
+  for (const slot of slots) {
+    const bucket = map.get(slot.van) ?? [];
+    bucket.push(slot);
+    map.set(slot.van, bucket);
+  }
+  for (const [vanId, list] of map) {
+    list.sort((a, b) => a.time.localeCompare(b.time));
+    map.set(vanId, list);
+  }
+  return map;
 }
 
 function monthLabel(year: number, month: number): string {
@@ -221,6 +237,11 @@ export default function StaffAppointmentCalendar({
     ? groomerOpenByDate.get(selectedDate) ?? []
     : [];
   const selectedAdminOpenSlots = selectedDate ? adminOpenByDate.get(selectedDate) ?? [] : [];
+  const selectedAdminOpenByVan = useMemo(
+    () => adminOpenSlotsByVan(selectedAdminOpenSlots),
+    [selectedAdminOpenSlots]
+  );
+  const activeVansForSelectedDate = selectedDate ? activeVansOnDate(selectedDate) : [];
   const dayStats =
     mode === "admin" && selectedDate
       ? computeDayCalendarStats(selectedDate, appointments, slotOccupancy)
@@ -452,16 +473,62 @@ export default function StaffAppointmentCalendar({
                 selectedAdminOpenSlots.length === 0 ? (
                   <p className="text-sm text-gray-500">No open slots this day.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAdminOpenSlots.map((slot) => (
-                      <span
-                        key={`${slot.groomerId}-${slot.time}`}
-                        className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-accent/10 text-brand border-accent/30"
-                      >
-                        {slot.groomerName ? `${slot.groomerName} · ` : ""}
-                        {slot.displayTime}
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold text-brand">
+                        {selectedAdminOpenSlots.length}{" "}
+                        {selectedAdminOpenSlots.length === 1 ? "slot" : "slots"} available
                       </span>
-                    ))}
+                      <span className="text-gray-500">
+                        {" "}
+                        —{" "}
+                        {activeVansForSelectedDate
+                          .filter((vanId) => (selectedAdminOpenByVan.get(vanId) ?? []).length > 0)
+                          .map(
+                            (vanId) =>
+                              `${vanLabel(vanId)} ${(selectedAdminOpenByVan.get(vanId) ?? []).length}`
+                          )
+                          .join(" · ")}
+                      </span>
+                    </p>
+                    <div className="space-y-2">
+                      {activeVansForSelectedDate.map((vanId) => {
+                        const vanSlots = selectedAdminOpenByVan.get(vanId) ?? [];
+                        if (vanSlots.length === 0) return null;
+                        return (
+                          <details
+                            key={vanId}
+                            className="rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2 group"
+                          >
+                            <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-sm font-semibold text-brand [&::-webkit-details-marker]:hidden">
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="text-gray-400 transition-transform group-open:rotate-90"
+                                  aria-hidden
+                                >
+                                  ▸
+                                </span>
+                                {vanLabel(vanId)}
+                              </span>
+                              <span className="text-xs font-semibold text-gray-500">
+                                {vanSlots.length} {vanSlots.length === 1 ? "slot" : "slots"}
+                              </span>
+                            </summary>
+                            <div className="mt-2 flex flex-wrap gap-2 pl-5">
+                              {vanSlots.map((slot) => (
+                                <span
+                                  key={`${slot.van}-${slot.time}`}
+                                  className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-accent/10 text-brand border-accent/30"
+                                >
+                                  {slot.groomerName ? `${slot.groomerName} · ` : ""}
+                                  {slot.displayTime}
+                                </span>
+                              ))}
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
                   </div>
                 )
               ) : selectedGroomerOpenSlots.length === 0 ? (

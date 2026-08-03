@@ -7,7 +7,7 @@ import { performance } from "node:perf_hooks";
 const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const ADMIN_USER = process.env.SCHEDULING_ADMIN_USER || "1";
 const ADMIN_PASSWORD = process.env.SCHEDULING_PASSWORD || "1";
-const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "1";
+const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
 
 async function request(path, { method = "GET", body, cookie } = {}) {
   const headers = { "Content-Type": "application/json" };

@@ -8,7 +8,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const BASE = (process.env.SMOKE_BASE_URL || "https://mobiledog-salon.com").replace(/\/$/, "");
-const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "1";
+const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
 const GROOMERS = ["melanie", "diamond"];
 const LEAD_VIEWS = ["scheduled", "complete", "abandoned", "cold_storage"];
 

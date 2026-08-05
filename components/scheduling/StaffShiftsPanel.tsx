@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import AvailabilityEditor from "./AvailabilityEditor";
-import ShiftAnalytics from "./ShiftAnalytics";
-import VanCapacityOverview from "./VanCapacityOverview";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { GroomerId } from "@/lib/scheduling/types";
@@ -19,51 +17,18 @@ export default function StaffShiftsPanel({
   defaultGroomerId?: GroomerId;
 }) {
   const [groomerId, setGroomerId] = useState<GroomerId>(defaultGroomerId);
-  const [selectedVan, setSelectedVan] = useState<VanId>(vanForGroomer(defaultGroomerId));
+  const lockedVan: VanId = vanForGroomer(groomerId);
   const [overviewKey, setOverviewKey] = useState(0);
-  const [shiftRequest, setShiftRequest] = useState<{
-    slots: { date: string; time: string }[];
-    action: "add" | "remove";
-    id: number;
-  } | null>(null);
-  const [pendingSlotKeys, setPendingSlotKeys] = useState<string[]>([]);
-
-  const handleToggleTimeslots = useCallback((slots: { date: string; time: string }[]) => {
-    if (slots.length === 0) return;
-    const keys = slots.map((slot) => `${slot.date}|${slot.time}`);
-    setPendingSlotKeys((prev) => {
-      const allQueued = keys.every((key) => prev.includes(key));
-      setShiftRequest({
-        slots,
-        action: allQueued ? "remove" : "add",
-        id: Date.now(),
-      });
-      if (allQueued) return prev.filter((key) => !keys.includes(key));
-      return [...prev, ...keys.filter((key) => !prev.includes(key))];
-    });
-  }, []);
-
-  const handlePendingSlotChange = useCallback(
-    (date: string, time: string, queued: boolean) => {
-      const key = `${date}|${time}`;
-      setPendingSlotKeys((prev) => {
-        if (queued) return prev.includes(key) ? prev : [...prev, key];
-        return prev.filter((k) => k !== key);
-      });
-    },
-    []
-  );
 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-brand">Shifts</h2>
+          <h2 className="text-xl font-bold text-brand">Groomer hours</h2>
           <p className="text-sm text-gray-500 mt-1">
-            3 vans — pick shift start times any day, up to 3 months ahead.
-            {" "}Each groomer can reserve shifts on Nissan, Dodge, or Ford (Ford from Jul 23, 2026).
-            Slot times depend on groomer: Jessica uses 2-hour blocks; others use 3-hour blocks.
-            {" "}Use + on an available timeslot to add, click ✓ to remove before saving, then Save shifts.
+            Each groomer has their own van. Choose a groomer, tap days on the calendar, select
+            working times, and save. Diamond&apos;s account stays active while she&apos;s away — she
+            won&apos;t appear on public booking.
           </p>
         </div>
         <label className="block">
@@ -75,9 +40,7 @@ export default function StaffShiftsPanel({
             onChange={(e) => {
               const id = e.target.value as GroomerId;
               setGroomerId(id);
-              setSelectedVan(vanForGroomer(id));
-              setPendingSlotKeys([]);
-              setShiftRequest(null);
+              setOverviewKey((k) => k + 1);
             }}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand"
           >
@@ -90,34 +53,16 @@ export default function StaffShiftsPanel({
         </label>
       </div>
 
-      <ShiftAnalytics refreshKey={overviewKey} />
-
       <AvailabilityEditor
         key={groomerId}
         apiBase={`${apiBase}?groomerId=${groomerId}&edit=1`}
         groomerId={groomerId}
         includeGroomerIdInSave
-        selectedVan={selectedVan}
-        onVanChange={setSelectedVan}
-        shiftRequest={shiftRequest}
-        pendingSlotKeys={pendingSlotKeys}
-        onPendingSlotChange={handlePendingSlotChange}
+        selectedVan={lockedVan}
+        onVanChange={() => {}}
+        lockedVan={lockedVan}
         refreshKey={overviewKey}
-        timeslotsBelow={
-          <VanCapacityOverview
-            selectedVan={selectedVan}
-            onVanChange={setSelectedVan}
-            groomerId={groomerId}
-            pendingSlotKeys={pendingSlotKeys}
-            onToggleTimeslots={handleToggleTimeslots}
-            refreshKey={overviewKey}
-          />
-        }
-        onSaved={() => {
-          setPendingSlotKeys([]);
-          setShiftRequest(null);
-          setOverviewKey((k) => k + 1);
-        }}
+        onSaved={() => setOverviewKey((k) => k + 1)}
       />
     </div>
   );

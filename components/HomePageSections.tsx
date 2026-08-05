@@ -12,7 +12,7 @@ const Locations = dynamic(() => import("@/components/Locations"));
 const Careers = dynamic(() => import("@/components/Careers"));
 const Blog = dynamic(() => import("@/components/Blog"));
 
-/** Home page sections — reused on /la and /oc ad landing pages. */
+/** Home page sections — reused on /la, /oc, /jessica, and /melanie ad landing pages. */
 export default function HomePageSections() {
   return (
     <>

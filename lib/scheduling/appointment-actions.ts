@@ -12,6 +12,8 @@ import {
   bookingDurationMinutesForGroomer,
   groomerAcceptsBookings,
   isAllowedBookingBlockStart,
+  TIME_SLOT_OPTIONS,
+  WORK_END_HOUR,
 } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import {
@@ -56,6 +58,8 @@ export interface CreateAppointmentInput {
   city?: string;
   zipCode: string;
   notes?: string;
+  /** Staff Book tab: custom visit length when booking multiple dogs. */
+  durationMinutes?: number;
 }
 
 export interface AppointmentMutationOptions {
@@ -71,8 +75,11 @@ export interface AppointmentMutationOptions {
 function clearReminderFlags(appointment: Appointment): void {
   delete appointment.reminder24hEmailSentAt;
   delete appointment.reminder24hSmsSentAt;
+  delete appointment.reminder1hEmailSentAt;
+  delete appointment.reminder1hSmsSentAt;
   delete appointment.reminder2hEmailSentAt;
   delete appointment.reminder2hSmsSentAt;
+  delete appointment.rebook3wEmailSentAt;
 }
 
 function findAppointment(
@@ -103,6 +110,62 @@ function resolveSlot(
   }
 
   return { groomerId, date, time };
+}
+
+const STAFF_CUSTOM_DURATION_MIN = 60;
+const STAFF_CUSTOM_DURATION_MAX = 480;
+
+function staffPetCount(input: CreateAppointmentInput): number {
+  const extra = input.additionalPets?.filter((pet) => pet?.petSize).length ?? 0;
+  return 1 + extra;
+}
+
+export function resolveStaffVisitDuration(
+  input: CreateAppointmentInput,
+  groomerId: GroomerId,
+  options?: AppointmentMutationOptions
+): number {
+  const defaultDuration = bookingDurationMinutesForGroomer(groomerId);
+  if (!options?.overrideAvailability) return defaultDuration;
+  const custom = input.durationMinutes;
+  if (
+    typeof custom === "number" &&
+    Number.isFinite(custom) &&
+    custom >= STAFF_CUSTOM_DURATION_MIN &&
+    custom <= STAFF_CUSTOM_DURATION_MAX
+  ) {
+    return Math.round(custom);
+  }
+  const petCount = staffPetCount(input);
+  if (petCount > 1) {
+    return Math.min(STAFF_CUSTOM_DURATION_MAX, defaultDuration * petCount);
+  }
+  return defaultDuration;
+}
+
+function staffUsesFlexibleStartTime(
+  input: CreateAppointmentInput,
+  options?: AppointmentMutationOptions
+): boolean {
+  return Boolean(options?.overrideAvailability && staffPetCount(input) > 1);
+}
+
+function isValidStaffAppointmentStartTime(
+  time: string,
+  groomerId: GroomerId,
+  input: CreateAppointmentInput,
+  options?: AppointmentMutationOptions
+): boolean {
+  if (staffUsesFlexibleStartTime(input, options)) {
+    return (TIME_SLOT_OPTIONS as readonly string[]).includes(time);
+  }
+  return isAllowedBookingBlockStart(time, groomerId);
+}
+
+function visitEndsWithinWorkDay(time: string, durationMinutes: number): boolean {
+  const [h, m] = time.split(":").map(Number);
+  const endMinutes = h * 60 + (m ?? 0) + durationMinutes;
+  return endMinutes <= WORK_END_HOUR * 60;
 }
 
 export async function createAppointment(
@@ -142,10 +205,22 @@ export async function createAppointment(
     };
   }
 
-  if (!isAllowedBookingBlockStart(time, groomerId)) {
+  if (!isValidStaffAppointmentStartTime(time, groomerId, input, options)) {
     return {
       ok: false,
-      error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
+      error: staffUsesFlexibleStartTime(input, options)
+        ? "Pick a start time on the hour between 8 AM and 7 PM."
+        : "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
+      status: 400,
+    };
+  }
+
+  const visitDuration = resolveStaffVisitDuration(input, groomerId, options);
+
+  if (!visitEndsWithinWorkDay(time, visitDuration)) {
+    return {
+      ok: false,
+      error: "That visit would run past the end of the work day. Shorten the visit or start earlier.",
       status: 400,
     };
   }
@@ -172,7 +247,7 @@ export async function createAppointment(
     const dayAvail = data.availability.find(
       (a) => a.groomerId === groomerId && a.date === date
     );
-    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, bookingDurationMinutesForGroomer(groomerId))) {
+    if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, visitDuration)) {
       return {
         ok: false,
         error: "Groomer is not available at that time",
@@ -187,8 +262,6 @@ export async function createAppointment(
       };
     }
   }
-
-  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
 
   if (isSlotTaken(groomerId, date, time, visitDuration, data.appointments)) {
     return { ok: false, error: "That time slot is no longer available", status: 409 };
@@ -236,7 +309,7 @@ export async function createAppointment(
     groomerId,
     van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
-    durationMinutes: bookingDurationMinutesForGroomer(groomerId),
+    durationMinutes: visitDuration,
     status: "confirmed",
     petName: input.petName?.trim() ?? "",
     petBreed: input.petBreed ?? "",
@@ -284,7 +357,8 @@ function buildAppointmentRecord(
   groomerId: GroomerId,
   date: string,
   time: string,
-  notes: string
+  notes: string,
+  visitDuration: number
 ): Appointment {
   const phoneTrimmed = input.phone?.trim() ?? "";
   const street = String(input.address ?? "").trim();
@@ -299,7 +373,7 @@ function buildAppointmentRecord(
     groomerId,
     van: vanForGroomer(groomerId),
     startAt: slotToISO(date, time),
-    durationMinutes: bookingDurationMinutesForGroomer(groomerId),
+    durationMinutes: visitDuration,
     status: "confirmed",
     petName: input.petName?.trim() ?? "",
     petBreed: input.petBreed ?? "",
@@ -325,10 +399,10 @@ function slotConflictReason(
   groomerId: GroomerId,
   date: string,
   time: string,
+  visitDuration: number,
   appointments: Appointment[],
   availability: AvailabilityDay[] = []
 ): string | null {
-  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
   if (isSlotTaken(groomerId, date, time, visitDuration, appointments)) {
     return "Groomer already booked at that time";
   }
@@ -397,10 +471,22 @@ export async function createRecurringAppointments(
     };
   }
 
-  if (!isAllowedBookingBlockStart(time, groomerId)) {
+  if (!isValidStaffAppointmentStartTime(time, groomerId, input, options)) {
     return {
       ok: false,
-      error: "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
+      error: staffUsesFlexibleStartTime(input, options)
+        ? "Pick a start time on the hour between 8 AM and 7 PM."
+        : "That time slot is not available. Shifts start at 8 AM, 11 AM, 2 PM, or 5 PM.",
+      status: 400,
+    };
+  }
+
+  const visitDuration = resolveStaffVisitDuration(input, groomerId, options);
+
+  if (!visitEndsWithinWorkDay(time, visitDuration)) {
+    return {
+      ok: false,
+      error: "That visit would run past the end of the work day. Shorten the visit or start earlier.",
       status: 400,
     };
   }
@@ -431,7 +517,7 @@ export async function createRecurringAppointments(
       const dayAvail = data.availability.find(
         (a) => a.groomerId === groomerId && a.date === date
       );
-      if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, bookingDurationMinutesForGroomer(groomerId))) {
+      if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, visitDuration)) {
         skipped.push({ date, reason: "Groomer not available at that time" });
         continue;
       }
@@ -445,6 +531,7 @@ export async function createRecurringAppointments(
       groomerId,
       date,
       time,
+      visitDuration,
       data.appointments,
       data.availability
     );
@@ -453,7 +540,14 @@ export async function createRecurringAppointments(
       continue;
     }
 
-    const appointment = buildAppointmentRecord(input, groomerId, date, time, notes);
+    const appointment = buildAppointmentRecord(
+      input,
+      groomerId,
+      date,
+      time,
+      notes,
+      visitDuration
+    );
     data.appointments.push(appointment);
     created.push(appointment);
   }

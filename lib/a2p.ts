@@ -11,7 +11,7 @@ export const smsPrivacyNotice = `${name} may collect your mobile phone number wh
 
 ${name} does not sell, rent, or share mobile phone numbers or SMS opt-in consent with third parties or affiliates for marketing or promotional purposes.`;
 
-export const smsTerms = `By opting in to receive SMS messages from ${name}, you agree to receive text messages related to your grooming appointment, including booking confirmations, reminders (typically 24 hours and 2 hours before your appointment), scheduling updates, and follow-up communications. Message frequency may vary. Message and data rates may apply. You may reply STOP at any time to unsubscribe. You may reply HELP for assistance. Consent to receive SMS messages is not a condition of purchase.`;
+export const smsTerms = `By opting in to receive SMS messages from ${name}, you agree to receive text messages related to your grooming appointment, including booking confirmations, reminders (typically 24 hours and 1 hour before your appointment), scheduling updates, and follow-up communications. Message frequency may vary. Message and data rates may apply. You may reply STOP at any time to unsubscribe. You may reply HELP for assistance. Consent to receive SMS messages is not a condition of purchase.`;
 
 export const smsKeywordOptInNote = `You may also opt in to SMS messages by texting START to ${businessPhoneDisplay}.`;
 

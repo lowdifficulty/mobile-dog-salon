@@ -4,6 +4,9 @@ import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
+import { sendStaffBookingNotifications } from "@/lib/notifications/staff-booking-notify";
+import { readLeadsData, writeLeadsData } from "@/lib/leads/store";
+import { normalizePhone } from "@/lib/leads/normalize";
 import type { Appointment } from "@/lib/scheduling/types";
 
 /** Lead sync, calendar invites, confirmations, reminders, and CRM after a new booking. */
@@ -30,11 +33,26 @@ export async function runBookingFollowUp(
       discountActive: appointment.smsOptIn,
       appointmentId: appointment.id,
       scheduledAt: appointment.createdAt,
+      followUpMode: "fu",
       ...leadFieldsFromAppointment(appointment),
       source: source === "staff" ? "contact" : "booking",
     });
   } catch (err) {
     console.error("Lead sync failed:", err);
+  }
+
+  try {
+    const data = await readLeadsData();
+    const normalized = normalizePhone(appointment.phone);
+    const lead = data.leads.find((l) => normalizePhone(l.phone) === normalized);
+    if (lead) {
+      lead.followUpMode = "fu";
+      lead.appointmentStartAt = appointment.startAt;
+      lead.updatedAt = new Date().toISOString();
+      await writeLeadsData(data);
+    }
+  } catch (err) {
+    console.error("Lead follow-up flag failed:", err);
   }
 
   if (options?.quiet) return;
@@ -50,6 +68,12 @@ export async function runBookingFollowUp(
     await sendBookingConfirmations(appointment);
   } catch (err) {
     console.error("Customer confirmation notifications failed:", err);
+  }
+
+  try {
+    await sendStaffBookingNotifications(appointment);
+  } catch (err) {
+    console.error("Staff booking notifications failed:", err);
   }
 
   try {

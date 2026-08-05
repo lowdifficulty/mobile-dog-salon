@@ -1,94 +1,25 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import SchedulingShell from "./SchedulingShell";
-import AvailabilityEditor from "./AvailabilityEditor";
+import GroomerShiftsTab from "./GroomerShiftsTab";
 import GroomerAppointmentsPanel from "./GroomerAppointmentsPanel";
 import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
-import VanCapacityOverview from "./VanCapacityOverview";
+import LeadsPanel from "@/components/leads/LeadsPanel";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
-import { vanForGroomer } from "@/lib/scheduling/vans";
 import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
-import type { VanId } from "@/lib/scheduling/vans";
-
-function GroomerShiftsTab({ groomerId }: { groomerId: GroomerId }) {
-  const [overviewKey, setOverviewKey] = useState(0);
-  const [selectedVan, setSelectedVan] = useState<VanId>(() => vanForGroomer(groomerId));
-  const [shiftRequest, setShiftRequest] = useState<{
-    slots: { date: string; time: string }[];
-    action: "add" | "remove";
-    id: number;
-  } | null>(null);
-  const [pendingSlotKeys, setPendingSlotKeys] = useState<string[]>([]);
-
-  const handleToggleTimeslots = useCallback((slots: { date: string; time: string }[]) => {
-    if (slots.length === 0) return;
-    const keys = slots.map((slot) => `${slot.date}|${slot.time}`);
-    setPendingSlotKeys((prev) => {
-      const allQueued = keys.every((key) => prev.includes(key));
-      setShiftRequest({
-        slots,
-        action: allQueued ? "remove" : "add",
-        id: Date.now(),
-      });
-      if (allQueued) return prev.filter((key) => !keys.includes(key));
-      return [...prev, ...keys.filter((key) => !prev.includes(key))];
-    });
-  }, []);
-
-  const handlePendingSlotChange = useCallback(
-    (date: string, time: string, queued: boolean) => {
-      const key = `${date}|${time}`;
-      setPendingSlotKeys((prev) => {
-        if (queued) return prev.includes(key) ? prev : [...prev, key];
-        return prev.filter((k) => k !== key);
-      });
-    },
-    []
-  );
-
-  return (
-    <div>
-      <AvailabilityEditor
-        apiBase="/api/groomer/availability"
-        groomerId={groomerId}
-        selectedVan={selectedVan}
-        onVanChange={setSelectedVan}
-        shiftRequest={shiftRequest}
-        pendingSlotKeys={pendingSlotKeys}
-        onPendingSlotChange={handlePendingSlotChange}
-        refreshKey={overviewKey}
-        timeslotsBelow={
-          <VanCapacityOverview
-            selectedVan={selectedVan}
-            onVanChange={setSelectedVan}
-            groomerId={groomerId}
-            pendingSlotKeys={pendingSlotKeys}
-            onToggleTimeslots={handleToggleTimeslots}
-            refreshKey={overviewKey}
-          />
-        }
-        onSaved={() => {
-          setPendingSlotKeys([]);
-          setShiftRequest(null);
-          setOverviewKey((k) => k + 1);
-        }}
-      />
-    </div>
-  );
-}
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type Tab = "appointments" | "route" | "book" | "team-calendar" | "availability" | "clients";
+type Tab = "appointments" | "route" | "book" | "team-calendar" | "availability" | "clients" | "follow-ups";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -112,10 +43,12 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   }
 
   const seesTeamAppointments = groomerSeesTeamAppointments(groomerId);
+  const isMelanie = groomerId === "melanie";
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "appointments", label: "Appointments" },
-    { id: "availability", label: "Shifts" },
+    ...(isMelanie ? [{ id: "follow-ups" as const, label: "Follow-ups" }] : []),
+    { id: "availability", label: "My hours" },
     { id: "clients", label: "Active clients" },
     { id: "route", label: "Route" },
     { id: "book", label: "Book" },
@@ -127,7 +60,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
       <StaffTransferPrompt groomerId={groomerId} />
       <SchedulingShell
         title={`${user.name}'s schedule`}
-        subtitle="Appointments, active clients, daily route, team availability, and shifts."
+        subtitle="Appointments, active clients, daily route, team availability, and your working hours."
         onLogout={logout}
       >
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
@@ -177,6 +110,9 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
           )}
           {tab === "availability" && (
             <GroomerShiftsTab groomerId={groomerId} />
+          )}
+          {tab === "follow-ups" && isMelanie && (
+            <LeadsPanel apiBase="/api/staff/leads" melanieFollowUpCrm allowDelete={false} />
           )}
         </DashboardErrorBoundary>
       </SchedulingShell>

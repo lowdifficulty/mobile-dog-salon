@@ -7,7 +7,7 @@ import type { BookingVariantId } from "@/lib/booking/variants";
 interface BookButtonProps {
   className?: string;
   children?: ReactNode;
-  /** Opens a groomer-specific calendar (e.g. bookhb on /la, bookoc on /oc). */
+  /** Opens a groomer-specific calendar (path /jessica, /melanie, /la, /oc, or explicit variant). */
   bookingVariant?: BookingVariantId;
 }
 

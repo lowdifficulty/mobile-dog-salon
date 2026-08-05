@@ -3,17 +3,21 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import BookingModal from "./BookingModal";
 import {
+  groomerLandingPathForHash,
+  isGroomerAdLandingPath,
+  resolveActiveBookingVariantId,
+} from "@/lib/booking/territory-session";
+import {
   getBookingVariant,
   isBookingHash,
-  resolveBookingVariantFromPath,
-  resolveBookingVariantId,
   type BookingVariant,
   type BookingVariantId,
 } from "@/lib/booking/variants";
 
-function clearBookingHash() {
+function clearBookingHashFromUrl() {
   if (typeof window === "undefined") return;
-  if (!isBookingHash(window.location.hash)) return;
+  const hash = window.location.hash.toLowerCase();
+  if (!isBookingHash(hash)) return;
   const url = window.location.pathname + window.location.search;
   window.history.replaceState(null, "", url);
 }
@@ -42,34 +46,65 @@ export default function BookingProvider({ children }: { children: React.ReactNod
   const [isOpen, setIsOpen] = useState(false);
   const [variant, setVariant] = useState<BookingVariant | null>(null);
 
-  const openBooking = useCallback((explicitVariant?: BookingVariantId) => {
-    const variantId =
-      explicitVariant && explicitVariant !== "default"
-        ? explicitVariant
-        : resolveBookingVariantFromPath(window.location.pathname);
+  const applyVariant = useCallback((variantId: BookingVariantId) => {
     setVariant(variantFromId(variantId));
-    setIsOpen(true);
   }, []);
+
+  const openBooking = useCallback(
+    (explicitVariant?: BookingVariantId) => {
+      const variantId = resolveActiveBookingVariantId(
+        window.location.pathname,
+        window.location.hash,
+        explicitVariant
+      );
+      applyVariant(variantId);
+      setIsOpen(true);
+    },
+    [applyVariant]
+  );
 
   const closeBooking = useCallback(() => {
     setIsOpen(false);
-    setVariant(null);
-    clearBookingHash();
+    clearBookingHashFromUrl();
+    const variantId = resolveActiveBookingVariantId(window.location.pathname, "");
+    setVariant(variantId === "default" ? null : variantFromId(variantId));
   }, []);
 
   useEffect(() => {
-    const syncFromHash = () => {
-      const hash = window.location.hash;
-      if (!isBookingHash(hash)) return;
-      const variantId = resolveBookingVariantId(window.location.pathname, hash);
-      setVariant(variantFromId(variantId));
+    const openForLanding = (pathname: string) => {
+      const variantId = resolveActiveBookingVariantId(pathname, "");
+      if (variantId === "default") return;
+      applyVariant(variantId);
       setIsOpen(true);
     };
 
-    syncFromHash();
-    window.addEventListener("hashchange", syncFromHash);
-    return () => window.removeEventListener("hashchange", syncFromHash);
-  }, []);
+    const syncFromUrl = () => {
+      const pathname = window.location.pathname;
+      const hash = window.location.hash.toLowerCase();
+
+      const groomerLanding = groomerLandingPathForHash(hash);
+      if (groomerLanding) {
+        window.history.replaceState(null, "", groomerLanding);
+        openForLanding(groomerLanding);
+        return;
+      }
+
+      if (isGroomerAdLandingPath(pathname)) {
+        openForLanding(pathname);
+        return;
+      }
+
+      if (!isBookingHash(hash)) return;
+
+      const variantId = resolveActiveBookingVariantId(pathname, hash);
+      applyVariant(variantId);
+      setIsOpen(true);
+    };
+
+    syncFromUrl();
+    window.addEventListener("hashchange", syncFromUrl);
+    return () => window.removeEventListener("hashchange", syncFromUrl);
+  }, [applyVariant]);
 
   return (
     <BookingContext.Provider value={{ openBooking, closeBooking, isBookingOpen: isOpen }}>

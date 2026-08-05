@@ -14,6 +14,7 @@ import StaffShiftsPanel from "./StaffShiftsPanel";
 import JobInterviewsPanel from "@/components/interviews/JobInterviewsPanel";
 import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
+import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
 
 type Tab =
   | "contacts"
@@ -26,7 +27,8 @@ type Tab =
   | "qa"
   | "payments"
   | "licky"
-  | "logins";
+  | "logins"
+  | "emails";
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -40,7 +42,7 @@ export default function AdminDashboard() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "appointments", label: "Appointments" },
-    { id: "shifts", label: "Shifts" },
+    { id: "shifts", label: "Hours" },
     { id: "contacts", label: "Contacts" },
     { id: "analytics", label: "Analytics" },
     { id: "accounting", label: "Accounting" },
@@ -48,6 +50,7 @@ export default function AdminDashboard() {
     { id: "job-interviews", label: "Job Interviews" },
     { id: "qa", label: "QA" },
     { id: "payments", label: "Payments Beta" },
+    { id: "emails", label: "Emails" },
     { id: "licky", label: "Licky bot" },
     { id: "logins", label: "Logins" },
   ];
@@ -91,6 +94,7 @@ export default function AdminDashboard() {
       {tab === "job-interviews" && <JobInterviewsPanel />}
       {tab === "qa" && <QaDiagnosticsPanel />}
       {tab === "payments" && <StaffPaymentsPanel />}
+      {tab === "emails" && <EmailCampaignsPanel />}
       {tab === "licky" && <LickyTrainingPanel />}
       {tab === "logins" && <StaffLoginLogPanel />}
     </SchedulingShell>

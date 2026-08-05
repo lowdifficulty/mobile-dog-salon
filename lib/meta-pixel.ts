@@ -8,6 +8,8 @@ export type MetaLeadSource =
   | "booking"
   | "booking-hb"
   | "booking-oc"
+  | "booking-jessica"
+  | "booking-melanie"
   | "contact"
   | "franchise";
 
@@ -30,12 +32,18 @@ export function warmMetaPixel(): void {
 }
 
 function isBookingLeadSource(source: MetaLeadSource): boolean {
-  return source === "booking" || source === "booking-hb" || source === "booking-oc";
+  return (
+    source === "booking" ||
+    source === "booking-hb" ||
+    source === "booking-oc" ||
+    source === "booking-jessica" ||
+    source === "booking-melanie"
+  );
 }
 
 function territoryFromSource(source: MetaLeadSource): string | undefined {
-  if (source === "booking-hb") return "la";
-  if (source === "booking-oc") return "oc";
+  if (source === "booking-hb" || source === "booking-jessica") return "whittier";
+  if (source === "booking-oc" || source === "booking-melanie") return "oc";
   return undefined;
 }
 

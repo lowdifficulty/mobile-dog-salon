@@ -10,7 +10,7 @@ import {
   isAllowedBookingBlockStart,
 } from "./groomers";
 import {
-  hasMinimumAvailabilityForBooking,
+  bookingBlockHours,
   isBookingBlockEnabled,
   releaseGroomerShiftWithoutAppointment,
   setBookingBlockEnabled,

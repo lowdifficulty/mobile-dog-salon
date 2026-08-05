@@ -370,6 +370,7 @@ export default function LeadsPanel({
   apiBase = "/api/admin/leads",
   currentGroomerId,
   contactsLayout = false,
+  melanieFollowUpCrm = false,
 }: {
   hideJobApplicants?: boolean;
   allowDelete?: boolean;
@@ -377,6 +378,8 @@ export default function LeadsPanel({
   currentGroomerId?: GroomerId;
   /** Admin Contacts tab: Customers and Scheduled only (no leads funnel / applicants). */
   contactsLayout?: boolean;
+  /** Melanie: all-team follow-up workspace with notes and FU/chill toggles. */
+  melanieFollowUpCrm?: boolean;
 }) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
   const [abandonedSubtab, setAbandonedSubtab] = useState<AbandonedLeadSubtab>("all");
@@ -448,11 +451,24 @@ export default function LeadsPanel({
   }, [view, badgeViews]);
 
   const sortedLeads = useMemo(() => {
-    if (view === "complete") return sortCompletedLeads(leads);
-    if (view === "scheduled") return sortScheduledLeads(leads);
-    if (view === "abandoned") return sortAbandonedLeads(leads, sort);
-    return sortLeads(leads, sort);
-  }, [leads, sort, view]);
+    let list: LeadRow[];
+    if (view === "complete") list = sortCompletedLeads(leads);
+    else if (view === "scheduled") list = sortScheduledLeads(leads);
+    else if (view === "abandoned") list = sortAbandonedLeads(leads, sort);
+    else list = sortLeads(leads, sort);
+
+    if (melanieFollowUpCrm && view === "scheduled") {
+      list = [...list].sort((a, b) => {
+        const aDue = a.followUpDue ? 0 : 1;
+        const bDue = b.followUpDue ? 0 : 1;
+        if (aDue !== bDue) return aDue - bDue;
+        return (
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+      });
+    }
+    return list;
+  }, [leads, sort, view, melanieFollowUpCrm]);
 
   const abandonedSubtabCounts = useMemo(() => {
     if (view !== "abandoned") return null;
@@ -641,6 +657,15 @@ export default function LeadsPanel({
 
   return (
     <div className="space-y-4">
+      {melanieFollowUpCrm ? (
+        <div className="rounded-xl bg-purple-50 border border-purple-200 px-4 py-3 text-sm text-purple-950">
+          <p className="font-bold text-brand mb-1">Follow-up CRM</p>
+          <p>
+            New bookings land in <strong>Scheduled</strong> with FU mode on. Log notes after each
+            call, toggle FU / Chill, and use <strong>Abandoned</strong> for partial form fills.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
         {contactsLayout ? (
           <>

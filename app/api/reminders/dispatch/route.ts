@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
-import { dispatchAppointmentReminder } from "@/lib/notifications/dispatch-reminder";
-import type { ReminderKind } from "@/lib/notifications/reminders";
+import { dispatchAppointmentReminder, type DispatchKind } from "@/lib/notifications/dispatch-reminder";
 
 async function verifyQStash(request: Request, rawBody: string): Promise<boolean> {
   const current = process.env.QSTASH_CURRENT_SIGNING_KEY?.trim();
@@ -22,7 +21,7 @@ async function verifyQStash(request: Request, rawBody: string): Promise<boolean>
   return true;
 }
 
-/** QStash callback — send a single 24h or 2h reminder for one appointment. */
+/** QStash callback — send reminders or 3-week rebook email for one appointment. */
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
@@ -32,14 +31,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  let body: { appointmentId?: string; kind?: ReminderKind };
+  let body: { appointmentId?: string; kind?: DispatchKind };
   try {
-    body = JSON.parse(rawBody) as { appointmentId?: string; kind?: ReminderKind };
+    body = JSON.parse(rawBody) as { appointmentId?: string; kind?: DispatchKind };
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (!body.appointmentId || (body.kind !== "24h" && body.kind !== "2h")) {
+  if (
+    !body.appointmentId ||
+    (body.kind !== "24h" && body.kind !== "1h" && body.kind !== "rebook-3w")
+  ) {
     return NextResponse.json({ error: "Missing appointmentId or kind" }, { status: 400 });
   }
 

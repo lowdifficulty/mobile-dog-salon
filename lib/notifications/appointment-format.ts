@@ -54,7 +54,10 @@ export function appointmentSummaryLines(appointment: Appointment): {
 }
 
 export const REMINDER_24H_MS = 24 * 60 * 60 * 1000;
-export const REMINDER_2H_MS = 2 * 60 * 60 * 1000;
+export const REMINDER_1H_MS = 60 * 60 * 1000;
+/** @deprecated use REMINDER_1H_MS */
+export const REMINDER_2H_MS = REMINDER_1H_MS;
+export const REBOOK_3W_MS = 21 * 24 * 60 * 60 * 1000;
 /** Match Vercel cron interval (15 minutes). */
 export const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 

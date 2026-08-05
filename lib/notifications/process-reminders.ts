@@ -5,7 +5,7 @@ import {
   isInReminderWindow,
   msUntilAppointment,
   REMINDER_24H_MS,
-  REMINDER_2H_MS,
+  REMINDER_1H_MS,
 } from "./appointment-format";
 import { sendReminderEmail, sendReminderSms } from "./reminders";
 
@@ -13,9 +13,17 @@ export interface ReminderRunResult {
   scanned: number;
   sent24hEmail: number;
   sent24hSms: number;
-  sent2hEmail: number;
-  sent2hSms: number;
+  sent1hEmail: number;
+  sent1hSms: number;
   errors: string[];
+}
+
+function oneHourEmailAlreadySent(appointment: Appointment): boolean {
+  return Boolean(appointment.reminder1hEmailSentAt || appointment.reminder2hEmailSentAt);
+}
+
+function oneHourSmsAlreadySent(appointment: Appointment): boolean {
+  return Boolean(appointment.reminder1hSmsSentAt || appointment.reminder2hSmsSentAt);
 }
 
 async function trySend24h(
@@ -59,7 +67,7 @@ async function trySend24h(
   return current;
 }
 
-async function trySend2h(
+async function trySend1h(
   appointment: Appointment,
   nowIso: string,
   result: ReminderRunResult
@@ -67,32 +75,32 @@ async function trySend2h(
   let current = appointment;
   const msUntil = msUntilAppointment(current);
 
-  if (!isInReminderWindow(msUntil, REMINDER_2H_MS)) {
+  if (!isInReminderWindow(msUntil, REMINDER_1H_MS)) {
     return current;
   }
 
-  if (!current.reminder2hEmailSentAt) {
+  if (!oneHourEmailAlreadySent(current)) {
     try {
-      if (await sendReminderEmail(current, "2h")) {
-        current = { ...current, reminder2hEmailSentAt: nowIso };
-        result.sent2hEmail += 1;
+      if (await sendReminderEmail(current, "1h")) {
+        current = { ...current, reminder1hEmailSentAt: nowIso };
+        result.sent1hEmail += 1;
       }
     } catch (err) {
       result.errors.push(
-        `2h email failed for ${appointment.id}: ${err instanceof Error ? err.message : String(err)}`
+        `1h email failed for ${appointment.id}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
 
-  if (!current.reminder2hSmsSentAt && current.smsOptIn) {
+  if (!oneHourSmsAlreadySent(current) && current.smsOptIn) {
     try {
-      if (await sendReminderSms(current, "2h")) {
-        current = { ...current, reminder2hSmsSentAt: nowIso };
-        result.sent2hSms += 1;
+      if (await sendReminderSms(current, "1h")) {
+        current = { ...current, reminder1hSmsSentAt: nowIso };
+        result.sent1hSms += 1;
       }
     } catch (err) {
       result.errors.push(
-        `2h SMS failed for ${appointment.id}: ${err instanceof Error ? err.message : String(err)}`
+        `1h SMS failed for ${appointment.id}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
@@ -105,8 +113,8 @@ export async function processDueReminders(now = new Date()): Promise<ReminderRun
     scanned: 0,
     sent24hEmail: 0,
     sent24hSms: 0,
-    sent2hEmail: 0,
-    sent2hSms: 0,
+    sent1hEmail: 0,
+    sent1hSms: 0,
     errors: [],
   };
 
@@ -125,7 +133,7 @@ export async function processDueReminders(now = new Date()): Promise<ReminderRun
     const before = JSON.stringify(appointment);
     let current = appointment;
     current = await trySend24h(current, nowIso, result);
-    current = await trySend2h(current, nowIso, result);
+    current = await trySend1h(current, nowIso, result);
 
     if (JSON.stringify(current) !== before) {
       changed = true;

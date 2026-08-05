@@ -141,7 +141,7 @@ export default function WeekAvailabilityPicker({
         if (cancelled) return;
         const localDays = applyGroomerDisplayNames(
           filterCalendarDays(
-            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
             groomerId,
             groomerIds
           ),
@@ -167,7 +167,7 @@ export default function WeekAvailabilityPicker({
           setDays(
             applyGroomerDisplayNames(
               filterCalendarDays(
-                buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+                buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
                 groomerId,
                 groomerIds
               ),
@@ -188,7 +188,7 @@ export default function WeekAvailabilityPicker({
         setDays(
           applyGroomerDisplayNames(
             filterCalendarDays(
-              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, groomerId),
+              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
               groomerId,
               groomerIds
             ),

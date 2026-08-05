@@ -6,7 +6,10 @@ import {
   bookingBlockStartsForGroomer,
   bookingDurationMinutesForGroomer,
   formatBookingBlockDisplay,
+  formatDisplayTime,
   GROOMERS,
+  TIME_SLOT_OPTIONS,
+  WORK_END_HOUR,
 } from "@/lib/scheduling/groomers";
 import { getTodayPacificDate, isSlotTaken, isVanSlotTaken } from "@/lib/scheduling/slots";
 import { vanForGroomer } from "@/lib/scheduling/vans";
@@ -14,6 +17,20 @@ import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export function buildSlotKey(groomerId: GroomerId, date: string, time: string): string {
   return `${groomerId}|${date}|${time}`;
+}
+
+function formatHourlySlotLabel(time: string, durationMinutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const endMinutes = h * 60 + (m ?? 0) + durationMinutes;
+  const endH = Math.floor(endMinutes / 60);
+  const endM = endMinutes % 60;
+  const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+  return `${formatDisplayTime(time)} – ${formatDisplayTime(endTime)}`;
+}
+
+function slotEndWithinWorkDay(time: string, durationMinutes: number): boolean {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + (m ?? 0) + durationMinutes <= WORK_END_HOUR * 60;
 }
 
 export default function StaffDateTimePicker({
@@ -25,6 +42,8 @@ export default function StaffDateTimePicker({
   allowGroomerPick = false,
   onSelectGroomer,
   excludeAppointmentId,
+  visitDurationMinutes,
+  flexibleStartTimes = false,
 }: {
   groomerId: GroomerId;
   selectedDate: string;
@@ -35,9 +54,16 @@ export default function StaffDateTimePicker({
   onSelectGroomer?: (groomerId: GroomerId) => void;
   /** When rescheduling, ignore this appointment when checking conflicts. */
   excludeAppointmentId?: string;
+  /** Override default block length (multi-dog bookings). */
+  visitDurationMinutes?: number;
+  /** Hourly start times instead of standard shift blocks. */
+  flexibleStartTimes?: boolean;
 }) {
   const minDate = useMemo(() => getTodayPacificDate(), []);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  const visitDuration =
+    visitDurationMinutes ?? bookingDurationMinutesForGroomer(groomerId);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,13 +80,19 @@ export default function StaffDateTimePicker({
     };
   }, [groomerId]);
 
-  const blockStarts = bookingBlockStartsForGroomer(groomerId);
-  const visitDuration = bookingDurationMinutesForGroomer(groomerId);
+  const startTimes = useMemo(() => {
+    if (flexibleStartTimes) {
+      return TIME_SLOT_OPTIONS.filter((time) =>
+        slotEndWithinWorkDay(time, visitDuration)
+      );
+    }
+    return [...bookingBlockStartsForGroomer(groomerId)];
+  }, [flexibleStartTimes, groomerId, visitDuration]);
 
   const takenBlocks = useMemo(() => {
     if (!selectedDate) return new Set<string>();
     return new Set(
-      blockStarts.filter(
+      startTimes.filter(
         (time) =>
           isSlotTaken(
             groomerId,
@@ -82,7 +114,14 @@ export default function StaffDateTimePicker({
           )
       )
     );
-  }, [appointments, blockStarts, excludeAppointmentId, groomerId, selectedDate, visitDuration]);
+  }, [
+    appointments,
+    excludeAppointmentId,
+    groomerId,
+    selectedDate,
+    startTimes,
+    visitDuration,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -118,11 +157,14 @@ export default function StaffDateTimePicker({
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Time</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {blockStarts.map((time) => {
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Start time</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+          {startTimes.map((time) => {
             const selected = selectedTime === time;
             const taken = takenBlocks.has(time);
+            const label = flexibleStartTimes
+              ? formatHourlySlotLabel(time, visitDuration)
+              : formatBookingBlockDisplay(time, groomerId);
             return (
               <button
                 key={time}
@@ -138,7 +180,7 @@ export default function StaffDateTimePicker({
                       : "bg-white text-brand border-gray-200 hover:border-accent"
                 }`}
               >
-                {formatBookingBlockDisplay(time, groomerId)}
+                {label}
                 {taken ? " · booked" : ""}
               </button>
             );

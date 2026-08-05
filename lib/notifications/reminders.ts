@@ -1,52 +1,13 @@
 import "server-only";
-import { Resend } from "resend";
-import { formatAppointmentAddress } from "@/lib/scheduling/address";
-import type { Appointment } from "@/lib/scheduling/types";
-import { formatPetsList, getAppointmentPetLabel, getAppointmentPets } from "@/lib/booking/pets";
-import { buildIcsEvent } from "@/lib/scheduling/calendar";
-import { appointmentSummaryLines } from "./appointment-format";
-import { companyLegal } from "@/lib/company-legal";
+import { appointmentEmailVariables } from "./appointment-email-vars";
+import { sendTemplatedEmail } from "./send-templated-email";
 import { sendBookingSms } from "./twilio";
+import { appointmentSummaryLines } from "./appointment-format";
+import { formatAppointmentAddress } from "@/lib/scheduling/address";
+import { getAppointmentPetLabel } from "@/lib/booking/pets";
+import type { Appointment } from "@/lib/scheduling/types";
 
-const ORGANIZER_EMAIL =
-  process.env.BOOKING_ORGANIZER_EMAIL ?? "bookings@mobiledog-salon.com";
-
-export type ReminderKind = "24h" | "2h";
-
-function reminderSubject(appointment: Appointment, kind: ReminderKind): string {
-  const { when } = appointmentSummaryLines(appointment);
-  const petLabel = getAppointmentPetLabel(appointment);
-  if (kind === "24h") {
-    return `Reminder: ${petLabel}'s grooming appointment is tomorrow — ${when.dateLine}`;
-  }
-  return `Reminder: ${petLabel}'s grooming appointment is today at ${when.startTime} PT`;
-}
-
-function reminderEmailHtml(appointment: Appointment, kind: ReminderKind): string {
-  const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
-  const petLabel = getAppointmentPetLabel(appointment);
-  const petSummary = formatPetsList(getAppointmentPets(appointment));
-  const lead =
-    kind === "24h"
-      ? `This is a friendly reminder that ${petLabel}'s Mobile Dog Salon appointment is coming up tomorrow.`
-      : `This is a friendly reminder that ${petLabel}'s Mobile Dog Salon appointment is in about 2 hours.`;
-
-  return `
-    <p>Hi ${appointment.firstName},</p>
-    <p>${lead}</p>
-    <p>
-      <strong>When:</strong> ${when.dateLine}<br/>
-      <strong>Time:</strong> ${when.timeRange}<br/>
-      <strong>Groomer:</strong> ${groomerName}<br/>
-      <strong>Pet:</strong> ${petSummary}<br/>
-      <strong>Service:</strong> ${serviceLabel}<br/>
-      <strong>Location:</strong> ${formatAppointmentAddress(appointment)}
-    </p>
-    <p>Our groomer will arrive at your driveway. Please have your pet ready with access to water and a safe area for grooming.</p>
-    <p>Questions? Reply to this email or call us at ${companyLegal.businessPhoneDisplay}.</p>
-    <p>— Mobile Dog Salon</p>
-  `;
-}
+export type ReminderKind = "24h" | "1h";
 
 function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
@@ -54,7 +15,7 @@ function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
   const lead =
     kind === "24h"
       ? `Reminder: ${petLabel}'s grooming is tomorrow.`
-      : `Reminder: ${petLabel}'s grooming is in ~2 hours.`;
+      : `Reminder: ${petLabel}'s grooming is in about one hour.`;
 
   return [
     `Mobile Dog Salon: ${lead}`,
@@ -69,31 +30,15 @@ export async function sendReminderEmail(
   appointment: Appointment,
   kind: ReminderKind
 ): Promise<boolean> {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`Reminder email (${kind}) skipped — RESEND_API_KEY not set`);
-    return false;
-  }
-
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const from =
-    process.env.BOOKING_EMAIL_FROM ?? `Mobile Dog Salon <${ORGANIZER_EMAIL}>`;
-  const ics = buildIcsEvent(appointment);
-
-  await resend.emails.send({
-    from,
+  const templateId = kind === "24h" ? "reminder_24h" : "reminder_1h";
+  const vars = appointmentEmailVariables(appointment);
+  const result = await sendTemplatedEmail({
+    templateId,
     to: appointment.email,
-    subject: reminderSubject(appointment, kind),
-    html: reminderEmailHtml(appointment, kind),
-    attachments: [
-      {
-        filename: "appointment.ics",
-        content: Buffer.from(ics).toString("base64"),
-        contentType: "text/calendar; method=REQUEST",
-      },
-    ],
+    variables: vars,
+    appointmentId: appointment.id,
   });
-
-  return true;
+  return result.ok;
 }
 
 export async function sendReminderSms(
@@ -103,6 +48,5 @@ export async function sendReminderSms(
   if (!appointment.smsOptIn || !appointment.phone.trim()) {
     return false;
   }
-
   return sendBookingSms(appointment.phone, reminderSmsBody(appointment, kind));
 }

@@ -106,8 +106,8 @@ export function isAllowedBookingBlockStart(time: string, groomerId?: GroomerId):
 /** Jessica trial: customers can only book within N days ahead (lift via env). */
 export function isJessicaTrialBookingRestricted(): boolean {
   const flag = process.env.JESSICA_TRIAL_BOOKING_RESTRICTED;
-  if (flag === "0" || flag === "false") return false;
-  return true;
+  if (flag === "1" || flag === "true") return true;
+  return false;
 }
 
 export function customerBookingHorizonDaysForGroomer(groomerId: GroomerId): number | null {
@@ -169,7 +169,7 @@ export const BOOKABLE_GROOMER_IDS = (Object.keys(GROOMERS) as GroomerId[]).filte
 );
 
 export function defaultBookableGroomerId(): GroomerId {
-  return BOOKABLE_GROOMER_IDS[0] ?? "diamond";
+  return BOOKABLE_GROOMER_IDS[0] ?? "melanie";
 }
 
 /** Client-facing booking calendar and confirmation copy. */
@@ -196,7 +196,7 @@ export function groomerIdFromEmail(email: string): GroomerId | null {
   return null;
 }
 
-/** Melanie, Diamond, and Jessica (Chris login) see the full team schedule. */
+/** Melanie and Diamond see the full team schedule; territory groomers see only their own. */
 export function groomerSeesTeamAppointments(groomerId: GroomerId): boolean {
-  return groomerId === "melanie" || groomerId === "diamond" || groomerId === "jessica";
+  return groomerId === "melanie" || groomerId === "diamond";
 }

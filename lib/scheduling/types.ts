@@ -41,10 +41,16 @@ export interface Appointment {
   reminder24hEmailSentAt?: string;
   /** ISO timestamp when 24-hour reminder SMS was sent */
   reminder24hSmsSentAt?: string;
-  /** ISO timestamp when 2-hour reminder email was sent */
+  /** ISO timestamp when 1-hour reminder email was sent */
+  reminder1hEmailSentAt?: string;
+  /** ISO timestamp when 1-hour reminder SMS was sent */
+  reminder1hSmsSentAt?: string;
+  /** @deprecated use reminder1h* — legacy 2-hour reminder timestamps */
   reminder2hEmailSentAt?: string;
-  /** ISO timestamp when 2-hour reminder SMS was sent */
+  /** @deprecated use reminder1h* */
   reminder2hSmsSentAt?: string;
+  /** ISO timestamp when 3-week rebook email was sent */
+  rebook3wEmailSentAt?: string;
 }
 
 export interface SchedulingData {

@@ -13,6 +13,8 @@ export const ROUTES = {
   locations: "/locations",
   la: "/la",
   oc: "/oc",
+  jessica: "/jessica",
+  melanie: "/melanie",
   services: "/pet-grooming-services",
   mobileSpa: "/pet-grooming-services/mobile-spa-salon-haircuts",
   bathing: "/pet-grooming-services/pet-bathing-washing",

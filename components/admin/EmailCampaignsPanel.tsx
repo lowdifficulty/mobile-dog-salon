@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EMAIL_TEMPLATE_VARIABLES, type EmailTemplate } from "@/lib/notifications/email-template-types";
 
+const TEST_TO_STORAGE_KEY = "mds-admin-email-test-to";
+
 type AnalyticsSummary = {
   totalSent: number;
   byTemplate: Record<
@@ -35,6 +37,7 @@ export default function EmailCampaignsPanel() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testTo, setTestTo] = useState("");
+  const [templateTestTo, setTemplateTestTo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +78,37 @@ export default function EmailCampaignsPanel() {
   }, [load]);
 
   useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(TEST_TO_STORAGE_KEY);
+      if (saved) {
+        setTestTo(saved);
+        setTemplateTestTo(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function persistTestRecipient(email: string) {
+    try {
+      const trimmed = email.trim();
+      if (trimmed) sessionStorage.setItem(TEST_TO_STORAGE_KEY, trimmed);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function syncTestRecipients(email: string) {
+    setTestTo(email);
+    setTemplateTestTo(email);
+    persistTestRecipient(email);
+  }
+
+  useEffect(() => {
+    persistTestRecipient(testTo);
+  }, [testTo]);
+
+  useEffect(() => {
     if (!selected) return;
     setDraftSubject(selected.subject);
     setDraftHtml(selected.html);
@@ -111,10 +145,32 @@ export default function EmailCampaignsPanel() {
     }
   }
 
-  async function sendTest(templateId: string) {
-    const to = testTo.trim();
+  function focusBulkTestEmailField() {
+    const el = document.getElementById("bulk-test-email");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (el instanceof HTMLInputElement) el.focus();
+  }
+
+  function focusTemplateTestEmailField() {
+    const el = document.getElementById("template-test-email");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (el instanceof HTMLInputElement) el.focus();
+  }
+
+  async function sendTest(
+    templateId: string,
+    recipientSource: "bulk" | "template" = "bulk"
+  ) {
+    const to =
+      recipientSource === "template" ? templateTestTo.trim() : testTo.trim();
     if (!to) {
-      setError("Enter a recipient email for test sends.");
+      setError(
+        recipientSource === "template"
+          ? "Enter an email address below to send a test for this template."
+          : "Enter a recipient email for test sends."
+      );
+      if (recipientSource === "template") focusTemplateTestEmailField();
+      else focusBulkTestEmailField();
       return;
     }
     setTesting(true);
@@ -158,7 +214,8 @@ export default function EmailCampaignsPanel() {
         <p className="text-sm text-gray-600 mb-4">
           Tests use sample booking data and send from{" "}
           <strong>team@mobiledog-salon.com</strong> with a [TEST] subject prefix. Resend must allow
-          that sender on your verified domain.
+          that sender on your verified domain. Use the same address in the template editor when
+          testing one email at a time.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end max-w-xl">
           <div className="flex-1">
@@ -166,17 +223,19 @@ export default function EmailCampaignsPanel() {
               Send tests to
             </label>
             <input
+              id="bulk-test-email"
               type="email"
               value={testTo}
-              onChange={(e) => setTestTo(e.target.value)}
+              onChange={(e) => syncTestRecipients(e.target.value)}
               placeholder="you@example.com"
+              autoComplete="email"
               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm"
             />
           </div>
           <button
             type="button"
             disabled={testing}
-            onClick={() => void sendTest("all")}
+            onClick={() => void sendTest("all", "bulk")}
             className="site-btn px-5 py-2 text-sm whitespace-nowrap disabled:opacity-50"
           >
             {testing ? "Sending…" : "Send all test emails"}
@@ -297,14 +356,41 @@ export default function EmailCampaignsPanel() {
               >
                 {saving ? "Saving…" : "Save template"}
               </button>
-              <button
-                type="button"
-                onClick={() => void sendTest(selected.id)}
-                disabled={testing || saving}
-                className="ml-2 px-5 py-2 text-sm font-semibold rounded-full border border-brand text-brand hover:bg-brand/5 disabled:opacity-50"
-              >
-                {testing ? "Sending…" : "Send test for this template"}
-              </button>
+              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                <p className="text-sm font-semibold text-gray-800">Send test for this template</p>
+                <p className="text-xs text-gray-600">
+                  Uses sample booking data and your saved template (save first if you edited subject
+                  or body). Sends from <strong>team@mobiledog-salon.com</strong> with a [TEST]
+                  subject prefix.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                  <div className="flex-1 min-w-0">
+                    <label
+                      htmlFor="template-test-email"
+                      className="block text-xs font-semibold text-gray-600 mb-1"
+                    >
+                      Email address
+                    </label>
+                    <input
+                      id="template-test-email"
+                      type="email"
+                      value={templateTestTo}
+                      onChange={(e) => syncTestRecipients(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void sendTest(selected.id, "template")}
+                    disabled={testing || saving}
+                    className="site-btn px-5 py-2 text-sm whitespace-nowrap disabled:opacity-50"
+                  >
+                    {testing ? "Sending…" : "Send test email"}
+                  </button>
+                </div>
+              </div>
             </>
           ) : null}
         </div>

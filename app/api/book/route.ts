@@ -17,6 +17,7 @@ import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability"
 import { isAllowedBookingBlockStart, groomerAcceptsBookings, bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
 import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { sendCalendarInvites } from "@/lib/scheduling/calendar";
+import { sendStaffBookingNotifications } from "@/lib/notifications/staff-booking-notify";
 import { upsertLead } from "@/lib/leads/store";
 import { leadFieldsFromAppointment } from "@/lib/leads/appointment-fields";
 import { getAppointmentPets } from "@/lib/booking/pets";
@@ -265,6 +266,12 @@ async function handleBookPost(request: Request) {
     await sendBookingConfirmations(appointment);
   } catch (err) {
     console.error("Customer confirmation notifications failed:", err);
+  }
+
+  try {
+    await sendStaffBookingNotifications(appointment);
+  } catch (err) {
+    console.error("Staff booking notifications failed:", err);
   }
 
   try {

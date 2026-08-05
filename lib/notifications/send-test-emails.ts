@@ -35,9 +35,11 @@ export async function sendTestEmail(
   if (!result.ok) {
     return {
       ok: false,
-      error: process.env.RESEND_API_KEY
-        ? "Send failed — check Resend domain and team@ sender"
-        : "RESEND_API_KEY is not set",
+      error:
+        result.error ??
+        (process.env.RESEND_API_KEY
+          ? "Send failed — check Resend domain and team@ sender"
+          : "RESEND_API_KEY is not set"),
     };
   }
 

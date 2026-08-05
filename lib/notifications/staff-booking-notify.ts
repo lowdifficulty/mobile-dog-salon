@@ -3,9 +3,7 @@ import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentEmailVariables } from "./appointment-email-vars";
 import { sendTemplatedEmail } from "./send-templated-email";
-import { GROOMERS } from "@/lib/scheduling/groomers";
-
-const MELANIE_EMAIL = GROOMERS.melanie.email;
+import { GROOMERS, MELANIE_BOOKING_NOTIFY_EMAILS } from "@/lib/scheduling/groomers";
 
 export async function sendStaffBookingNotifications(
   appointment: Appointment
@@ -25,7 +23,7 @@ export async function sendStaffBookingNotifications(
     }),
     sendTemplatedEmail({
       templateId: "melanie_new_lead",
-      to: MELANIE_EMAIL,
+      to: [...MELANIE_BOOKING_NOTIFY_EMAILS],
       variables: vars,
       appointmentId: appointment.id,
     }).catch((err) => {

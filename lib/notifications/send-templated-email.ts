@@ -30,7 +30,7 @@ export interface SendTemplatedEmailInput {
 
 export async function sendTemplatedEmail(
   input: SendTemplatedEmailInput
-): Promise<{ ok: boolean; resendId?: string }> {
+): Promise<{ ok: boolean; resendId?: string; error?: string }> {
   const template = await getEmailTemplate(input.templateId);
   if (!template.enabled && !input.forceSend) {
     console.log(`Email template disabled: ${input.templateId}`);
@@ -72,8 +72,12 @@ export async function sendTemplatedEmail(
   });
 
   if (result.error) {
+    const message =
+      typeof result.error.message === "string"
+        ? result.error.message
+        : "Resend rejected the send";
     console.error(`Resend send failed (${input.templateId}):`, result.error);
-    return { ok: false };
+    return { ok: false, error: message };
   }
 
   const resendId = result.data?.id;

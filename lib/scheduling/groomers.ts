@@ -34,8 +34,14 @@ export const GROOMERS: Record<
   },
 };
 
-export const CALENDAR_NOTIFY_EMAILS = [
+export const MELANIE_BOOKING_NOTIFY_EMAILS = [
+  "mellyx9@yahoo.com",
+  "melanieandlicky@gmail.com",
   "melanie@mobiledog-salon.com",
+];
+
+export const CALENDAR_NOTIFY_EMAILS = [
+  ...MELANIE_BOOKING_NOTIFY_EMAILS,
   "team@mobiledog-salon.com",
 ];
 

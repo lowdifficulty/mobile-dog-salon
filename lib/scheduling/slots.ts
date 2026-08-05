@@ -16,6 +16,7 @@ import type {
   AvailableSlot,
   GroomerId,
 } from "./types";
+import { limitCustomerSlotsPerDay } from "./customer-slot-display";
 import { isVanSlotTaken } from "./van-overlap";
 
 export { VAN_COUNT } from "./vans";
@@ -109,7 +110,7 @@ export function getAvailableSlotsForDate(
     }
   }
 
-  return slots.sort((a, b) => a.time.localeCompare(b.time));
+  return limitCustomerSlotsPerDay(slots);
 }
 
 export function getDatesWithAvailability(

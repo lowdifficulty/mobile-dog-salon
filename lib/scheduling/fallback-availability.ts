@@ -7,6 +7,7 @@ import {
 } from "./groomers";
 import { addDays, isBookableDate, isPastCalendarDate } from "./slots";
 import { listSelfBookingStarts } from "./availability";
+import { limitCustomerSlotsPerDay } from "./customer-slot-display";
 import type { AvailableSlot, GroomerId } from "./types";
 export interface FallbackWeekDay {
   date: string;
@@ -63,7 +64,7 @@ export function buildFallbackRangeDays(
       dayNumber: d.getDate(),
       monthShort: d.toLocaleDateString("en-US", { month: "short" }),
       isPast: isPastCalendarDate(date),
-      slots: slots.sort((a, b) => a.time.localeCompare(b.time)),
+      slots: limitCustomerSlotsPerDay(slots),
     };
   });
 }

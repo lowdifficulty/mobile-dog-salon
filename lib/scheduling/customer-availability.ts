@@ -1,4 +1,3 @@
-import { effectiveAvailability } from "./effective-availability";
 import {
   getAvailableSlotsForDate,
   getDatesWithAvailability,
@@ -6,9 +5,12 @@ import {
 } from "./slots";
 import type { AvailableSlot, SchedulingData } from "./types";
 
-/** Availability after removing hours covered by confirmed appointments — same input as booking validation. */
+/**
+ * Groomer-marked shifts used for the public booking calendar.
+ * Bookability (appointments, van overlap) is enforced in getAvailableSlotsForDate via isSlotTaken.
+ */
 export function customerAvailabilityDays(data: SchedulingData) {
-  return effectiveAvailability(data);
+  return data.availability;
 }
 
 export function getCustomerAvailableSlotsForDate(

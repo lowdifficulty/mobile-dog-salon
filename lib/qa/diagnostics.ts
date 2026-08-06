@@ -3,6 +3,7 @@ import twilio from "twilio";
 import { slotHoldsStatus, testSlotHoldSystem } from "@/lib/scheduling/slot-holds";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { getCustomerAvailableSlotsForDate } from "@/lib/scheduling/customer-availability";
+import { listBookingBlockStarts } from "@/lib/scheduling/availability";
 import { persistenceStatus } from "@/lib/scheduling/persistence";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { GROOMERS } from "@/lib/scheduling/groomers";
@@ -340,6 +341,49 @@ function countAllSlots(
   return count;
 }
 
+function groomerPublicParityCheck(
+  groomerId: GroomerId,
+  data: Awaited<ReturnType<typeof readSchedulingData>>,
+  horizonDays: number
+): QaCheckResult {
+  const today = todayISO();
+  const end = addDaysISO(today, horizonDays);
+  let markedDays = 0;
+  let mismatchDays = 0;
+  const examples: string[] = [];
+
+  for (const day of data.availability) {
+    if (day.groomerId !== groomerId || day.date < today || day.date > end) continue;
+    const blocks = listBookingBlockStarts(day.times, groomerId);
+    if (blocks.length === 0) continue;
+    markedDays++;
+    const pub = getCustomerAvailableSlotsForDate(day.date, data, "full-groom").filter(
+      (s) => s.groomerId === groomerId
+    );
+    if (pub.length === 0) {
+      mismatchDays++;
+      if (examples.length < 5) examples.push(day.date);
+    }
+  }
+
+  const name = GROOMERS[groomerId].name;
+  return {
+    id: `${groomerId}_public_parity`,
+    label: `${name} portal vs public calendar`,
+    status:
+      mismatchDays === 0
+        ? "working"
+        : mismatchDays > Math.max(1, markedDays / 2)
+          ? "not_working"
+          : "warning",
+    message:
+      mismatchDays === 0
+        ? `All ${markedDays} shift day(s) in the next ${horizonDays} days offer public bookable slots.`
+        : `${mismatchDays} of ${markedDays} shift day(s) appear in the groomer portal but have zero public slots (e.g. ${examples.join(", ")}). Check appointments, van overlap, or stale booking holds.`,
+    details: { markedDays, mismatchDays, exampleDates: examples.join(", "), horizonDays },
+  };
+}
+
 async function checkScheduling(): Promise<QaCheckResult[]> {
   const data = await readSchedulingData();
   const today = todayISO();
@@ -390,7 +434,7 @@ async function checkScheduling(): Promise<QaCheckResult[]> {
     },
   };
 
-  return [melanie, diamond, slotsCheck, bookingCheck, await checkSlotHolds()];
+  return [melanie, diamond, groomerPublicParityCheck("melanie", data, 60), slotsCheck, bookingCheck, await checkSlotHolds()];
 }
 
 async function checkSlotHolds(): Promise<QaCheckResult> {

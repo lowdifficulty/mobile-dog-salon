@@ -8,7 +8,6 @@ import {
 } from "./groomers";
 import { BOOKING_DURATION_MINUTES, appointmentBlockMinutes } from "./services";
 import { listSelfBookingStarts } from "./availability";
-import { isGroomerFullyBooked } from "./capacity";
 import { availabilityVan } from "./vans";
 import type {
   Appointment,
@@ -81,7 +80,6 @@ export function getAvailableSlotsForDate(
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     if (!isCustomerBookableDateForGroomer(day.groomerId, date)) continue;
-    if (isGroomerFullyBooked(day.groomerId, date, appointments)) continue;
 
     const duration = bookingDurationMinutesForGroomer(day.groomerId);
     const blockStarts = listSelfBookingStarts(day.times, day.groomerId, (time) =>

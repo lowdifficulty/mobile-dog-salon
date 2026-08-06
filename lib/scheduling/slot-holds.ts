@@ -247,11 +247,14 @@ export async function getBlockedSlotKeys(excludeOwnerId?: string): Promise<Set<s
       blocked.add(slotKey);
     }
 
-    // Expired hold keys linger in the index; prune a few per request (not all — avoids Upstash rate limits).
+    // Expired hold keys linger in the index; prune in batches so the calendar is not stuck hiding slots.
     if (stale.length > 0) {
-      await Promise.all(
-        stale.slice(0, 10).map((sk) => redis.srem(HOLD_INDEX_KEY, sk))
-      );
+      const batch = stale.slice(0, 200);
+      if (batch.length === 1) {
+        await redis.srem(HOLD_INDEX_KEY, batch[0]);
+      } else if (batch.length > 1) {
+        await redis.srem(HOLD_INDEX_KEY, ...batch);
+      }
     }
 
     blockedCache = { keys: blocked, at: Date.now(), excludeOwnerId };

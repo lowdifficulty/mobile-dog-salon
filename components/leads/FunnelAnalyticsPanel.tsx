@@ -327,6 +327,26 @@ export default function FunnelAnalyticsPanel() {
                             {step.stepOverStepPercent}% continued from previous step
                           </p>
                         )}
+                        {step.id === "address" &&
+                          (step.bookedByLeads != null || step.bookedByTeam != null) && (
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {step.bookedByLeads ?? 0} booked by leads ·{" "}
+                              {step.bookedByTeam ?? 0} booked by team
+                              {step.count -
+                                (step.bookedByLeads ?? 0) -
+                                (step.bookedByTeam ?? 0) >
+                                0 && (
+                                <>
+                                  {" "}
+                                  ·{" "}
+                                  {step.count -
+                                    (step.bookedByLeads ?? 0) -
+                                    (step.bookedByTeam ?? 0)}{" "}
+                                  other
+                                </>
+                              )}
+                            </p>
+                          )}
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-lg font-bold text-brand">{step.percent}%</p>

@@ -31,6 +31,9 @@ export interface FunnelStepStat {
   count: number;
   percent: number;
   stepOverStepPercent: number | null;
+  /** Step 5 (Booked): self-serve vs staff-entered appointments. */
+  bookedByLeads?: number;
+  bookedByTeam?: number;
 }
 
 export interface FunnelAnalyticsResult {
@@ -105,6 +108,29 @@ function percentOf(count: number, total: number): number {
   return Math.round((count / total) * 1000) / 10;
 }
 
+const BOOKED_STEP_ID: LeadFunnelStep = "address";
+
+function isCustomerBookingSource(source: Lead["source"]): boolean {
+  return source === "booking" || source.startsWith("booking-");
+}
+
+function isTeamBookingSource(source: Lead["source"]): boolean {
+  return source === "contact";
+}
+
+function bookedStepBreakdown(leads: Lead[]): {
+  bookedByLeads: number;
+  bookedByTeam: number;
+} {
+  const booked = leads.filter(
+    (lead) => funnelStepOrder(lead.funnelStep) >= funnelStepOrder(BOOKED_STEP_ID)
+  );
+  return {
+    bookedByLeads: booked.filter((lead) => isCustomerBookingSource(lead.source)).length,
+    bookedByTeam: booked.filter((lead) => isTeamBookingSource(lead.source)).length,
+  };
+}
+
 export function computeFunnelAnalytics(
   leads: Lead[],
   range: AnalyticsRange,
@@ -128,7 +154,7 @@ export function computeFunnelAnalytics(
     const stepOverStepPercent =
       index === 0 || prevCount === 0 ? null : percentOf(step.count, prevCount);
 
-    return {
+    const stat: FunnelStepStat = {
       id: step.id,
       label: step.label,
       order: step.order,
@@ -136,6 +162,14 @@ export function computeFunnelAnalytics(
       percent,
       stepOverStepPercent,
     };
+
+    if (step.id === BOOKED_STEP_ID) {
+      const { bookedByLeads, bookedByTeam } = bookedStepBreakdown(filtered);
+      stat.bookedByLeads = bookedByLeads;
+      stat.bookedByTeam = bookedByTeam;
+    }
+
+    return stat;
   });
 
   const scheduledCount = filtered.filter(

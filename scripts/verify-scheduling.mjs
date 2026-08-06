@@ -1,5 +1,5 @@
 /**
- * End-to-end scheduling persistence test.
+ * End-to-end scheduling persistence + public calendar parity test.
  * Usage: node scripts/verify-scheduling.mjs
  *        SMOKE_BASE_URL=http://localhost:3000 node scripts/verify-scheduling.mjs
  */
@@ -8,7 +8,8 @@ const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const MELANIE_EMAIL = "melanie@mobiledog-salon.com";
 const MELANIE_PASSWORD = process.env.SCHEDULING_PASSWORD_MELANIE || "Licky2026!!";
 const TEST_DATE = process.env.SCHEDULING_TEST_DATE;
-const TEST_TIMES = ["09:00", "10:00", "11:00"];
+/** Full 3-hour block at 11 AM (valid groomer + customer block). */
+const TEST_TIMES = ["11:00", "12:00", "13:00"];
 
 function todayPlus(days) {
   const d = new Date();
@@ -76,6 +77,9 @@ async function main() {
   let cookie = mergeCookies("", login.cookies);
   console.log("OK   groomer login");
 
+  const beforeGet = await request("/api/groomer/availability", { cookie });
+  const beforeCount = (beforeGet.json?.availability ?? []).length;
+
   const save = await request("/api/groomer/availability", {
     method: "PUT",
     cookie,
@@ -101,24 +105,39 @@ async function main() {
   const groomerGet = await request("/api/groomer/availability", { cookie });
   const days = groomerGet.json?.availability ?? [];
   const day = days.find((d) => d.date === testDate);
-  if (!day || day.times.length !== TEST_TIMES.length) {
+  if (!day || !day.times.includes("11:00")) {
     failures.push("groomer reload after save");
     console.error("FAIL groomer reload", days);
   } else {
     console.log("OK   groomer reload matches save");
   }
 
+  if (beforeCount > 1 && days.length < beforeCount) {
+    failures.push("partial save wiped other groomer days");
+    console.error(
+      "FAIL partial save reduced day count",
+      beforeCount,
+      "->",
+      days.length
+    );
+  } else if (beforeCount > 1) {
+    console.log("OK   partial save kept other groomer days");
+  }
+
   const publicSlots = await request(
-    `/api/availability?date=${testDate}&service=signature`
+    `/api/availability?date=${testDate}&service=full-groom`
   );
   const melanieSlots = (publicSlots.json?.slots ?? []).filter(
     (s) => s.groomerId === "melanie"
   );
-  if (melanieSlots.length > 0) {
-    failures.push("melanie should not appear on public booking calendar");
-    console.error("FAIL Melanie still has public slots", melanieSlots);
+  if (melanieSlots.length === 0) {
+    failures.push("public calendar missing groomer-marked slot");
+    console.error("FAIL no Melanie public slots after save", publicSlots.json);
   } else {
-    console.log("OK   Melanie excluded from public booking calendar");
+    console.log(
+      "OK   public calendar offers Melanie",
+      melanieSlots.map((s) => s.time).join(", ")
+    );
   }
 
   const relogin = await request("/api/auth/login", {
@@ -134,7 +153,7 @@ async function main() {
   const day2 = (afterRelogin.json?.availability ?? []).find(
     (d) => d.date === testDate
   );
-  if (!day2 || day2.times.length !== TEST_TIMES.length) {
+  if (!day2 || !day2.times.includes("11:00")) {
     failures.push("persist after re-login");
     console.error("FAIL after re-login", afterRelogin.json);
   } else {

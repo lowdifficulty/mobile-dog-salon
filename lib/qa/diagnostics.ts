@@ -2,7 +2,7 @@ import "server-only";
 import twilio from "twilio";
 import { slotHoldsStatus, testSlotHoldSystem } from "@/lib/scheduling/slot-holds";
 import { readSchedulingData } from "@/lib/scheduling/store";
-import { getAvailableSlotsForDate } from "@/lib/scheduling/slots";
+import { getCustomerAvailableSlotsForDate } from "@/lib/scheduling/customer-availability";
 import { persistenceStatus } from "@/lib/scheduling/persistence";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { GROOMERS } from "@/lib/scheduling/groomers";
@@ -313,10 +313,9 @@ function countSlotsByGroomer(
   let count = 0;
   for (let i = 0; i < days; i++) {
     const date = addDaysISO(fromDate, i);
-    const slots = getAvailableSlotsForDate(
+    const slots = getCustomerAvailableSlotsForDate(
       date,
-      data.availability,
-      data.appointments,
+      data,
       "full-groom"
     );
     count += slots.filter((s) => s.groomerId === groomerId).length;
@@ -332,10 +331,9 @@ function countAllSlots(
   let count = 0;
   for (let i = 0; i < days; i++) {
     const date = addDaysISO(fromDate, i);
-    count += getAvailableSlotsForDate(
+    count += getCustomerAvailableSlotsForDate(
       date,
-      data.availability,
-      data.appointments,
+      data,
       "full-groom"
     ).length;
   }

@@ -123,23 +123,37 @@ export function normalizeGroomerAvailabilitySave(
     );
 }
 
-/** Replace one van's shifts while keeping the groomer's shifts on other vans. */
+/**
+ * Upsert groomer shifts for one van. Dates in `incomingForVan` replace that date;
+ * dates in `removedDates` are deleted. Other saved days for this groomer/van are kept
+ * so a partial save cannot wipe the whole calendar.
+ */
 export function mergeGroomerVanAvailabilitySave(
   existing: AvailabilityDay[],
   groomerId: GroomerId,
   van: VanId,
-  incomingForVan: AvailabilityDay[]
+  incomingForVan: AvailabilityDay[],
+  removedDates: string[] = []
 ): AvailabilityDay[] {
+  const incomingDates = new Set(incomingForVan.map((day) => day.date));
+  const removed = new Set(removedDates);
+
   if (!groomerHasMultiVanAccess(groomerId)) {
-    return [
-      ...existing.filter((day) => day.groomerId !== groomerId),
-      ...incomingForVan,
-    ];
+    const kept = existing.filter((day) => {
+      if (day.groomerId !== groomerId) return true;
+      if (removed.has(day.date)) return false;
+      if (incomingDates.has(day.date)) return false;
+      return true;
+    });
+    return [...kept, ...incomingForVan];
   }
 
   const kept = existing.filter((day) => {
     if (day.groomerId !== groomerId) return true;
-    return availabilityVan(day) !== van;
+    if (availabilityVan(day) !== van) return true;
+    if (removed.has(day.date)) return false;
+    if (incomingDates.has(day.date)) return false;
+    return true;
   });
 
   return [...kept, ...incomingForVan];

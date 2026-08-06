@@ -91,7 +91,8 @@ export async function PUT(request: Request) {
       data,
       groomerId,
       incoming,
-      body.van
+      body.van,
+      body.removedDates
     );
     if (error) {
       return availabilitySaveErrorResponse(error);

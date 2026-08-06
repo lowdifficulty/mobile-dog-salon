@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BOOKING_BLOCK_STARTS,
   SHIFT_HORIZON_MONTHS,
@@ -177,6 +177,8 @@ export default function AvailabilityEditor({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [persistenceNote, setPersistenceNote] = useState("");
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const baselineRowsRef = useRef<Record<string, string[]>>({});
 
   type VanAvailabilityData = {
     slotOccupancy: VanSlotOccupancy[];
@@ -220,7 +222,10 @@ export default function AvailabilityEditor({
     setSlotOccupancy(vanData.slotOccupancy);
     setLockedHours(vanData.locked);
     if (groomerId) {
-      setRows(availabilityRowsForVan(vanData.availability, groomerId, selectedVan));
+      const serverRows = availabilityRowsForVan(vanData.availability, groomerId, selectedVan);
+      baselineRowsRef.current = serverRows;
+      setRows(serverRows);
+      setHasLoadedOnce(true);
     }
     if (vanData.persistence?.writable === false) {
       setPersistenceNote(vanData.persistence.message ?? "");
@@ -418,7 +423,7 @@ export default function AvailabilityEditor({
   }
 
   async function save() {
-    if (readOnly || !groomerId) return;
+    if (readOnly || !groomerId || !hasLoadedOnce) return;
     setSaving(true);
     setMessage("");
     const availability: AvailabilityDay[] = Object.entries(rows)
@@ -429,6 +434,10 @@ export default function AvailabilityEditor({
         times,
       }));
 
+    const removedDates = Object.keys(baselineRowsRef.current).filter(
+      (date) => !(date in rows)
+    );
+
     const res = await fetch(apiBase, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -436,6 +445,7 @@ export default function AvailabilityEditor({
         van: effectiveLockedVan ?? selectedVan,
         ...(includeGroomerIdInSave ? { groomerId } : {}),
         availability,
+        removedDates,
       }),
     });
 
@@ -473,7 +483,12 @@ export default function AvailabilityEditor({
     <div>
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button type="button" onClick={save} disabled={saving} className="site-btn text-sm">
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving || !hasLoadedOnce || loading}
+            className="site-btn text-sm"
+          >
             {saving ? "Saving…" : "Save hours"}
           </button>
           <p className="text-sm text-gray-500">

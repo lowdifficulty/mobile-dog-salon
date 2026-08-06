@@ -14,12 +14,19 @@ export function resolveSaveVan(groomerId: GroomerId, vanRaw: string | undefined)
   return vanForGroomer(groomerId);
 }
 
+function parseRemovedDates(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((d): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d));
+}
+
 export function applyGroomerAvailabilitySave(
   data: SchedulingData,
   groomerId: GroomerId,
   incoming: AvailabilityDay[],
-  vanRaw: string | undefined
+  vanRaw: string | undefined,
+  removedDatesRaw?: unknown
 ): { error: string | null; sanitized: AvailabilityDay[] } {
+  const removedDates = parseRemovedDates(removedDatesRaw);
   const van = resolveSaveVan(groomerId, vanRaw);
   const sanitized = normalizeGroomerAvailabilitySave(
     groomerId,
@@ -42,7 +49,8 @@ export function applyGroomerAvailabilitySave(
     data.availability,
     groomerId,
     van,
-    sanitized
+    sanitized,
+    removedDates
   );
 
   return { error: null, sanitized };

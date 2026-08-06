@@ -8,10 +8,11 @@ import {
   buildFallbackWeekDays,
 } from "@/lib/scheduling/fallback-availability";
 import {
-  getAvailableSlotsForDate,
-  getDatesWithAvailability,
-  getRangeAvailability,
-  getWeekAvailability,
+  getCustomerAvailableSlotsForDate,
+  getCustomerDatesWithAvailability,
+  getCustomerRangeAvailability,
+} from "@/lib/scheduling/customer-availability";
+import {
   getWeekStart,
 } from "@/lib/scheduling/slots";
 
@@ -49,8 +50,8 @@ export async function GET(request: Request) {
   }
 
   function filterRangeDays(
-    days: ReturnType<typeof getRangeAvailability>
-  ): ReturnType<typeof getRangeAvailability> {
+    days: ReturnType<typeof getCustomerRangeAvailability>
+  ): ReturnType<typeof getCustomerRangeAvailability> {
     if (!blockedSlotKeys.size) return days;
     return days.map((day) => ({
       ...day,
@@ -68,11 +69,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ from, days: rangeDays, devAllSlots: true });
     }
     const rangeDays = filterRangeDays(
-      getRangeAvailability(
+      getCustomerRangeAvailability(
         from,
         dayCount,
-        data.availability,
-        data.appointments,
+        data,
         service
       )
     );
@@ -86,10 +86,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ weekStart, days, devAllSlots: true });
     }
     const days = filterRangeDays(
-      getWeekAvailability(
+      getCustomerRangeAvailability(
         weekStart,
-        data.availability,
-        data.appointments,
+        7,
+        data,
         service
       )
     );
@@ -111,9 +111,8 @@ export async function GET(request: Request) {
         .map((day) => day.date);
       return NextResponse.json({ dates, devAllSlots: true });
     }
-    const dates = getDatesWithAvailability(
-      data.availability,
-      data.appointments,
+    const dates = getCustomerDatesWithAvailability(
+      data,
       service,
       start,
       end
@@ -131,10 +130,9 @@ export async function GET(request: Request) {
   }
 
   const slots = filterBlocked(
-    getAvailableSlotsForDate(
+    getCustomerAvailableSlotsForDate(
       date,
-      data.availability,
-      data.appointments,
+      data,
       service
     )
   );

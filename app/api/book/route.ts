@@ -3,9 +3,8 @@ import { randomUUID } from "crypto";
 import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-request";
 import { PersistenceNotConfiguredError } from "@/lib/scheduling/persistence";
 import { readSchedulingData, writeSchedulingData } from "@/lib/scheduling/store";
-import { effectiveAvailability } from "@/lib/scheduling/effective-availability";
+import { getCustomerAvailableSlotsForDate } from "@/lib/scheduling/customer-availability";
 import {
-  getAvailableSlotsForDate,
   isBookableDate,
   isCustomerBookableDateForGroomer,
   isSlotTaken,
@@ -128,10 +127,9 @@ async function handleBookPost(request: Request) {
   const relaxAvailability = devBooking || Boolean(fromFallback);
 
   if (!relaxAvailability) {
-    const publicSlots = getAvailableSlotsForDate(
+    const publicSlots = getCustomerAvailableSlotsForDate(
       date,
-      effectiveAvailability(data),
-      data.appointments,
+      data,
       service
     );
     if (!publicSlots.some((slot) => slot.slotKey === slotKey)) {

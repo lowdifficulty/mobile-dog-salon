@@ -97,10 +97,13 @@ function getMonthGrid(year: number, month: number): (string | null)[] {
   return cells;
 }
 
-function appointmentsByDate(appointments: Appointment[]): Map<string, Appointment[]> {
+function appointmentsByDate(
+  appointments: Appointment[],
+  status: "confirmed" | "cancelled" = "confirmed"
+): Map<string, Appointment[]> {
   const map = new Map<string, Appointment[]>();
   for (const ap of appointments) {
-    if (ap.status !== "confirmed") continue;
+    if (ap.status !== status) continue;
     const { date } = parseSlotFromIso(ap.startAt);
     const bucket = map.get(date) ?? [];
     bucket.push(ap);
@@ -173,7 +176,14 @@ export default function StaffAppointmentCalendar({
     [viewYear, viewMonth]
   );
 
-  const byDate = useMemo(() => appointmentsByDate(appointments), [appointments]);
+  const byDate = useMemo(
+    () => appointmentsByDate(appointments, "confirmed"),
+    [appointments]
+  );
+  const cancelledByDate = useMemo(
+    () => appointmentsByDate(appointments, "cancelled"),
+    [appointments]
+  );
   const groomerOpenByDate = useMemo(
     () => groomerOpenSlotsByDate(openSlotKeys),
     [openSlotKeys]
@@ -233,6 +243,8 @@ export default function StaffAppointmentCalendar({
   }
 
   const selectedAppointments = selectedDate ? byDate.get(selectedDate) ?? [] : [];
+  const selectedCancelled =
+    selectedDate && mode === "groomer" ? cancelledByDate.get(selectedDate) ?? [] : [];
   const selectedGroomerOpenSlots = selectedDate
     ? groomerOpenByDate.get(selectedDate) ?? []
     : [];
@@ -464,6 +476,39 @@ export default function StaffAppointmentCalendar({
                 </div>
               )}
             </div>
+
+            {selectedCancelled.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-gray-800 mb-2">Cancelled</h4>
+                <p className="text-xs text-gray-500 mb-2">
+                  These no longer count on your route or schedule — shown so nothing looks
+                  missing.
+                </p>
+                <div className="space-y-2">
+                  {selectedCancelled.map((ap) => (
+                    <div
+                      key={ap.id}
+                      className={`w-full text-left rounded-xl border px-3 py-2.5 border-l-4 border-dashed opacity-75 ${groomerAppointmentCardClass(
+                        ap.groomerId,
+                        {
+                          isOwn: groomerId ? ap.groomerId === groomerId : false,
+                          cancelled: true,
+                          colorByGroomer: false,
+                        }
+                      )}`}
+                    >
+                      <p className="text-sm font-semibold text-gray-600">
+                        {formatWhen(ap.startAt)}
+                      </p>
+                      <p className="text-sm text-gray-700 mt-0.5">
+                        {formatAppointmentTitle(ap)}
+                      </p>
+                      <p className="text-xs font-semibold text-gray-500 mt-1">Cancelled</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <h4 className="text-sm font-bold text-gray-800 mb-2">Open slots</h4>

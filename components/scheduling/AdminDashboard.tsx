@@ -15,9 +15,11 @@ import JobInterviewsPanel from "@/components/interviews/JobInterviewsPanel";
 import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
+import CrmPanel from "@/components/crm/CrmPanel";
 
 type Tab =
   | "contacts"
+  | "crm"
   | "analytics"
   | "accounting"
   | "appointments"
@@ -43,6 +45,7 @@ export default function AdminDashboard() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "appointments", label: "Appointments" },
     { id: "shifts", label: "Hours" },
+    { id: "crm", label: "CRM" },
     { id: "contacts", label: "Contacts" },
     { id: "analytics", label: "Analytics" },
     { id: "accounting", label: "Accounting" },
@@ -58,7 +61,7 @@ export default function AdminDashboard() {
   return (
     <SchedulingShell
       title="Admin dashboard"
-      subtitle="Customers, scheduled contacts, analytics, accounting, appointments, team calendar, shifts, QA, payments, and staff logins."
+      subtitle="CRM, SMS, calling, customers, analytics, accounting, appointments, team calendar, shifts, QA, payments, and staff logins."
       onLogout={logout}
     >
       <div className="flex flex-wrap gap-2 mb-8">
@@ -78,6 +81,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {tab === "crm" && <CrmPanel />}
       {tab === "contacts" && (
         <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
       )}

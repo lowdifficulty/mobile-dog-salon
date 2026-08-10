@@ -603,6 +603,43 @@ export async function cancelAppointment(
   return { ok: true, appointment };
 }
 
+/**
+ * Put a cancelled appointment back on the calendar as confirmed.
+ * Intentionally allows overlaps — staff may clean up afterwards.
+ */
+export async function restoreAppointment(
+  appointmentId: string,
+  actor: string,
+  options?: { groomerId?: GroomerId }
+): Promise<AppointmentActionResult> {
+  const data = await readSchedulingData();
+  const appointment = findAppointment(
+    data.appointments,
+    appointmentId,
+    options?.groomerId
+  );
+
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.status !== "cancelled") {
+    return { ok: false, error: "Appointment is not cancelled", status: 409 };
+  }
+
+  appointment.status = "confirmed";
+  delete appointment.cancelledAt;
+  delete appointment.cancelledBy;
+  data.availability = allocateShiftsFromAppointments(data);
+
+  await writeSchedulingData(data, {
+    action: "appointment_restore",
+    actor,
+    groomerId: appointment.groomerId,
+  });
+
+  return { ok: true, appointment };
+}
+
 export async function deleteAppointment(
   appointmentId: string,
   actor: string,

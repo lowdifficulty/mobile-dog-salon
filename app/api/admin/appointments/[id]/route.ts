@@ -4,6 +4,7 @@ import {
   cancelAppointment,
   deleteAppointment,
   rescheduleAppointment,
+  restoreAppointment,
 } from "@/lib/scheduling/appointment-actions";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -17,6 +18,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     if (action === "cancel") {
       const result = await cancelAppointment(id, admin.email);
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+      return NextResponse.json({ ok: true, appointment: result.appointment });
+    }
+
+    if (action === "restore") {
+      const result = await restoreAppointment(id, admin.email);
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });
       }

@@ -69,6 +69,7 @@ export type AvailabilityHistoryAction =
   | "appointment_cancel"
   | "appointment_delete"
   | "appointment_reschedule"
+  | "appointment_restore"
   | "admin_restore"
   | "system_init"
   | "system_migrate";

@@ -69,6 +69,9 @@ function buildSummary(
   if (meta.action === "appointment_cancel") {
     return "Appointment cancelled — hours returned to groomer calendar";
   }
+  if (meta.action === "appointment_restore") {
+    return "Cancelled appointment restored to confirmed";
+  }
   if (meta.action === "appointment_delete") {
     return "Appointment permanently deleted";
   }
@@ -110,10 +113,20 @@ export async function appendAvailabilityHistory(
   after: SchedulingData,
   meta: WriteSchedulingMeta
 ): Promise<void> {
+  // Always log appointment lifecycle — cancels/restores were previously skipped when
+  // availability hours looked unchanged, which hid who cancelled bookings.
+  const alwaysLogActions = new Set<WriteSchedulingMeta["action"]>([
+    "admin_restore",
+    "system_init",
+    "system_migrate",
+    "booking",
+    "appointment_cancel",
+    "appointment_delete",
+    "appointment_reschedule",
+    "appointment_restore",
+  ]);
   const shouldLog =
-    meta.action === "admin_restore" ||
-    meta.action === "system_init" ||
-    meta.action === "system_migrate" ||
+    alwaysLogActions.has(meta.action) ||
     (meta.groomerId
       ? groomerAvailabilityChanged(before, after, meta.groomerId)
       : availabilityChanged(before, after));

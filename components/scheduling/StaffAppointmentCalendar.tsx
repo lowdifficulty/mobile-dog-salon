@@ -15,6 +15,7 @@ import {
   groomerAppointmentLegendDotClass,
   groomerAppointmentLegendLabel,
 } from "@/lib/scheduling/groomer-crm-colors";
+import { formatCancellationActor } from "@/lib/scheduling/cancel-display";
 import { parseSlotFromIso, getTodayPacificDate } from "@/lib/scheduling/slots";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
@@ -503,7 +504,18 @@ export default function StaffAppointmentCalendar({
                       <p className="text-sm text-gray-700 mt-0.5">
                         {formatAppointmentTitle(ap)}
                       </p>
-                      <p className="text-xs font-semibold text-gray-500 mt-1">Cancelled</p>
+                      <p className="text-xs font-semibold text-gray-500 mt-1">
+                        Cancelled by {formatCancellationActor(ap.cancelledBy)}
+                        {ap.cancelledAt
+                          ? ` on ${new Date(ap.cancelledAt).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              timeZone: "America/Los_Angeles",
+                            })}`
+                          : ""}
+                      </p>
                     </div>
                   ))}
                 </div>

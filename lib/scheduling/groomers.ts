@@ -25,6 +25,8 @@ export const GROOMERS: Record<
     name: "Diamond",
     email: "diamond@mobiledog-salon.com",
     calendarEmail: "diamond@mobiledog-salon.com",
+    /** On leave — hide from booking calendars and "Send to Diamond" transfer buttons. */
+    acceptsBookings: false,
   },
   jessica: {
     id: "jessica",

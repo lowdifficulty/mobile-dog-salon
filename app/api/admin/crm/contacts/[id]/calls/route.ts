@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const body = (await request.json().catch(() => ({}))) as { staffPhone?: string };
-    const base = crmPublicBaseUrl(request);
+    const base = await crmPublicBaseUrl(request);
     const result = await startOutboundBridgeCall({
       customerPhone: contact.phoneE164 || contact.phone,
       staffPhone: body.staffPhone,

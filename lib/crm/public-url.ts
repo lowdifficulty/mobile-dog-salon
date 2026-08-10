@@ -1,7 +1,17 @@
 import { companyLegal } from "@/lib/company-legal";
 
 /** Absolute site origin for Twilio webhooks (production or tunnel). */
-export function crmPublicBaseUrl(request?: Request): string {
+export async function crmPublicBaseUrl(request?: Request): Promise<string> {
+  try {
+    const { resolveTwilioWebhookBase } = await import(
+      "@/lib/notifications/twilio-runtime-config"
+    );
+    const fromConfig = await resolveTwilioWebhookBase();
+    if (fromConfig) return fromConfig;
+  } catch {
+    /* fall through */
+  }
+
   const env =
     process.env.TWILIO_WEBHOOK_BASE_URL?.trim() ||
     process.env.QSTASH_CALLBACK_URL?.trim() ||

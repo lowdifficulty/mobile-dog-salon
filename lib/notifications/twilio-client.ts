@@ -1,8 +1,14 @@
 import "server-only";
 import twilio from "twilio";
+import {
+  readTwilioRuntimeConfig,
+  resolveTwilioAccountSid,
+  resolveTwilioFromNumber,
+  resolveTwilioVoiceCallerId,
+} from "./twilio-runtime-config";
 
-export function getTwilioClient(): twilio.Twilio | null {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+export async function getTwilioClient(): Promise<twilio.Twilio | null> {
+  const accountSid = await resolveTwilioAccountSid();
   const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim();
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
@@ -16,42 +22,46 @@ export function getTwilioClient(): twilio.Twilio | null {
   return null;
 }
 
-export function getTwilioFromNumber(): string | null {
-  return process.env.TWILIO_FROM_NUMBER?.trim() || null;
+export async function getTwilioFromNumber(): Promise<string | null> {
+  return resolveTwilioFromNumber();
 }
 
 export function getTwilioAuthToken(): string | null {
   return process.env.TWILIO_AUTH_TOKEN?.trim() || null;
 }
 
-export function getTwilioVoiceCallerId(): string | null {
-  return (
-    process.env.TWILIO_VOICE_CALLER_ID?.trim() ||
-    process.env.TWILIO_FROM_NUMBER?.trim() ||
-    null
-  );
+export async function getTwilioVoiceCallerId(): Promise<string | null> {
+  return resolveTwilioVoiceCallerId();
 }
 
 /** Staff phone that receives click-to-call bridge legs. */
-export function getTwilioStaffCallbackNumber(): string | null {
-  return process.env.TWILIO_STAFF_CALLBACK_NUMBER?.trim() || null;
+export async function getTwilioStaffCallbackNumber(): Promise<string | null> {
+  const { resolveTwilioStaffCallback } = await import("./twilio-runtime-config");
+  return resolveTwilioStaffCallback();
 }
 
-export function isTwilioConfigured(): boolean {
-  return Boolean(getTwilioClient() && getTwilioFromNumber());
+export async function isTwilioConfigured(): Promise<boolean> {
+  const client = await getTwilioClient();
+  const from = await getTwilioFromNumber();
+  return Boolean(client && from);
 }
 
-export function twilioStatus(): {
+export async function twilioStatus(): Promise<{
   configured: boolean;
   hasFromNumber: boolean;
   hasVoice: boolean;
+  hasAccountSid: boolean;
+  hasApiKey: boolean;
   mode: "api-key" | "auth-token" | "missing";
-} {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  fromNumberMasked?: string;
+  accountSidMasked?: string;
+}> {
+  const accountSid = await resolveTwilioAccountSid();
   const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim();
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-  const from = getTwilioFromNumber();
+  const from = await getTwilioFromNumber();
+  const runtime = await readTwilioRuntimeConfig();
 
   let mode: "api-key" | "auth-token" | "missing" = "missing";
   if (accountSid && apiKeySid && apiKeySecret) mode = "api-key";
@@ -60,7 +70,15 @@ export function twilioStatus(): {
   return {
     configured: mode !== "missing" && Boolean(from),
     hasFromNumber: Boolean(from),
-    hasVoice: mode !== "missing" && Boolean(getTwilioVoiceCallerId()),
+    hasVoice: mode !== "missing" && Boolean(await getTwilioVoiceCallerId()),
+    hasAccountSid: Boolean(accountSid),
+    hasApiKey: Boolean(apiKeySid && apiKeySecret),
     mode,
+    fromNumberMasked: from ? `${from.slice(0, 2)}••••${from.slice(-4)}` : undefined,
+    accountSidMasked: accountSid
+      ? `${accountSid.slice(0, 4)}…${accountSid.slice(-4)}`
+      : undefined,
+    // expose whether runtime overrides exist without leaking secrets
+    ...(runtime.updatedAt ? {} : {}),
   };
 }

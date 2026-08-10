@@ -29,8 +29,8 @@ export async function sendSms(
   body: string,
   options?: { skipOptOutCheck?: boolean }
 ): Promise<SendSmsResult> {
-  const from = getTwilioFromNumber();
-  const client = getTwilioClient();
+  const from = await getTwilioFromNumber();
+  const client = await getTwilioClient();
   const toE164 = normalizePhoneE164(to);
 
   if (!client || !from || !toE164) {

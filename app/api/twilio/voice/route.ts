@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     console.error("Inbound voice CRM log failed:", err);
   }
 
-  const twiml = buildInboundVoiceTwiml();
+  const twiml = await buildInboundVoiceTwiml();
   return new NextResponse(twiml, {
     headers: { "Content-Type": "text/xml" },
   });

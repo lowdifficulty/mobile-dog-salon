@@ -22,7 +22,7 @@ async function handle(request: Request) {
     );
   }
 
-  return new NextResponse(buildBridgeTwiml(e164), {
+  return new NextResponse(await buildBridgeTwiml(e164), {
     headers: { "Content-Type": "text/xml" },
   });
 }

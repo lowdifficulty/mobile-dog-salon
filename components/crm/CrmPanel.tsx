@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 
 type Platform = {
@@ -9,6 +9,7 @@ type Platform = {
   hasVoice: boolean;
   mode: string;
   smsBotEnabled: boolean;
+  smsBotMode?: string;
 };
 
 type CrmContact = {
@@ -47,6 +48,7 @@ type CrmInteraction = {
   staffName?: string;
   durationSeconds?: number;
   createdAt: string;
+  metadata?: Record<string, string | number | boolean | null>;
 };
 
 type ContactDetail = CrmContact & {
@@ -92,33 +94,30 @@ function formatWhen(iso?: string): string {
   }
 }
 
-function channelLabel(ix: CrmInteraction): string {
-  if (ix.channel === "sms") {
-    return ix.direction === "inbound" ? "SMS in" : ix.actor === "bot" ? "Bot SMS" : "SMS out";
-  }
-  if (ix.channel === "call") {
-    return ix.direction === "inbound" ? "Call in" : "Call out";
-  }
-  return ix.channel;
+function initials(name?: string, phone?: string): string {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
+  return (phone || "?").slice(-2);
 }
 
 export default function CrmPanel() {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
   const [staffPhone, setStaffPhone] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
@@ -134,9 +133,7 @@ export default function CrmPanel() {
       setContacts(data.contacts ?? []);
       setStats(data.stats ?? null);
       setPlatform(data.platform ?? null);
-      if (!selectedId && data.contacts?.[0]?.id) {
-        setSelectedId(data.contacts[0].id);
-      }
+      if (!selectedId && data.contacts?.[0]?.id) setSelectedId(data.contacts[0].id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -149,19 +146,14 @@ export default function CrmPanel() {
       setDetail(null);
       return;
     }
-    setDetailLoading(true);
     try {
       const res = await fetch(`/api/admin/crm/contacts/${id}`);
       if (!res.ok) throw new Error("Could not load contact");
       const data = await res.json();
       setDetail(data.contact as ContactDetail);
-      setContacts((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c))
-      );
+      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Detail load failed");
-    } finally {
-      setDetailLoading(false);
     }
   }, []);
 
@@ -182,10 +174,26 @@ export default function CrmPanel() {
     }
   }, []);
 
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [detail?.interactions?.length, selectedId]);
+
   const selected = useMemo(
     () => contacts.find((c) => c.id === selectedId) || detail,
     [contacts, selectedId, detail]
   );
+
+  const smsThread = useMemo(() => {
+    return (detail?.interactions || []).filter(
+      (ix) =>
+        ix.channel === "sms" ||
+        ix.channel === "call" ||
+        ix.channel === "note" ||
+        (ix.channel === "system" && ix.body)
+    );
+  }, [detail]);
 
   async function refreshFromSources() {
     setBusy("refresh");
@@ -199,7 +207,7 @@ export default function CrmPanel() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Refresh failed");
-      setBanner(`CRM refreshed — ${data.contactCount} contacts, ${data.interactionCount} interactions`);
+      setBanner(`Synced ${data.contactCount} contacts`);
       setSelectedId("");
       await loadContacts();
     } catch (e) {
@@ -239,9 +247,7 @@ export default function CrmPanel() {
     setError(null);
     setBanner(null);
     try {
-      if (staffPhone.trim()) {
-        sessionStorage.setItem("mds-crm-staff-phone", staffPhone.trim());
-      }
+      if (staffPhone.trim()) sessionStorage.setItem("mds-crm-staff-phone", staffPhone.trim());
       const res = await fetch(`/api/admin/crm/contacts/${selectedId}/calls`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,7 +255,7 @@ export default function CrmPanel() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Call failed");
-      setBanner("Calling your phone first — answer to connect to the customer.");
+      setBanner("Calling your phone first — answer to connect.");
       await loadDetail(selectedId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Call failed");
@@ -261,7 +267,6 @@ export default function CrmPanel() {
   async function saveNote() {
     if (!selectedId || !note.trim()) return;
     setBusy("note");
-    setError(null);
     try {
       const res = await fetch(`/api/admin/crm/contacts/${selectedId}/notes`, {
         method: "POST",
@@ -299,363 +304,348 @@ export default function CrmPanel() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-brand">CRM</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Contacts, SMS, calls, and interaction history — seeded from leads, appointments, and
-            client accounts.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col min-h-[640px]">
+      {(banner || error || platform) && (
+        <div className="px-4 py-2 border-b border-gray-200 bg-white flex flex-wrap gap-3 items-center text-xs">
+          {platform && (
+            <span className="text-gray-500">
+              Twilio {platform.configured ? "ready" : "needs setup"} · SMS bot{" "}
+              {platform.smsBotEnabled ? `on (${platform.smsBotMode || "test"})` : "off"}
+            </span>
+          )}
+          {stats && (
+            <span className="text-gray-500">
+              {stats.total} contacts · {stats.unread} unread
+            </span>
+          )}
           <button
             type="button"
             onClick={() => void refreshFromSources()}
             disabled={busy === "refresh"}
-            className="px-4 py-2 rounded-full text-sm font-semibold border border-gray-200 bg-white text-brand hover:border-accent disabled:opacity-50"
+            className="ml-auto font-semibold text-brand hover:underline disabled:opacity-50"
           >
-            {busy === "refresh" ? "Refreshing…" : "Refresh from customers"}
+            Sync customers
           </button>
-        </div>
-      </div>
-
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[
-            ["Total", stats.total],
-            ["Customers", stats.customers],
-            ["Leads", stats.leads],
-            ["Inactive", stats.inactive],
-            ["Unread", stats.unread],
-          ].map(([label, value]) => (
-            <div key={label as string} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
-              <div className="text-2xl font-bold text-brand mt-1">{value}</div>
-            </div>
-          ))}
+          {banner && <span className="text-green-700 font-medium">{banner}</span>}
+          {error && <span className="text-red-700 font-medium">{error}</span>}
         </div>
       )}
 
-      {platform && (
-        <div className="text-sm text-gray-600 bg-white border border-gray-200 rounded-xl px-4 py-3">
-          Twilio SMS:{" "}
-          <span className={platform.configured ? "text-green-700 font-semibold" : "text-amber-700 font-semibold"}>
-            {platform.configured ? "configured" : "not configured"}
-          </span>
-          {" · "}
-          Voice:{" "}
-          <span className={platform.hasVoice ? "text-green-700 font-semibold" : "text-amber-700 font-semibold"}>
-            {platform.hasVoice ? "ready" : "needs credentials"}
-          </span>
-          {" · "}
-          SMS bot:{" "}
-          <span className="font-semibold text-brand">
-            {platform.smsBotEnabled ? "on" : "off"}
-          </span>
-        </div>
-      )}
-
-      {banner && (
-        <div className="rounded-xl border border-green-200 bg-green-50 text-green-800 px-4 py-3 text-sm">
-          {banner}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 px-4 py-3 text-sm">
-          {error}
-        </div>
-      )}
-
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="lg:w-[360px] shrink-0 space-y-3">
-          <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-3">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+        {/* Conversations list */}
+        <section className="border-r border-gray-200 bg-white flex flex-col min-h-0">
+          <div className="p-3 border-b border-gray-100 space-y-2">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, phone, pet…"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              placeholder="Search conversations…"
+              className="w-full rounded-lg border border-gray-200 bg-[#f8fafc] px-3 py-2 text-sm"
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               {(["all", "customer", "lead", "inactive"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setStatus(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                    status === s
-                      ? "bg-brand text-white border-brand"
-                      : "bg-white text-brand border-gray-200"
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                    status === s ? "bg-brand text-white" : "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  {s === "all" ? "All" : s[0].toUpperCase() + s.slice(1)}
+                  {s === "all" ? "All" : s}
                 </button>
               ))}
               <button
                 type="button"
                 onClick={() => setUnreadOnly((v) => !v)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                  unreadOnly
-                    ? "bg-accent text-white border-accent"
-                    : "bg-white text-brand border-gray-200"
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                  unreadOnly ? "bg-accent text-white" : "bg-gray-100 text-gray-600"
                 }`}
               >
                 Unread
               </button>
             </div>
           </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl max-h-[70vh] overflow-y-auto divide-y divide-gray-100">
-            {loading && <div className="p-4 text-sm text-gray-500">Loading contacts…</div>}
+          <div className="flex-1 overflow-y-auto">
+            {loading && <div className="p-4 text-sm text-gray-500">Loading…</div>}
             {!loading && contacts.length === 0 && (
-              <div className="p-4 text-sm text-gray-500">No contacts match.</div>
+              <div className="p-4 text-sm text-gray-500">No conversations</div>
             )}
-            {contacts.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedId(c.id)}
-                className={`w-full text-left px-4 py-3 hover:bg-section-gray/80 transition-colors ${
-                  selectedId === c.id ? "bg-section-gray" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-semibold text-brand">
-                      {c.fullName || formatPhoneDisplay(c.phone)}
+            {contacts.map((c) => {
+              const active = c.id === selectedId;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedId(c.id)}
+                  className={`w-full text-left px-3 py-3 border-b border-gray-50 flex gap-3 hover:bg-[#f8fafc] ${
+                    active ? "bg-[#eef6ff]" : ""
+                  }`}
+                >
+                  <div className="h-10 w-10 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shrink-0">
+                    {initials(c.fullName, c.phone)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold text-sm text-gray-900 truncate">
+                        {c.fullName || formatPhoneDisplay(c.phone)}
+                      </div>
+                      <div className="text-[10px] text-gray-400 shrink-0">
+                        {formatWhen(c.lastInteractionAt || c.updatedAt)}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-gray-500 truncate">
                       {formatPhoneDisplay(c.phone)}
                       {c.pets[0]?.petName ? ` · ${c.pets[0].petName}` : ""}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span
-                      className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                        c.status === "customer"
-                          ? "bg-sky-100 text-sky-800"
-                          : c.status === "lead"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
-                    {c.unreadCount > 0 && (
-                      <span className="text-[10px] font-bold bg-accent text-white rounded-full px-2 py-0.5">
-                        {c.unreadCount}
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] uppercase font-bold text-gray-400">
+                        {c.status}
                       </span>
-                    )}
+                      {c.unreadCount > 0 && (
+                        <span className="text-[10px] font-bold bg-accent text-white rounded-full px-1.5">
+                          {c.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="text-[11px] text-gray-400 mt-1">
-                  {formatWhen(c.lastInteractionAt || c.updatedAt)}
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </section>
 
-        <div className="flex-1 min-w-0">
+        {/* Thread */}
+        <section className="bg-[#f5f7fb] flex flex-col min-h-0 border-r border-gray-200">
           {!selected && (
-            <div className="bg-white border border-gray-200 rounded-xl p-8 text-sm text-gray-500">
-              Select a contact to view their timeline, text, or call.
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
+              Select a conversation
             </div>
           )}
           {selected && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5">
-              {detailLoading && !detail && (
-                <div className="text-sm text-gray-500">Loading contact…</div>
-              )}
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <>
+              <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-bold text-brand">
+                  <div className="font-bold text-brand">
                     {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  </div>
+                  <div className="text-xs text-gray-500">
                     {formatPhoneDisplay(selected.phone)}
-                    {detail?.email ? ` · ${detail.email}` : selected.email ? ` · ${selected.email}` : ""}
-                  </p>
-                  {(detail?.address || selected.address) && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {[detail?.address || selected.address, detail?.city || selected.city, detail?.zipCode || selected.zipCode]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {(detail?.tags || selected.tags).map((tag) => (
-                      <span
-                        key={tag}
-                        className="text-[10px] uppercase font-semibold tracking-wide bg-section-gray text-brand px-2 py-0.5 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                    {selected.email ? ` · ${selected.email}` : ""}
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={detail?.botEnabled ?? selected.botEnabled}
-                    onChange={(e) => void toggleBot(e.target.checked)}
-                    disabled={busy === "bot"}
-                  />
-                  SMS bot follow-up
-                </label>
-              </div>
-
-              {detail && (detail.upcomingAppointments.length > 0 || detail.pastAppointments.length > 0) && (
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Upcoming</div>
-                    {detail.upcomingAppointments.length === 0 && (
-                      <div className="text-sm text-gray-400">None</div>
-                    )}
-                    {detail.upcomingAppointments.slice(0, 3).map((a) => (
-                      <div key={a.id} className="text-sm text-brand border border-gray-100 rounded-lg px-3 py-2 mb-1">
-                        {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Past</div>
-                    {detail.pastAppointments.length === 0 && (
-                      <div className="text-sm text-gray-400">None</div>
-                    )}
-                    {detail.pastAppointments.slice(0, 3).map((a) => (
-                      <div key={a.id} className="text-sm text-gray-600 border border-gray-100 rounded-lg px-3 py-2 mb-1">
-                        {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid lg:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Send SMS</div>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={3}
-                    placeholder="Type a text message…"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void sendSms()}
-                      disabled={busy === "sms" || !message.trim()}
-                      className="px-4 py-2 rounded-full text-sm font-semibold bg-brand text-white disabled:opacity-50"
-                    >
-                      {busy === "sms" ? "Sending…" : "Send SMS"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void sendSms("lead_follow_up")}
-                      disabled={busy === "sms"}
-                      className="px-3 py-2 rounded-full text-xs font-semibold border border-gray-200"
-                    >
-                      Lead follow-up
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void sendSms("appointment_follow_up")}
-                      disabled={busy === "sms"}
-                      className="px-3 py-2 rounded-full text-xs font-semibold border border-gray-200"
-                    >
-                      Rebook follow-up
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Click-to-call</div>
-                  <input
-                    value={staffPhone}
-                    onChange={(e) => setStaffPhone(e.target.value)}
-                    placeholder="Your phone (Twilio calls you first)"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  />
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => void startCall()}
                     disabled={busy === "call"}
-                    className="px-4 py-2 rounded-full text-sm font-semibold bg-accent text-white disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white disabled:opacity-50"
                   >
-                    {busy === "call" ? "Starting…" : "Call contact"}
+                    Call
                   </button>
-                  <p className="text-xs text-gray-500">
-                    Twilio rings your phone, then bridges to the customer. Set a default with{" "}
-                    <code className="text-[11px]">TWILIO_STAFF_CALLBACK_NUMBER</code>.
-                  </p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-xs uppercase tracking-wide text-gray-500">Add note</div>
-                <div className="flex gap-2">
-                  <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Internal CRM note…"
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  />
+              <div ref={threadRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                {smsThread.map((ix) => {
+                  const mine = ix.direction === "outbound" || ix.direction === "internal";
+                  const suppressed = Boolean(ix.metadata?.suppressed);
+                  return (
+                    <div
+                      key={ix.id}
+                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
+                          ix.channel === "note"
+                            ? "bg-amber-50 border border-amber-100 text-amber-950"
+                            : ix.channel === "call"
+                              ? "bg-white border border-gray-200 text-gray-800"
+                              : mine
+                                ? suppressed
+                                  ? "bg-sky-100 text-sky-950 border border-sky-200"
+                                  : "bg-brand text-white"
+                                : "bg-white text-gray-800 border border-gray-100"
+                        }`}
+                      >
+                        <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
+                          {ix.channel === "note"
+                            ? "Note"
+                            : ix.channel === "call"
+                              ? ix.direction === "inbound"
+                                ? "Inbound call"
+                                : "Outbound call"
+                              : ix.actor === "bot"
+                                ? suppressed
+                                  ? "Bot draft (not sent)"
+                                  : "Bot"
+                                : mine
+                                  ? "You"
+                                  : "Customer"}
+                          {" · "}
+                          {formatWhen(ix.createdAt)}
+                        </div>
+                        <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {detail && smsThread.length === 0 && (
+                  <div className="text-center text-sm text-gray-400 py-10">
+                    No messages yet — send the first SMS below.
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border-t border-gray-200 p-3 space-y-2">
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={2}
+                  placeholder="Write an SMS…"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none"
+                />
+                <div className="flex flex-wrap gap-2 items-center">
                   <button
                     type="button"
-                    onClick={() => void saveNote()}
-                    disabled={busy === "note" || !note.trim()}
-                    className="px-4 py-2 rounded-full text-sm font-semibold border border-gray-200 disabled:opacity-50"
+                    onClick={() => void sendSms()}
+                    disabled={busy === "sms" || !message.trim()}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white disabled:opacity-50"
                   >
-                    Save
+                    Send
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => void sendSms("lead_follow_up")}
+                    disabled={busy === "sms"}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                  >
+                    Lead follow-up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void sendSms("appointment_follow_up")}
+                    disabled={busy === "sms"}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                  >
+                    Rebook
+                  </button>
+                  <input
+                    value={staffPhone}
+                    onChange={(e) => setStaffPhone(e.target.value)}
+                    placeholder="Your phone for click-to-call"
+                    className="ml-auto border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-44"
+                  />
                 </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Contact details */}
+        <section className="bg-white flex flex-col min-h-0 overflow-y-auto">
+          {!selected && (
+            <div className="p-6 text-sm text-gray-500">Contact details appear here.</div>
+          )}
+          {selected && (
+            <div className="p-4 space-y-4">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
+                  Contact
+                </div>
+                <div className="font-bold text-brand mt-1">
+                  {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  {formatPhoneDisplay(selected.phone)}
+                </div>
+                {(detail?.email || selected.email) && (
+                  <div className="text-sm text-gray-600">{detail?.email || selected.email}</div>
+                )}
+                {(detail?.address || selected.address) && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    {[
+                      detail?.address || selected.address,
+                      detail?.city || selected.city,
+                      detail?.zipCode || selected.zipCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </div>
+                )}
               </div>
 
               <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                  Interaction timeline
+                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
+                  Pets
                 </div>
-                <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                  {(detail?.interactions || [])
-                    .slice()
-                    .reverse()
-                    .map((ix) => (
-                      <div
-                        key={ix.id}
-                        className={`rounded-lg border px-3 py-2 text-sm ${
-                          ix.direction === "inbound"
-                            ? "border-accent/30 bg-pink-50/40"
-                            : ix.actor === "bot"
-                              ? "border-sky-200 bg-sky-50/50"
-                              : "border-gray-100 bg-section-gray/40"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
-                          <span className="font-semibold text-brand">{channelLabel(ix)}</span>
-                          <span>{formatWhen(ix.createdAt)}</span>
-                        </div>
-                        <div className="mt-1 text-gray-800 whitespace-pre-wrap">
-                          {ix.body || ix.summary || "—"}
-                        </div>
-                        {(ix.messageStatus || ix.callStatus || ix.staffName) && (
-                          <div className="mt-1 text-[11px] text-gray-500">
-                            {[ix.messageStatus, ix.callStatus, ix.staffName, ix.durationSeconds ? `${ix.durationSeconds}s` : ""]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  {detail && detail.interactions.length === 0 && (
-                    <div className="text-sm text-gray-400">No interactions yet.</div>
-                  )}
+                {(detail?.pets || selected.pets).length === 0 && (
+                  <div className="text-sm text-gray-400">No pets on file</div>
+                )}
+                {(detail?.pets || selected.pets).map((p, i) => (
+                  <div key={`${p.petName}-${i}`} className="text-sm text-gray-700">
+                    {p.petName || "Pet"} {p.petSize ? `· ${p.petSize}` : ""}
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
+                  Upcoming
                 </div>
+                {(detail?.upcomingAppointments || []).slice(0, 3).map((a) => (
+                  <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">
+                    {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
+                  </div>
+                ))}
+                {detail && detail.upcomingAppointments.length === 0 && (
+                  <div className="text-sm text-gray-400">None</div>
+                )}
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={detail?.botEnabled ?? selected.botEnabled}
+                  onChange={(e) => void toggleBot(e.target.checked)}
+                  disabled={busy === "bot"}
+                />
+                SMS bot for this contact
+              </label>
+
+              <div className="flex flex-wrap gap-1">
+                {(detail?.tags || selected.tags).map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div>
+                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
+                  Add note
+                </div>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Internal note…"
+                />
+                <button
+                  type="button"
+                  onClick={() => void saveNote()}
+                  disabled={busy === "note" || !note.trim()}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 disabled:opacity-50"
+                >
+                  Save note
+                </button>
               </div>
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

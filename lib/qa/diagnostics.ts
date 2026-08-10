@@ -144,11 +144,16 @@ async function checkEmail(): Promise<QaCheckResult> {
 async function checkSms(): Promise<QaCheckResult> {
   const id = "sms";
   const label = "SMS working (Twilio)";
-  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const { resolveTwilioAccountSid, resolveTwilioFromNumber } = await import(
+    "@/lib/notifications/twilio-runtime-config"
+  );
+  const accountSid =
+    process.env.TWILIO_ACCOUNT_SID?.trim() || (await resolveTwilioAccountSid());
   const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim();
   const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-  const from = process.env.TWILIO_FROM_NUMBER?.trim();
+  const from =
+    process.env.TWILIO_FROM_NUMBER?.trim() || (await resolveTwilioFromNumber());
 
   if (!accountSid || !from) {
     return {

@@ -6,6 +6,7 @@ import {
   getTwilioVoiceCallerId,
 } from "./twilio-client";
 import { normalizePhoneE164 } from "./twilio";
+import { resolveTwilioVoiceForward } from "./twilio-runtime-config";
 
 export type StartOutboundCallResult = {
   ok: boolean;
@@ -23,11 +24,11 @@ export async function startOutboundBridgeCall(options: {
   statusCallbackUrl: string;
   twimlUrl: string;
 }): Promise<StartOutboundCallResult> {
-  const client = getTwilioClient();
-  const callerId = getTwilioVoiceCallerId();
+  const client = await getTwilioClient();
+  const callerId = await getTwilioVoiceCallerId();
   const staffPhone =
     normalizePhoneE164(options.staffPhone || "") ||
-    normalizePhoneE164(getTwilioStaffCallbackNumber() || "");
+    normalizePhoneE164((await getTwilioStaffCallbackNumber()) || "");
   const customerPhone = normalizePhoneE164(options.customerPhone);
 
   if (!client || !callerId) {
@@ -61,28 +62,28 @@ export async function startOutboundBridgeCall(options: {
   }
 }
 
-export function buildBridgeTwiml(customerPhone: string): string {
+export async function buildBridgeTwiml(customerPhone: string): Promise<string> {
   const response = new twilio.twiml.VoiceResponse();
   response.say(
     { voice: "alice" },
     "Connecting you to the Mobile Dog Salon customer. Please hold."
   );
   const dial = response.dial({
-    callerId: getTwilioVoiceCallerId() || undefined,
+    callerId: (await getTwilioVoiceCallerId()) || undefined,
     timeout: 30,
   });
   dial.number(customerPhone);
   return response.toString();
 }
 
-export function buildInboundVoiceTwiml(options?: {
+export async function buildInboundVoiceTwiml(options?: {
   forwardTo?: string;
-}): string {
+}): Promise<string> {
   const response = new twilio.twiml.VoiceResponse();
   const forwardTo =
     normalizePhoneE164(options?.forwardTo || "") ||
-    normalizePhoneE164(getTwilioStaffCallbackNumber() || "") ||
-    normalizePhoneE164(process.env.TWILIO_VOICE_FORWARD_NUMBER || "");
+    normalizePhoneE164((await getTwilioStaffCallbackNumber()) || "") ||
+    normalizePhoneE164((await resolveTwilioVoiceForward()) || "");
 
   response.say(
     { voice: "alice" },
@@ -92,7 +93,7 @@ export function buildInboundVoiceTwiml(options?: {
   if (forwardTo) {
     response.say({ voice: "alice" }, "Please hold while we connect you.");
     const dial = response.dial({
-      callerId: getTwilioVoiceCallerId() || undefined,
+      callerId: (await getTwilioVoiceCallerId()) || undefined,
       timeout: 25,
     });
     dial.number(forwardTo);

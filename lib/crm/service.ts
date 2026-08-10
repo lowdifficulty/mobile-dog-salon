@@ -33,7 +33,10 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
     inactive: number;
     unread: number;
   };
-  platform: ReturnType<typeof twilioStatus> & { smsBotEnabled: boolean };
+  platform: Awaited<ReturnType<typeof twilioStatus>> & {
+    smsBotEnabled: boolean;
+    smsBotMode?: string;
+  };
 }> {
   await ensureCrmSeeded();
   const data = await readCrmData();
@@ -75,6 +78,11 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   );
 
   const all = data.contacts;
+  const [platform, botEnabled, botConfig] = await Promise.all([
+    twilioStatus(),
+    isSmsBotEnabled(),
+    import("./sms-bot-config").then((m) => m.readSmsBotConfig()).catch(() => null),
+  ]);
   return {
     contacts,
     stats: {
@@ -84,7 +92,11 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
       inactive: all.filter((c) => c.status === "inactive").length,
       unread: all.filter((c) => (c.unreadCount ?? 0) > 0).length,
     },
-    platform: { ...twilioStatus(), smsBotEnabled: isSmsBotEnabled() },
+    platform: {
+      ...platform,
+      smsBotEnabled: botConfig?.enabled ?? botEnabled,
+      smsBotMode: botConfig?.mode,
+    },
   };
 }
 

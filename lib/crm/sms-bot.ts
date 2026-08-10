@@ -7,7 +7,12 @@ import type { GroomerId } from "@/lib/scheduling/types";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import type { CrmContact } from "./types";
 import { recordBotSms } from "./messaging";
-import { listInteractionsForContact } from "./store";
+import { listInteractionsForContact, appendInteraction, newInteractionId } from "./store";
+import {
+  phoneAllowedForSmsBot,
+  readSmsBotConfig,
+  type SmsBotConfig,
+} from "./sms-bot-config";
 
 const BOOK_URL = `${companyLegal.siteUrl}/book`;
 const MY_APPT_URL = `${companyLegal.siteUrl}/my-appointment`;
@@ -15,18 +20,15 @@ const MY_APPT_URL = `${companyLegal.siteUrl}/my-appointment`;
 function getOpenAI(): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
-  if (process.env.SMS_BOT_ENABLED === "0" || process.env.SMS_BOT_ENABLED === "false") {
-    return null;
-  }
   return new OpenAI({ apiKey });
 }
 
-export function isSmsBotEnabled(): boolean {
+export async function isSmsBotEnabled(): Promise<boolean> {
   if (process.env.SMS_BOT_ENABLED === "0" || process.env.SMS_BOT_ENABLED === "false") {
     return false;
   }
-  // On by default for inbound follow-up; still works without OpenAI via rules.
-  return true;
+  const config = await readSmsBotConfig();
+  return config.enabled;
 }
 
 async function contactAppointmentContext(contact: CrmContact): Promise<{
@@ -160,8 +162,10 @@ async function maybeAiPolish(
   inbound: string,
   contact: CrmContact,
   draft: string,
-  ctx: Awaited<ReturnType<typeof contactAppointmentContext>>
+  ctx: Awaited<ReturnType<typeof contactAppointmentContext>>,
+  config: SmsBotConfig
 ): Promise<string> {
+  if (!config.useAiPolish) return draft;
   const openai = getOpenAI();
   if (!openai) return draft;
 
@@ -172,16 +176,20 @@ async function maybeAiPolish(
     .map((i) => `${i.direction}/${i.actor}: ${i.body}`)
     .join("\n");
 
+  const system = [
+    config.systemPrompt,
+    config.customLogic ? `\nAdditional logic from admin:\n${config.customLogic}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   try {
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
       temperature: 0.4,
       max_tokens: 180,
       messages: [
-        {
-          role: "system",
-          content: `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown.`,
-        },
+        { role: "system", content: system },
         {
           role: "user",
           content: [
@@ -207,6 +215,9 @@ async function maybeAiPolish(
 export type SmsBotHandleResult = {
   replied: boolean;
   body?: string;
+  /** true when draft was logged but not sent (test mode / non-allowlisted) */
+  suppressed?: boolean;
+  mode?: "test" | "live";
 };
 
 const COMPLIANCE_KEYWORDS = new Set([
@@ -224,35 +235,87 @@ const COMPLIANCE_KEYWORDS = new Set([
 
 /**
  * Generate an SMS chatbot reply for lead / appointment follow-up.
- * Returns TwiML-ready text; caller sends/logs. Skips compliance keywords.
+ * In test mode, only allowlisted phones receive a live TwiML reply.
  */
 export async function handleInboundSmsWithBot(options: {
   contact: CrmContact;
   inboundBody: string;
   /** When true (default), log the bot reply onto the CRM timeline. */
   record?: boolean;
+  /** Force sending even outside allowlist (admin simulator). */
+  forceSend?: boolean;
 }): Promise<SmsBotHandleResult> {
-  if (!isSmsBotEnabled() || options.contact.botEnabled === false) {
-    return { replied: false };
+  const config = await readSmsBotConfig();
+  if (!config.enabled || options.contact.botEnabled === false) {
+    return { replied: false, mode: config.mode };
   }
 
   const keyword = options.inboundBody.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
   if (COMPLIANCE_KEYWORDS.has(keyword)) {
-    return { replied: false };
+    return { replied: false, mode: config.mode };
   }
 
   const ctx = await contactAppointmentContext(options.contact);
   const draft = ruleBasedReply(options.inboundBody, options.contact, ctx);
-  const body = await maybeAiPolish(options.inboundBody, options.contact, draft, ctx);
+  const body = await maybeAiPolish(
+    options.inboundBody,
+    options.contact,
+    draft,
+    ctx,
+    config
+  );
+
+  const allowed =
+    options.forceSend || phoneAllowedForSmsBot(options.contact.phone, config);
+
+  if (!allowed) {
+    if (options.record !== false) {
+      await appendInteraction({
+        id: newInteractionId(),
+        contactId: options.contact.id,
+        phone: options.contact.phone,
+        channel: "sms",
+        direction: "outbound",
+        body,
+        summary: "SMS bot draft (test mode — not sent)",
+        messageStatus: "queued",
+        actor: "bot",
+        createdAt: new Date().toISOString(),
+        metadata: { suppressed: true, mode: config.mode },
+      });
+    }
+    return { replied: false, body, suppressed: true, mode: config.mode };
+  }
 
   if (options.record !== false) {
     await recordBotSms({ contact: options.contact, body });
   }
 
-  return { replied: true, body };
+  return { replied: true, body, mode: config.mode };
 }
 
-/** Build a proactive follow-up SMS for abandoned leads (not auto-sent). */
+/** Admin playground — generate a reply without Twilio send. */
+export async function simulateSmsBotReply(options: {
+  contact: CrmContact;
+  inboundBody: string;
+}): Promise<{ body: string; mode: "test" | "live"; draftOnly: boolean }> {
+  const config = await readSmsBotConfig();
+  const ctx = await contactAppointmentContext(options.contact);
+  const draft = ruleBasedReply(options.inboundBody, options.contact, ctx);
+  const body = await maybeAiPolish(
+    options.inboundBody,
+    options.contact,
+    draft,
+    ctx,
+    config
+  );
+  return {
+    body,
+    mode: config.mode,
+    draftOnly: config.mode === "test",
+  };
+}
+
 export function buildLeadFollowUpSms(contact: CrmContact): string {
   const first = contact.firstName?.trim() || "there";
   const pet = contact.pets.find((p) => p.petName)?.petName;
@@ -262,7 +325,6 @@ export function buildLeadFollowUpSms(contact: CrmContact): string {
   return `Hi ${first} — Mobile Dog Salon here! Finish booking your mobile groom in a minute: ${BOOK_URL} Reply STOP to opt out.`;
 }
 
-/** Build a proactive post-appointment rebook SMS (not auto-sent). */
 export function buildAppointmentFollowUpSms(contact: CrmContact): string {
   const first = contact.firstName?.trim() || "there";
   const pet = contact.pets.find((p) => p.petName)?.petName || "your pup";

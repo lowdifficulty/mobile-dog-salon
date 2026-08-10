@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import SchedulingShell from "./SchedulingShell";
+import AdminAppShell, { type AdminNavItem } from "@/components/admin/AdminAppShell";
 import TeamCalendarPanel from "./TeamCalendarPanel";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
@@ -16,10 +16,14 @@ import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
+import SmsBotPanel from "@/components/crm/SmsBotPanel";
+import TwilioSettingsPanel from "@/components/admin/TwilioSettingsPanel";
 
 type Tab =
-  | "contacts"
   | "crm"
+  | "contacts"
+  | "sms-bot"
+  | "twilio"
   | "analytics"
   | "accounting"
   | "appointments"
@@ -32,9 +36,27 @@ type Tab =
   | "logins"
   | "emails";
 
+const NAV: AdminNavItem[] = [
+  { id: "crm", label: "Conversations", group: "CRM" },
+  { id: "contacts", label: "Opportunities", group: "CRM" },
+  { id: "sms-bot", label: "SMS Chatbot", group: "CRM" },
+  { id: "twilio", label: "Phone & SMS", group: "CRM" },
+  { id: "appointments", label: "Appointments", group: "Operations" },
+  { id: "shifts", label: "Hours", group: "Operations" },
+  { id: "team-calendar", label: "Team calendar", group: "Operations" },
+  { id: "job-interviews", label: "Job Interviews", group: "Operations" },
+  { id: "analytics", label: "Analytics", group: "Insights" },
+  { id: "accounting", label: "Accounting", group: "Insights" },
+  { id: "emails", label: "Emails", group: "Insights" },
+  { id: "payments", label: "Payments", group: "Insights" },
+  { id: "licky", label: "Licky bot", group: "AI" },
+  { id: "qa", label: "QA", group: "System" },
+  { id: "logins", label: "Logins", group: "System" },
+];
+
 export default function AdminDashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("appointments");
+  const [tab, setTab] = useState<Tab>("crm");
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -42,65 +64,40 @@ export default function AdminDashboard() {
     router.refresh();
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "appointments", label: "Appointments" },
-    { id: "shifts", label: "Hours" },
-    { id: "crm", label: "CRM" },
-    { id: "contacts", label: "Contacts" },
-    { id: "analytics", label: "Analytics" },
-    { id: "accounting", label: "Accounting" },
-    { id: "team-calendar", label: "Team calendar" },
-    { id: "job-interviews", label: "Job Interviews" },
-    { id: "qa", label: "QA" },
-    { id: "payments", label: "Payments Beta" },
-    { id: "emails", label: "Emails" },
-    { id: "licky", label: "Licky bot" },
-    { id: "logins", label: "Logins" },
-  ];
+  const padded = tab !== "crm";
 
   return (
-    <SchedulingShell
-      title="Admin dashboard"
-      subtitle="CRM, SMS, calling, customers, analytics, accounting, appointments, team calendar, shifts, QA, payments, and staff logins."
+    <AdminAppShell
+      title="Admin"
+      items={NAV}
+      activeId={tab}
+      onSelect={(id) => setTab(id as Tab)}
       onLogout={logout}
     >
-      <div className="flex flex-wrap gap-2 mb-8">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-              tab === t.id
-                ? "bg-brand text-white border-brand"
-                : "bg-white text-brand border-gray-200 hover:border-accent"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className={padded ? "p-4 md:p-6" : ""}>
+        {tab === "crm" && <CrmPanel />}
+        {tab === "contacts" && (
+          <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
+        )}
+        {tab === "sms-bot" && <SmsBotPanel />}
+        {tab === "twilio" && <TwilioSettingsPanel />}
+        {tab === "analytics" && <FunnelAnalyticsPanel />}
+        {tab === "accounting" && <AdminAccountingPanel />}
+        {tab === "appointments" && <AdminAppointmentsPanel />}
+        {tab === "team-calendar" && (
+          <TeamCalendarPanel
+            availabilityApi="/api/staff/availability"
+            allowDeleteAppointments
+          />
+        )}
+        {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
+        {tab === "job-interviews" && <JobInterviewsPanel />}
+        {tab === "qa" && <QaDiagnosticsPanel />}
+        {tab === "payments" && <StaffPaymentsPanel />}
+        {tab === "emails" && <EmailCampaignsPanel />}
+        {tab === "licky" && <LickyTrainingPanel />}
+        {tab === "logins" && <StaffLoginLogPanel />}
       </div>
-
-      {tab === "crm" && <CrmPanel />}
-      {tab === "contacts" && (
-        <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
-      )}
-      {tab === "analytics" && <FunnelAnalyticsPanel />}
-      {tab === "accounting" && <AdminAccountingPanel />}
-      {tab === "appointments" && <AdminAppointmentsPanel />}
-      {tab === "team-calendar" && (
-        <TeamCalendarPanel
-          availabilityApi="/api/staff/availability"
-          allowDeleteAppointments
-        />
-      )}
-      {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
-      {tab === "job-interviews" && <JobInterviewsPanel />}
-      {tab === "qa" && <QaDiagnosticsPanel />}
-      {tab === "payments" && <StaffPaymentsPanel />}
-      {tab === "emails" && <EmailCampaignsPanel />}
-      {tab === "licky" && <LickyTrainingPanel />}
-      {tab === "logins" && <StaffLoginLogPanel />}
-    </SchedulingShell>
+    </AdminAppShell>
   );
 }

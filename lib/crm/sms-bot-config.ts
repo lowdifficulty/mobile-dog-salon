@@ -55,19 +55,23 @@ async function writeToLocalFile(config: SmsBotConfig): Promise<void> {
 
 function normalizeConfig(input: Partial<SmsBotConfig>): SmsBotConfig {
   const base = emptySmsBotConfig();
+  const parsedPhones = Array.from(
+    new Set(
+      (input.testPhones || [])
+        .map((p) => crmPhoneDigits(String(p)))
+        .filter((p) => p.length >= 10)
+    )
+  );
+  // Older Redis configs had an empty allowlist — keep the safe default test phone.
+  const testPhones =
+    parsedPhones.length > 0 ? parsedPhones : [...DEFAULT_SMS_BOT_TEST_PHONES];
   return {
     mode: input.mode === "live" ? "live" : "test",
     enabled: input.enabled !== false,
     useAiPolish: input.useAiPolish !== false,
     systemPrompt: (input.systemPrompt || base.systemPrompt).trim() || base.systemPrompt,
     customLogic: (input.customLogic || "").trim(),
-    testPhones: Array.from(
-      new Set(
-        (input.testPhones || [])
-          .map((p) => crmPhoneDigits(String(p)))
-          .filter((p) => p.length >= 10)
-      )
-    ),
+    testPhones,
     updatedAt: input.updatedAt,
   };
 }

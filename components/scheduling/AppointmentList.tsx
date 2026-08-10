@@ -14,6 +14,7 @@ import {
   canStaffManageAppointment,
   type StaffAppointmentFilter,
 } from "@/lib/scheduling/appointment-filters";
+import { formatCancellationActor } from "@/lib/scheduling/cancel-display";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 import {
   groomerAppointmentCardClass,
@@ -40,6 +41,17 @@ function formatWhen(startAt: string) {
 
 function formatBookedAt(createdAt: string) {
   return new Date(createdAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Los_Angeles",
+  });
+}
+
+function formatCancelledAt(cancelledAt: string) {
+  return new Date(cancelledAt).toLocaleString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -328,6 +340,19 @@ export default function AppointmentList({
                 <p className="text-sm text-gray-500">{GROOMERS[ap.groomerId].name}</p>
               </div>
             </div>
+            {ap.status === "cancelled" && (
+              <p className="text-sm text-gray-600 mb-2">
+                Cancelled by <strong>{formatCancellationActor(ap.cancelledBy)}</strong>
+                {ap.cancelledAt ? (
+                  <>
+                    {" "}
+                    on <strong>{formatCancelledAt(ap.cancelledAt)}</strong>
+                  </>
+                ) : (
+                  <span className="text-gray-500"> (time not recorded)</span>
+                )}
+              </p>
+            )}
             <p className="text-sm text-gray-800">
               <strong>{appointmentTitle}</strong>
             </p>

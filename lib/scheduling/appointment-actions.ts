@@ -587,6 +587,8 @@ export async function cancelAppointment(
 
   const { date, time } = parseSlotFromIso(appointment.startAt);
   appointment.status = "cancelled";
+  appointment.cancelledAt = new Date().toISOString();
+  appointment.cancelledBy = actor;
   releaseGroomerShiftWithoutAppointment(data, appointment.groomerId, date, time, {
     ignoreAppointmentId: appointment.id,
   });

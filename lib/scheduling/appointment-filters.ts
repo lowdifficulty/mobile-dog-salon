@@ -32,15 +32,25 @@ export function staffUpcomingCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - STAFF_UPCOMING_GRACE_MS);
 }
 
+function isWithinStaffUpcomingWindow(
+  appointment: { startAt: string; durationMinutes?: number; groomerId?: GroomerId },
+  now: Date = new Date()
+): boolean {
+  return appointmentEndMs(appointment) + STAFF_UPCOMING_GRACE_MS >= now.getTime();
+}
+
+/** Confirmed or cancelled visits still in the upcoming window (incl. post-visit grace). */
 export function isStaffUpcomingAppointment(
   appointment: { startAt: string; status: string; durationMinutes?: number; groomerId?: GroomerId },
   now: Date = new Date()
 ): boolean {
-  if (appointment.status !== "confirmed") return false;
-  return appointmentEndMs(appointment) + STAFF_UPCOMING_GRACE_MS >= now.getTime();
+  if (appointment.status !== "confirmed" && appointment.status !== "cancelled") {
+    return false;
+  }
+  return isWithinStaffUpcomingWindow(appointment, now);
 }
 
-/** Cancelled always; confirmed visits that have finished. */
+/** Finished confirmed visits, and cancelled visits that are no longer upcoming. */
 export function isStaffPastAppointment(
   appointment: {
     startAt: string;
@@ -50,7 +60,9 @@ export function isStaffPastAppointment(
   },
   now: Date = new Date()
 ): boolean {
-  if (appointment.status === "cancelled") return true;
+  if (appointment.status === "cancelled") {
+    return !isWithinStaffUpcomingWindow(appointment, now);
+  }
   if (appointment.status !== "confirmed") return false;
   return appointmentEndMs(appointment) <= now.getTime();
 }

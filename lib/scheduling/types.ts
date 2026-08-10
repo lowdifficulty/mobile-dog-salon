@@ -37,6 +37,10 @@ export interface Appointment {
   zipCode: string;
   notes: string;
   createdAt: string;
+  /** ISO timestamp when the appointment was cancelled */
+  cancelledAt?: string;
+  /** Who cancelled — staff email, `client:…`, or `public:phone:…` */
+  cancelledBy?: string;
   /** ISO timestamp when 24-hour reminder email was sent */
   reminder24hEmailSentAt?: string;
   /** ISO timestamp when 24-hour reminder SMS was sent */

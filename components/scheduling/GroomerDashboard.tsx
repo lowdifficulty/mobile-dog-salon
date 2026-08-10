@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import SchedulingShell from "./SchedulingShell";
+import StaffAppShell, { type StaffNavItem } from "@/components/staff/StaffAppShell";
 import GroomerShiftsTab from "./GroomerShiftsTab";
 import GroomerAppointmentsPanel from "./GroomerAppointmentsPanel";
 import GroomerDailyRoute from "./GroomerDailyRoute";
@@ -12,18 +12,27 @@ import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
 import LeadsPanel from "@/components/leads/LeadsPanel";
+import CrmPanel from "@/components/crm/CrmPanel";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
-import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
+import type { SessionUser } from "@/lib/scheduling/types";
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type Tab = "appointments" | "route" | "book" | "team-calendar" | "availability" | "clients" | "follow-ups";
+type Tab =
+  | "crm"
+  | "appointments"
+  | "route"
+  | "book"
+  | "team-calendar"
+  | "availability"
+  | "clients"
+  | "follow-ups";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("appointments");
+  const [tab, setTab] = useState<Tab>("crm");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const groomerId = user.groomerId;
@@ -36,86 +45,87 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
 
   if (!groomerId) {
     return (
-      <SchedulingShell title="Groomer dashboard" onLogout={logout}>
-        <p className="text-sm text-red-600">Invalid groomer session. Please sign in again.</p>
-      </SchedulingShell>
+      <StaffAppShell
+        title="Groomer dashboard"
+        eyebrow="Groomer"
+        items={[{ id: "appointments", label: "Appointments", group: "Schedule" }]}
+        activeId="appointments"
+        onSelect={() => undefined}
+        onLogout={logout}
+        storageKey="mds-groomer-sidebar-collapsed"
+      >
+        <div className="p-4 md:p-6">
+          <p className="text-sm text-red-600">Invalid groomer session. Please sign in again.</p>
+        </div>
+      </StaffAppShell>
     );
   }
 
   const seesTeamAppointments = groomerSeesTeamAppointments(groomerId);
   const isMelanie = groomerId === "melanie";
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "appointments", label: "Appointments" },
-    ...(isMelanie ? [{ id: "follow-ups" as const, label: "Follow-ups" }] : []),
-    { id: "availability", label: "My hours" },
-    { id: "clients", label: "Active clients" },
-    { id: "route", label: "Route" },
-    { id: "book", label: "Book" },
-    { id: "team-calendar", label: "Team Availability" },
+  const nav: StaffNavItem[] = [
+    { id: "crm", label: "Conversations", group: "CRM" },
+    { id: "appointments", label: "Appointments", group: "Schedule" },
+    ...(isMelanie ? [{ id: "follow-ups" as const, label: "Follow-ups", group: "Schedule" }] : []),
+    { id: "availability", label: "My hours", group: "Schedule" },
+    { id: "clients", label: "Active clients", group: "Schedule" },
+    { id: "route", label: "Route", group: "Schedule" },
+    { id: "book", label: "Book", group: "Schedule" },
+    { id: "team-calendar", label: "Team Availability", group: "Schedule" },
   ];
+
+  const padded = tab !== "crm";
 
   return (
     <>
       <StaffTransferPrompt groomerId={groomerId} />
-      <SchedulingShell
-        title={`${user.name}'s schedule`}
-        subtitle="Appointments, active clients, daily route, team availability, and your working hours."
+      <StaffAppShell
+        title={`${user.name}'s workspace`}
+        eyebrow={user.name}
+        items={nav}
+        activeId={tab}
+        onSelect={(id) => setTab(id as Tab)}
         onLogout={logout}
+        storageKey="mds-groomer-sidebar-collapsed"
       >
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-grey" data-groomer-tabs="v2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                tab === t.id
-                  ? "bg-brand text-white border-brand"
-                  : "bg-white text-brand border-gray-200 hover:border-accent"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className={padded ? "p-4 md:p-6" : ""} data-groomer-shell="ghl-v1">
+          <DashboardErrorBoundary>
+            {tab === "crm" && <CrmPanel />}
+            {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
+            {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
+            {tab === "appointments" && (
+              <GroomerAppointmentsPanel
+                groomerId={groomerId}
+                refreshKey={appointmentRefreshKey}
+              />
+            )}
+            {tab === "book" && (
+              <StaffBookAppointmentForm
+                defaultGroomerId={groomerId}
+                defaultOpen
+                onBooked={() => {
+                  setAppointmentRefreshKey((key) => key + 1);
+                  setCalendarRefreshKey((key) => key + 1);
+                  setTab("appointments");
+                }}
+              />
+            )}
+            {tab === "team-calendar" && (
+              <TeamCalendarPanel
+                availabilityOnly
+                availabilityApi="/api/staff/availability"
+                calendarRefreshKey={calendarRefreshKey}
+                scopeGroomerId={seesTeamAppointments ? undefined : groomerId}
+              />
+            )}
+            {tab === "availability" && <GroomerShiftsTab groomerId={groomerId} />}
+            {tab === "follow-ups" && isMelanie && (
+              <LeadsPanel apiBase="/api/staff/leads" melanieFollowUpCrm allowDelete={false} />
+            )}
+          </DashboardErrorBoundary>
         </div>
-
-        <DashboardErrorBoundary>
-          {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
-          {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
-          {tab === "appointments" && (
-            <GroomerAppointmentsPanel
-              groomerId={groomerId}
-              refreshKey={appointmentRefreshKey}
-            />
-          )}
-          {tab === "book" && (
-            <StaffBookAppointmentForm
-              defaultGroomerId={groomerId}
-              defaultOpen
-              onBooked={() => {
-                setAppointmentRefreshKey((key) => key + 1);
-                setCalendarRefreshKey((key) => key + 1);
-                setTab("appointments");
-              }}
-            />
-          )}
-          {tab === "team-calendar" && (
-            <TeamCalendarPanel
-              availabilityOnly
-              availabilityApi="/api/staff/availability"
-              calendarRefreshKey={calendarRefreshKey}
-              scopeGroomerId={seesTeamAppointments ? undefined : groomerId}
-            />
-          )}
-          {tab === "availability" && (
-            <GroomerShiftsTab groomerId={groomerId} />
-          )}
-          {tab === "follow-ups" && isMelanie && (
-            <LeadsPanel apiBase="/api/staff/leads" melanieFollowUpCrm allowDelete={false} />
-          )}
-        </DashboardErrorBoundary>
-      </SchedulingShell>
+      </StaffAppShell>
     </>
   );
 }

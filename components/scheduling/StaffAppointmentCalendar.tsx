@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
-import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
-import { formatAppointmentAddress } from "@/lib/scheduling/address";
+import AppointmentClientDetails from "@/components/scheduling/AppointmentClientDetails";
 import { computeDayCalendarStats } from "@/lib/scheduling/day-calendar-stats";
 import {
   GROOMERS,
@@ -454,21 +453,8 @@ export default function StaffAppointmentCalendar({
                           )}
                         </button>
                         {isExpanded && (
-                          <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-700 space-y-1">
-                            <p>
-                              <strong>Pet:</strong> {formatPetNames(getAppointmentPets(ap))}
-                            </p>
-                            <p>
-                              <strong>Client:</strong> {ap.firstName} {ap.lastName} · {ap.phone}
-                            </p>
-                            <p>
-                              <strong>Address:</strong> {formatAppointmentAddress(ap)}
-                            </p>
-                            {ap.notes ? (
-                              <p>
-                                <strong>Notes:</strong> {ap.notes}
-                              </p>
-                            ) : null}
+                          <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3">
+                            <AppointmentClientDetails appointment={ap} />
                           </div>
                         )}
                       </div>
@@ -516,6 +502,7 @@ export default function StaffAppointmentCalendar({
                             })}`
                           : ""}
                       </p>
+                      <AppointmentClientDetails appointment={ap} compact />
                     </div>
                   ))}
                 </div>

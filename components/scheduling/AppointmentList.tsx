@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
 import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
-import { GROOMERS, groomerClientDisplayName } from "@/lib/scheduling/groomers";
-import { formatAppointmentAddress } from "@/lib/scheduling/address";
+import { GROOMERS } from "@/lib/scheduling/groomers";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import StaffDateTimePicker, {
   buildSlotKey,
 } from "@/components/scheduling/StaffDateTimePicker";
+import AppointmentClientDetails from "@/components/scheduling/AppointmentClientDetails";
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import {
   canStaffManageAppointment,
@@ -356,17 +356,7 @@ export default function AppointmentList({
             <p className="text-sm text-gray-800">
               <strong>{appointmentTitle}</strong>
             </p>
-            {(ap.petName?.trim() || ap.petBreed) && (
-              <p className="text-sm text-gray-600 mt-0.5">
-                {ap.petName?.trim()}
-                {ap.petBreed ? ` (${ap.petBreed})` : ""}
-              </p>
-            )}
-            <p className="text-sm text-gray-600 mt-1">
-              {ap.firstName} {ap.lastName} · {ap.phone}
-            </p>
-            <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
-            {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
+            <AppointmentClientDetails appointment={ap} />
 
             {showActions && (
               <div className="mt-4 pt-4 border-t border-gray-100">

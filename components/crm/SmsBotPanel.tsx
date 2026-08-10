@@ -104,8 +104,9 @@ export default function SmsBotPanel() {
       <div>
         <h2 className="text-xl font-bold text-brand">SMS Chatbot</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Keep the bot in <strong>test mode</strong> until replies look right. In test mode it
-          only sends to allowlisted phones; other contacts get a CRM draft only.
+          Keep <strong>test mode</strong> on until you are ready for customers. In test mode,
+          outbound SMS (bot replies, booking confirmations, reminders, and CRM sends) only go to
+          allowlisted phones — everyone else is blocked or stored as a CRM draft.
         </p>
       </div>
 
@@ -164,7 +165,13 @@ export default function SmsBotPanel() {
           </div>
           {config.mode === "live" && (
             <p className="text-xs text-amber-700 mt-2">
-              Live mode sends bot replies to all inbound customers (except STOP/START/HELP).
+              Live mode allows outbound SMS to any opted-in customer (and bot replies to inbound,
+              except STOP/START/HELP).
+            </p>
+          )}
+          {config.mode === "test" && (
+            <p className="text-xs text-gray-500 mt-2">
+              Test mode blocks outbound SMS to anyone not on the allowlist below.
             </p>
           )}
         </div>
@@ -180,6 +187,9 @@ export default function SmsBotPanel() {
             placeholder="9493863351"
             className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
           />
+          <span className="text-xs text-gray-500 mt-1 block">
+            Default test number: 9493863351
+          </span>
         </label>
 
         <label className="block">

@@ -27,7 +27,7 @@ export type SendSmsResult = {
 export async function sendSms(
   to: string,
   body: string,
-  options?: { skipOptOutCheck?: boolean }
+  options?: { skipOptOutCheck?: boolean; skipAllowlistCheck?: boolean }
 ): Promise<SendSmsResult> {
   const from = await getTwilioFromNumber();
   const client = await getTwilioClient();
@@ -45,6 +45,25 @@ export async function sendSms(
           ? "TWILIO_FROM_NUMBER not set"
           : "Invalid phone number",
     };
+  }
+
+  if (!options?.skipAllowlistCheck) {
+    const { phoneOnSmsAllowlist, resolveSmsOutboundAllowlist } = await import(
+      "./sms-outbound-allowlist"
+    );
+    const { allowlist, reason } = await resolveSmsOutboundAllowlist();
+    if (allowlist) {
+      if (allowlist.length === 0 || !phoneOnSmsAllowlist(toE164, allowlist)) {
+        console.log(
+          `SMS blocked — ${toE164} not on outbound allowlist (${reason})`
+        );
+        return {
+          ok: false,
+          to: toE164,
+          error: "SMS blocked — number not on outbound test allowlist",
+        };
+      }
+    }
   }
 
   if (!options?.skipOptOutCheck) {

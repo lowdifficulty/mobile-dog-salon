@@ -186,12 +186,10 @@ export default function CrmPanel() {
   );
 
   const smsThread = useMemo(() => {
+    // Keep chat focused on real SMS/calls/notes. Appointment system events
+    // (one per recurring visit) live in the appointments panel, not the thread.
     return (detail?.interactions || []).filter(
-      (ix) =>
-        ix.channel === "sms" ||
-        ix.channel === "call" ||
-        ix.channel === "note" ||
-        (ix.channel === "system" && ix.body)
+      (ix) => ix.channel === "sms" || ix.channel === "call" || ix.channel === "note"
     );
   }, [detail]);
 
@@ -474,13 +472,15 @@ export default function CrmPanel() {
                               ? ix.direction === "inbound"
                                 ? "Inbound call"
                                 : "Outbound call"
-                              : ix.actor === "bot"
-                                ? suppressed
-                                  ? "Bot draft (not sent)"
-                                  : "Bot"
-                                : mine
-                                  ? "You"
-                                  : "Customer"}
+                              : ix.channel === "system"
+                                ? "System"
+                                : ix.actor === "bot"
+                                  ? suppressed
+                                    ? "Bot draft (not sent)"
+                                    : "Bot"
+                                  : mine
+                                    ? "You"
+                                    : "Customer"}
                           {" · "}
                           {formatWhen(ix.createdAt)}
                         </div>

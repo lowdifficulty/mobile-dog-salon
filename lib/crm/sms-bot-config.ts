@@ -25,6 +25,9 @@ export interface SmsBotConfig {
 
 export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown.`;
 
+/** Default test allowlist — only this number receives outbound SMS in test mode. */
+export const DEFAULT_SMS_BOT_TEST_PHONES = ["9493863351"];
+
 export function emptySmsBotConfig(): SmsBotConfig {
   return {
     mode: "test",
@@ -32,7 +35,7 @@ export function emptySmsBotConfig(): SmsBotConfig {
     useAiPolish: true,
     systemPrompt: DEFAULT_SMS_BOT_SYSTEM_PROMPT,
     customLogic: "",
-    testPhones: [],
+    testPhones: [...DEFAULT_SMS_BOT_TEST_PHONES],
   };
 }
 

@@ -1,6 +1,8 @@
 # Localhost setup — Mobile Dog Salon
 
-Use this when an agent (Grok, Composer, etc.) or a human needs the site running locally without guessing ports.
+**Want localhost on your laptop?** Start here: **[LOCAL-MACHINE.md](./LOCAL-MACHINE.md)** (open repo in Cursor Desktop locally → `npm run 67`).
+
+Use this doc for port troubleshooting and Cloud Agent vs laptop differences.
 
 ## Two different “localhost” meanings
 

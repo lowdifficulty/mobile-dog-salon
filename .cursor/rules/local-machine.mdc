@@ -1,0 +1,17 @@
+---
+description: Prefer local machine development; Cloud Agent cannot run localhost on the user's PC
+globs:
+alwaysApply: true
+---
+
+# Local machine first (Mobile Dog Salon)
+
+When the user wants localhost on **their computer**, do **not** rely on Cloud Agent VM servers.
+
+1. Direct them to **docs/LOCAL-MACHINE.md** — open repo in **Cursor Desktop locally**, then `npm run 67`.
+2. Cloud Agent `curl localhost` only validates the **remote VM**, not the user's browser.
+3. On a **local workspace**, run terminal commands (`npm install`, `npm run 67`, `npm run ensure-local`) in the user's project terminal.
+4. After site-changing commands locally: verify `http://localhost:<port>/` returns 200 (`node scripts/print-local-url.mjs` for port).
+5. Stale UI: `rm -rf .next && npm run build`.
+
+Default port: `LOCAL_PORT` → `PORT` → 3000.

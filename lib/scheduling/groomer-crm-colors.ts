@@ -27,3 +27,29 @@ export function groomerAppointmentLegendDotClass(groomerId: GroomerId): string {
   if (groomerId === "diamond") return "bg-violet-500";
   return "bg-gray-400";
 }
+
+export function groomerConversationAvatarClass(
+  groomerId: "melanie" | "jessica" | "diamond" | null | undefined
+): string {
+  if (groomerId === "melanie") return "bg-emerald-600 text-white";
+  if (groomerId === "jessica") return "bg-blue-600 text-white";
+  if (groomerId === "diamond") return "bg-violet-600 text-white";
+  return "bg-brand text-white";
+}
+
+export function groomerConversationRowClass(
+  groomerId: "melanie" | "jessica" | "diamond" | null | undefined,
+  active: boolean
+): string {
+  if (groomerId === "melanie") {
+    return active
+      ? "bg-emerald-50 border-l-4 border-l-emerald-500"
+      : "hover:bg-emerald-50/70 border-l-4 border-l-emerald-300";
+  }
+  if (groomerId === "jessica") {
+    return active
+      ? "bg-blue-50 border-l-4 border-l-blue-500"
+      : "hover:bg-blue-50/70 border-l-4 border-l-blue-300";
+  }
+  return active ? "bg-[#eef6ff]" : "hover:bg-[#f8fafc] border-l-4 border-l-transparent";
+}

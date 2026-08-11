@@ -1,18 +1,57 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { PaymentCardBillingDetails, PaymentCardInstance } from "./StripeCardField";
 
 type SquareCardInstance = {
   attach: (selector: string) => Promise<void>;
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
+  tokenize: (details?: {
+    billingContact?: {
+      givenName?: string;
+      familyName?: string;
+      postalCode?: string;
+    };
+  }) => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
   destroy?: () => Promise<void>;
 };
+
+function wrapSquareCard(card: SquareCardInstance): PaymentCardInstance {
+  return {
+    tokenize: async (billing?: PaymentCardBillingDetails) => {
+      const name = billing?.cardholderName?.trim() ?? "";
+      const parts = name.split(/\s+/).filter(Boolean);
+      const givenName = parts[0];
+      const familyName = parts.length > 1 ? parts.slice(1).join(" ") : undefined;
+      const postalCode = billing?.postalCode?.trim();
+
+      const result = await card.tokenize(
+        givenName || familyName || postalCode
+          ? {
+              billingContact: {
+                givenName,
+                familyName,
+                postalCode,
+              },
+            }
+          : undefined
+      );
+
+      if (result.status !== "OK" || !result.token) {
+        return {
+          status: "FAILED",
+          errors: result.errors ?? [{ message: "Could not read card." }],
+        };
+      }
+      return { status: "OK", token: result.token };
+    },
+  };
+}
 
 export default function SquareCardField({
   onReady,
   disabled = false,
 }: {
-  onReady: (card: SquareCardInstance | null) => void;
+  onReady: (card: PaymentCardInstance | null) => void;
   disabled?: boolean;
 }) {
   const containerId = useRef(`sq-card-${Math.random().toString(36).slice(2)}`);
@@ -51,7 +90,7 @@ export default function SquareCardField({
             const payments = await window.Square.payments(config.applicationId, config.locationId);
             card = await payments.card();
             await card.attach(`#${containerId.current}`);
-            onReadyRef.current(card);
+            onReadyRef.current(wrapSquareCard(card));
             setLoading(false);
           } catch (err) {
             console.error(err);

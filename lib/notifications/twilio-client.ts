@@ -52,6 +52,7 @@ export async function twilioStatus(): Promise<{
   hasVoice: boolean;
   hasAccountSid: boolean;
   hasApiKey: boolean;
+  hasBrowserCalling: boolean;
   mode: "api-key" | "auth-token" | "missing";
   fromNumberMasked?: string;
   accountSidMasked?: string;
@@ -73,6 +74,7 @@ export async function twilioStatus(): Promise<{
     hasVoice: mode !== "missing" && Boolean(await getTwilioVoiceCallerId()),
     hasAccountSid: Boolean(accountSid),
     hasApiKey: Boolean(apiKeySid && apiKeySecret),
+    hasBrowserCalling: Boolean(accountSid && apiKeySid && apiKeySecret),
     mode,
     fromNumberMasked: from ? `${from.slice(0, 2)}••••${from.slice(-4)}` : undefined,
     accountSidMasked: accountSid

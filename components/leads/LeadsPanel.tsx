@@ -702,18 +702,20 @@ export default function LeadsPanel({
               badgeCount={view === "abandoned" ? 0 : badgeCounts.abandoned}
               onClick={() => switchToView("abandoned")}
             />
-            <button
-              type="button"
-              onClick={() => switchToView("cold_storage")}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                view === "cold_storage"
-                  ? "bg-brand text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              Cold storage
-            </button>
-            {!hideJobApplicants && (
+            {!melanieFollowUpCrm && (
+              <button
+                type="button"
+                onClick={() => switchToView("cold_storage")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  view === "cold_storage"
+                    ? "bg-brand text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Cold storage
+              </button>
+            )}
+            {!hideJobApplicants && !melanieFollowUpCrm && (
               <button
                 type="button"
                 onClick={() => switchToView("job_applicants")}

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import SquareCardField from "./SquareCardField";
+import PaymentCardField, { type PaymentCardInstance } from "./PaymentCardField";
 import type { ClientListItem, PaymentHistoryItem, SavedCardSummary } from "@/lib/payments/types";
 
 type Tab = "charge" | "cards" | "history";
 
-type SquareCardInstance = {
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
+type PaymentConfig = {
+  configured?: boolean;
+  provider?: "stripe" | "square" | "none";
 };
 
 function formatMoney(cents: number) {
@@ -21,14 +22,17 @@ export default function StaffPaymentsPanel() {
   const [clientId, setClientId] = useState("");
   const [cards, setCards] = useState<SavedCardSummary[]>([]);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
-  const [squareConfigured, setSquareConfigured] = useState(true);
+  const [paymentsConfigured, setPaymentsConfigured] = useState(true);
+  const [paymentProvider, setPaymentProvider] = useState<"stripe" | "square" | "none">("none");
+  const [providerTesting, setProviderTesting] = useState(false);
+  const [setupMessage, setSetupMessage] = useState("");
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [useNewCard, setUseNewCard] = useState(false);
-  const [payCard, setPayCard] = useState<SquareCardInstance | null>(null);
-  const [vaultCard, setVaultCard] = useState<SquareCardInstance | null>(null);
+  const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
+  const [vaultCard, setVaultCard] = useState<PaymentCardInstance | null>(null);
 
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -75,7 +79,27 @@ export default function StaffPaymentsPanel() {
     loadClients();
     fetch("/api/payments/config")
       .then((r) => r.json())
-      .then((c) => setSquareConfigured(c.configured));
+      .then((c: PaymentConfig) => {
+        setPaymentsConfigured(Boolean(c.configured));
+        setPaymentProvider(c.provider ?? "none");
+      });
+    fetch("/api/admin/payments")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.stripeStatus?.ok) {
+          setSetupMessage(
+            `Stripe connected (${data.stripeStatus.livemode ? "live" : "test"} mode).`
+          );
+        } else if (data?.squareStatus?.ok) {
+          const location = data.squareStatus.locationName
+            ? `${data.squareStatus.locationName}`
+            : data.squareStatus.locationId;
+          setSetupMessage(
+            `Square connected (${data.squareStatus.environment} mode${location ? ` · ${location}` : ""}).`
+          );
+        }
+      })
+      .catch(() => undefined);
   }, [loadClients]);
 
   useEffect(() => {
@@ -177,13 +201,34 @@ export default function StaffPaymentsPanel() {
     await loadCards();
   }
 
-  const handlePayCardReady = useCallback((card: SquareCardInstance | null) => {
+  const handlePayCardReady = useCallback((card: PaymentCardInstance | null) => {
     setPayCard(card);
   }, []);
 
-  const handleVaultCardReady = useCallback((card: SquareCardInstance | null) => {
+  const handleVaultCardReady = useCallback((card: PaymentCardInstance | null) => {
     setVaultCard(card);
   }, []);
+
+  async function testPaymentConnection() {
+    setProviderTesting(true);
+    setSetupMessage("");
+    setError("");
+    try {
+      const action = paymentProvider === "square" ? "test-square" : "test-stripe";
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Connection test failed");
+      setSetupMessage(data.message ?? "Payment processor connected.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Connection test failed");
+    } finally {
+      setProviderTesting(false);
+    }
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "charge", label: "Charge client" },
@@ -193,9 +238,59 @@ export default function StaffPaymentsPanel() {
 
   return (
     <div>
-      {!squareConfigured && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Square is not configured yet. Add Square API keys in your environment to process cards.
+      {!paymentsConfigured && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
+          <p>
+            Payments are not configured yet. Add Stripe or Square credentials in Vercel /{" "}
+            <code className="font-mono text-xs">.env.local</code>, then redeploy.
+          </p>
+          <p className="text-xs text-amber-800">
+            Stripe: <code className="font-mono text-xs">STRIPE_SECRET_KEY</code>,{" "}
+            <code className="font-mono text-xs">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>
+          </p>
+          <p className="text-xs text-amber-800">
+            Square: <code className="font-mono text-xs">SQUARE_ACCESS_TOKEN</code>,{" "}
+            <code className="font-mono text-xs">SQUARE_APPLICATION_ID</code>,{" "}
+            <code className="font-mono text-xs">SQUARE_LOCATION_ID</code>
+          </p>
+          <p className="text-xs text-amber-800">
+            If both are set, Stripe is used unless{" "}
+            <code className="font-mono text-xs">PAYMENT_PROVIDER=square</code>.
+          </p>
+        </div>
+      )}
+
+      {paymentsConfigured && paymentProvider === "stripe" && (
+        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <strong>Stripe</strong> is the active payment processor.
+            {setupMessage ? ` ${setupMessage}` : " Test the connection before charging clients."}
+          </div>
+          <button
+            type="button"
+            onClick={() => void testPaymentConnection()}
+            disabled={providerTesting}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-green-600 text-green-800 bg-white disabled:opacity-50"
+          >
+            {providerTesting ? "Testing…" : "Test Stripe"}
+          </button>
+        </div>
+      )}
+
+      {paymentsConfigured && paymentProvider === "square" && (
+        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <strong>Square</strong> is the active payment processor.
+            {setupMessage ? ` ${setupMessage}` : " Test the connection before charging clients."}
+          </div>
+          <button
+            type="button"
+            onClick={() => void testPaymentConnection()}
+            disabled={providerTesting}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-green-600 text-green-800 bg-white disabled:opacity-50"
+          >
+            {providerTesting ? "Testing…" : "Test Square"}
+          </button>
         </div>
       )}
 
@@ -323,12 +418,12 @@ export default function StaffPaymentsPanel() {
           )}
 
           {(useNewCard || cards.length === 0) && (
-            <SquareCardField onReady={handlePayCardReady} disabled={busy} />
+            <PaymentCardField onReady={handlePayCardReady} disabled={busy} />
           )}
 
           <button
             type="submit"
-            disabled={busy || !squareConfigured || !clientId}
+            disabled={busy || !paymentsConfigured || !clientId}
             className="site-btn w-full"
           >
             {busy ? "Processing…" : "Charge card"}
@@ -361,11 +456,11 @@ export default function StaffPaymentsPanel() {
 
           <div className="site-card p-6">
             <h2 className="font-bold text-brand mb-4">Add card for client</h2>
-            <SquareCardField onReady={handleVaultCardReady} disabled={busy} />
+            <PaymentCardField onReady={handleVaultCardReady} disabled={busy} />
             <button
               type="button"
               onClick={handleSaveCard}
-              disabled={busy || !squareConfigured || !clientId}
+              disabled={busy || !paymentsConfigured || !clientId}
               className="site-btn mt-4 w-full"
             >
               {busy ? "Saving…" : "Save card on file"}

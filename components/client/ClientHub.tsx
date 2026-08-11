@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ClientPortalShell from "@/components/payments/ClientPortalShell";
-import SquareCardField from "@/components/payments/SquareCardField";
+import PaymentCardField, { type PaymentCardInstance } from "@/components/payments/PaymentCardField";
 import WeekAvailabilityPicker from "@/components/scheduling/WeekAvailabilityPicker";
 import { PET_SIZES } from "@/lib/constants";
 import { formatPrice } from "@/lib/pricing";
@@ -40,10 +40,6 @@ interface PortalPhoto {
   caption?: string;
   createdAt: string;
 }
-
-type SquareCardInstance = {
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
-};
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
@@ -95,13 +91,13 @@ export default function ClientHub() {
   const [payTab, setPayTab] = useState<PayTab>("pay");
   const [cards, setCards] = useState<SavedCardSummary[]>([]);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
-  const [squareConfigured, setSquareConfigured] = useState(true);
+  const [paymentsConfigured, setPaymentsConfigured] = useState(true);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [useNewCard, setUseNewCard] = useState(false);
-  const [payCard, setPayCard] = useState<SquareCardInstance | null>(null);
-  const [vaultCard, setVaultCard] = useState<SquareCardInstance | null>(null);
+  const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
+  const [vaultCard, setVaultCard] = useState<PaymentCardInstance | null>(null);
   const [payMsg, setPayMsg] = useState("");
   const [payError, setPayError] = useState("");
   const [payBusy, setPayBusy] = useState(false);
@@ -181,7 +177,7 @@ export default function ClientHub() {
     loadSession();
     fetch("/api/payments/config")
       .then((r) => r.json())
-      .then((c) => setSquareConfigured(c.configured));
+      .then((c) => setPaymentsConfigured(c.configured));
   }, [loadSession]);
 
   useEffect(() => {
@@ -745,7 +741,7 @@ export default function ClientHub() {
 
         {hubTab === "payments" && (
           <div className="space-y-6">
-            {!squareConfigured && (
+            {!paymentsConfigured && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 Online payments are not fully configured yet. Please call us to pay by phone.
               </div>
@@ -818,9 +814,9 @@ export default function ClientHub() {
                   </div>
                 )}
                 {(useNewCard || cards.length === 0) && (
-                  <SquareCardField onReady={setPayCard} disabled={payBusy} />
+                  <PaymentCardField onReady={setPayCard} disabled={payBusy} />
                 )}
-                <button type="submit" disabled={payBusy || !squareConfigured} className="site-btn w-full">
+                <button type="submit" disabled={payBusy || !paymentsConfigured} className="site-btn w-full">
                   {payBusy ? "Processing…" : "Pay now"}
                 </button>
               </form>
@@ -839,7 +835,7 @@ export default function ClientHub() {
                     ))}
                   </ul>
                 )}
-                <SquareCardField onReady={setVaultCard} disabled={payBusy} />
+                <PaymentCardField onReady={setVaultCard} disabled={payBusy} />
                 <button type="button" onClick={() => void handleSaveCard()} disabled={payBusy} className="site-btn">
                   Save card
                 </button>

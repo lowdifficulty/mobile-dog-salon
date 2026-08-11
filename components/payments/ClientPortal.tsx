@@ -3,14 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ClientPortalShell from "./ClientPortalShell";
-import SquareCardField from "./SquareCardField";
+import PaymentCardField, { type PaymentCardInstance } from "./PaymentCardField";
 import type { ClientSessionUser, PaymentHistoryItem, SavedCardSummary } from "@/lib/payments/types";
 
 type Tab = "pay" | "cards" | "history";
-
-type SquareCardInstance = {
-  tokenize: () => Promise<{ status: string; token?: string; errors?: Array<{ message: string }> }>;
-};
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
@@ -23,18 +19,18 @@ export default function ClientPortal() {
   const [tab, setTab] = useState<Tab>("pay");
   const [cards, setCards] = useState<SavedCardSummary[]>([]);
   const [payments, setPayments] = useState<PaymentHistoryItem[]>([]);
-  const [squareConfigured, setSquareConfigured] = useState(true);
+  const [paymentsConfigured, setPaymentsConfigured] = useState(true);
 
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [selectedCardId, setSelectedCardId] = useState("");
   const [useNewCard, setUseNewCard] = useState(false);
-  const [payCard, setPayCard] = useState<SquareCardInstance | null>(null);
+  const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [vaultCard, setVaultCard] = useState<SquareCardInstance | null>(null);
+  const [vaultCard, setVaultCard] = useState<PaymentCardInstance | null>(null);
 
   const loadSession = useCallback(async () => {
     const res = await fetch("/api/client/session");
@@ -70,7 +66,7 @@ export default function ClientPortal() {
     loadSession();
     fetch("/api/payments/config")
       .then((r) => r.json())
-      .then((c) => setSquareConfigured(c.configured));
+      .then((c) => setPaymentsConfigured(c.configured));
   }, [loadSession]);
 
   useEffect(() => {
@@ -177,11 +173,11 @@ export default function ClientPortal() {
     }
   }
 
-  const handlePayCardReady = useCallback((card: SquareCardInstance | null) => {
+  const handlePayCardReady = useCallback((card: PaymentCardInstance | null) => {
     setPayCard(card);
   }, []);
 
-  const handleVaultCardReady = useCallback((card: SquareCardInstance | null) => {
+  const handleVaultCardReady = useCallback((card: PaymentCardInstance | null) => {
     setVaultCard(card);
   }, []);
 
@@ -204,10 +200,10 @@ export default function ClientPortal() {
   return (
     <ClientPortalShell
       title={`${client.firstName}'s payment portal`}
-      subtitle="Secure payments powered by Square."
+      subtitle="Secure payments powered by Stripe."
       onLogout={logout}
     >
-      {!squareConfigured && (
+      {!paymentsConfigured && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Online payments are not fully configured yet. Please call us to pay by phone.
         </div>
@@ -297,10 +293,10 @@ export default function ClientPortal() {
           )}
 
           {(useNewCard || cards.length === 0) && (
-            <SquareCardField onReady={handlePayCardReady} disabled={busy} />
+            <PaymentCardField onReady={handlePayCardReady} disabled={busy} />
           )}
 
-          <button type="submit" disabled={busy || !squareConfigured} className="site-btn w-full">
+          <button type="submit" disabled={busy || !paymentsConfigured} className="site-btn w-full">
             {busy ? "Processing…" : "Pay now"}
           </button>
         </form>
@@ -341,11 +337,11 @@ export default function ClientPortal() {
 
           <div className="site-card p-6">
             <h2 className="font-bold text-brand mb-4">Add a card</h2>
-            <SquareCardField onReady={handleVaultCardReady} disabled={busy} />
+            <PaymentCardField onReady={handleVaultCardReady} disabled={busy} />
             <button
               type="button"
               onClick={handleSaveCard}
-              disabled={busy || !squareConfigured}
+              disabled={busy || !paymentsConfigured}
               className="site-btn mt-4 w-full"
             >
               {busy ? "Saving…" : "Save card on file"}

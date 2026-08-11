@@ -99,20 +99,40 @@ export type SmsBotSession = {
   expiresAt: string;
 };
 
+export type CrmConversationView = "all" | "melanie" | "jessica" | "followUps";
+
 /** Sort metadata attached to contacts in list responses. */
 export type CrmContactSortField =
   | "lastInteraction"
   | "areaCode"
   | "address"
+  | "street"
+  | "city"
+  | "zipCode"
+  | "name"
+  | "phone"
+  | "email"
+  | "status"
   | "booked"
   | "lastAppointment"
-  | "zone";
+  | "daysSinceLastAppointment"
+  | "zone"
+  | "groomer"
+  | "pets";
 
 export type CrmContactSortMeta = {
   areaCode: string | null;
   hasBookedAppointment: boolean;
   lastAppointmentAt: string | null;
+  lastPastAppointmentAt: string | null;
+  daysSinceLastAppointment: number | null;
+  hasUpcomingAppointment: boolean;
+  isFollowUp: boolean;
+  primaryGroomerId: "melanie" | "jessica" | "diamond" | null;
   serviceZone: 1 | 2 | null;
+  street: string;
+  parsedCity: string;
+  parsedZip: string;
 };
 
 export type CrmContactListItem = CrmContact & CrmContactSortMeta;

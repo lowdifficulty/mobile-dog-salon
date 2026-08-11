@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
+import { formatAppointmentTitle, getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 import { GROOMERS, groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
@@ -24,6 +24,7 @@ import LeadDetailsEditor, {
   leadToFormValues,
   type LeadDetailsFormValues,
 } from "@/components/leads/LeadDetailsEditor";
+import AppointmentPaymentModal from "@/components/payments/AppointmentPaymentModal";
 
 const LEADS_API = "/api/staff/leads";
 
@@ -75,6 +76,7 @@ export default function AppointmentList({
   const [editLeadAppointmentId, setEditLeadAppointmentId] = useState<string | null>(null);
   const [leadFormValues, setLeadFormValues] = useState<LeadDetailsFormValues | null>(null);
   const [leadFormLoading, setLeadFormLoading] = useState(false);
+  const [payAppointment, setPayAppointment] = useState<Appointment | null>(null);
 
   const manageApiBase = apiUrl.split("?")[0];
 
@@ -381,6 +383,16 @@ export default function AppointmentList({
                   )
                 ) : !isRescheduling && canManage ? (
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-center text-xs">
+                    {ap.status !== "cancelled" && getAppointmentBookedPrice(ap) != null && (
+                      <button
+                        type="button"
+                        onClick={() => setPayAppointment(ap)}
+                        disabled={isBusy}
+                        className="font-semibold text-brand hover:text-accent disabled:opacity-50"
+                      >
+                        Pay
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => openEditLead(ap)}
@@ -493,6 +505,13 @@ export default function AppointmentList({
           </div>
         );
       })}
+      {payAppointment && (
+        <AppointmentPaymentModal
+          appointment={payAppointment}
+          onClose={() => setPayAppointment(null)}
+          onPaid={() => setPayAppointment(null)}
+        />
+      )}
     </div>
   );
 }

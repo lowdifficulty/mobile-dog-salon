@@ -35,6 +35,9 @@
     "connect-licky": "node scripts/connect-licky.mjs"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.8.1",
+    "@stripe/stripe-js": "^9.13.0",
+    "@twilio/voice-sdk": "^2.18.3",
     "@upstash/qstash": "^2.11.1",
     "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.3",
@@ -48,6 +51,7 @@
     "resend": "^6.12.4",
     "server-only": "^0.0.1",
     "square": "^44.1.0",
+    "stripe": "^22.5.0",
     "twilio": "^6.0.2",
     "uuid": "^14.0.0"
   },

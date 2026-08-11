@@ -161,7 +161,12 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
             )}
             {tab === "availability" && <GroomerShiftsTab groomerId={groomerId} />}
             {tab === "follow-ups" && isMelanie && (
-              <LeadsPanel apiBase="/api/staff/leads" melanieFollowUpCrm allowDelete={false} />
+              <LeadsPanel
+                apiBase="/api/staff/leads"
+                melanieFollowUpCrm
+                hideJobApplicants
+                allowDelete={false}
+              />
             )}
           </DashboardErrorBoundary>
         </div>

@@ -9,6 +9,7 @@ type Status = {
   hasVoice: boolean;
   hasAccountSid: boolean;
   hasApiKey: boolean;
+  hasBrowserCalling?: boolean;
   mode: string;
   fromNumberMasked?: string;
   accountSidMasked?: string;
@@ -21,6 +22,7 @@ type Config = {
   staffCallbackNumber: string;
   voiceForwardNumber: string;
   webhookBaseUrl: string;
+  twimlAppSid: string;
   hasEnvApiKey: boolean;
   hasEnvAccountSid: boolean;
 };
@@ -135,7 +137,9 @@ export default function TwilioSettingsPanel() {
       if (!res.ok || !data.ok) throw new Error(data.error || "Could not configure webhooks");
       setWebhooks(data.webhooks ?? null);
       setMessage(
-        "SMS & voice webhooks connected. Inbound texts now hit the CRM + SMS bot at /api/twilio/inbound."
+        data.twimlAppSid
+          ? "SMS, voice, and browser dialer webhooks connected."
+          : "SMS & voice webhooks connected. Inbound texts now hit the CRM + SMS bot at /api/twilio/inbound."
       );
       await load();
     } catch (e) {
@@ -165,6 +169,10 @@ export default function TwilioSettingsPanel() {
           ["Account SID", status?.hasAccountSid ? status.accountSidMasked : "Required"],
           ["From number", status?.hasFromNumber ? status.fromNumberMasked : "Required"],
           ["Voice", status?.hasVoice ? "Ready" : "Needs caller ID"],
+          [
+            "Browser dialer",
+            status?.hasBrowserCalling ? "Ready (Voice SDK)" : "Needs API key",
+          ],
         ].map(([label, value]) => (
           <div key={label} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
             <div className="text-xs uppercase text-gray-500 tracking-wide">{label}</div>
@@ -198,9 +206,9 @@ export default function TwilioSettingsPanel() {
 
       {!config.staffCallbackNumber.trim() && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
-          Set <strong>Staff click-to-call phone</strong> to your cell (e.g. +19493863351), then click{" "}
-          <strong>Save settings</strong>. Outbound calls and the dialer need this — the business
-          line cannot call itself.
+          The floating dialer can call from your browser when API keys are set. For{" "}
+          <strong>Cell bridge</strong> mode, save a personal cell under{" "}
+          <strong>Staff click-to-call phone</strong> — not the business Twilio number.
         </div>
       )}
 
@@ -213,6 +221,7 @@ export default function TwilioSettingsPanel() {
             ["staffCallbackNumber", "Staff click-to-call phone", "+19493863351"],
             ["voiceForwardNumber", "Inbound call forward-to", "+19493863351"],
             ["webhookBaseUrl", "Webhook base URL", "https://mobiledog-salon.com"],
+            ["twimlAppSid", "Browser dialer TwiML App SID (AP…)", "APxxxxxxxx"],
           ] as const
         ).map(([key, label, placeholder]) => (
           <label key={key} className="block">

@@ -8,7 +8,12 @@ import { persistenceStatus } from "@/lib/scheduling/persistence";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { GROOMERS } from "@/lib/scheduling/groomers";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
-import { getSquareClientConfig, isSquareConfigured } from "@/lib/payments/square";
+import {
+  getPaymentProvider,
+  isPaymentsConfigured,
+} from "@/lib/payments/gateway";
+import { getStripeAccountStatus } from "@/lib/payments/stripe";
+import { getSquareAccountStatus } from "@/lib/payments/square";
 
 export type QaCheckStatus = "working" | "not_working" | "warning";
 
@@ -212,30 +217,61 @@ async function checkPayments(): Promise<QaCheckResult> {
   const id = "payments";
   const label = "Payment System Working";
 
-  if (!isSquareConfigured()) {
+  if (!isPaymentsConfigured()) {
     return {
       id,
       label,
       status: "not_working",
       message:
-        "Square is not configured yet (SQUARE_ACCESS_TOKEN / SQUARE_APPLICATION_ID).",
+        "Payments are not configured yet (set Stripe or Square credentials in Vercel).",
       details: { configured: false },
     };
   }
 
+  const provider = getPaymentProvider();
+
   try {
-    const config = await getSquareClientConfig();
-    if (!config.locationConfigured || !config.locationId) {
+    if (provider === "stripe") {
+      const status = await getStripeAccountStatus();
+      if (!status.ok) {
+        return {
+          id,
+          label,
+          status: "not_working",
+          message: status.error ?? "Stripe connection failed",
+          details: { configured: true, provider },
+        };
+      }
       return {
         id,
         label,
-        status: "not_working",
-        message:
-          "Square credentials are set but no active location is ready — client portal and staff charges are unavailable.",
+        status: "working",
+        message: `Stripe ${status.livemode ? "live" : "test"} mode is connected.`,
+        details: { configured: true, provider, livemode: Boolean(status.livemode) },
+      };
+    }
+
+    if (provider === "square") {
+      const status = await getSquareAccountStatus();
+      if (!status.ok) {
+        return {
+          id,
+          label,
+          status: "not_working",
+          message: status.error ?? "Square connection failed",
+          details: { configured: true, provider },
+        };
+      }
+      return {
+        id,
+        label,
+        status: "working",
+        message: `Square ${status.environment} mode is connected${status.locationName ? ` (${status.locationName})` : ""}.`,
         details: {
           configured: true,
-          locationConfigured: false,
-          environment: config.environment,
+          provider,
+          environment: status.environment ?? "unknown",
+          locationId: status.locationId ?? "",
         },
       };
     }
@@ -243,13 +279,9 @@ async function checkPayments(): Promise<QaCheckResult> {
     return {
       id,
       label,
-      status: "working",
-      message: `Square ${config.environment} is connected with an active location.`,
-      details: {
-        configured: true,
-        locationConfigured: true,
-        environment: config.environment,
-      },
+      status: "not_working",
+      message: "No active payment provider.",
+      details: { configured: false },
     };
   } catch (err) {
     return {
@@ -257,7 +289,7 @@ async function checkPayments(): Promise<QaCheckResult> {
       label,
       status: "not_working",
       message: err instanceof Error ? err.message : "Payment system check failed",
-      details: { configured: true },
+      details: { configured: true, provider },
     };
   }
 }

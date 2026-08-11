@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/scheduling/auth";
+import { listCustomerCards, saveCardOnFile } from "@/lib/payments/gateway";
 import { findClientById } from "@/lib/payments/store";
-import { listCustomerCards, saveCardOnFile } from "@/lib/payments/square";
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const cards = await listCustomerCards(account.squareCustomerId);
+    const cards = await listCustomerCards(account);
     return NextResponse.json({ cards });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,13 +43,14 @@ export async function POST(request: Request) {
     }
 
     const card = await saveCardOnFile(
-      account.squareCustomerId,
+      account,
       sourceId,
       cardholderName ?? `${account.firstName} ${account.lastName}`
     );
     return NextResponse.json({ success: true, card });
   } catch (err) {
     console.error("Staff save card failed:", err);
-    return NextResponse.json({ error: "Could not save card" }, { status: 400 });
+    const message = err instanceof Error ? err.message : "Could not save card";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

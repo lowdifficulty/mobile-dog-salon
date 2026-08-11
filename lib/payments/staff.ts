@@ -6,16 +6,16 @@ export async function enrichPaymentsWithClients(
   payments: PaymentHistoryItem[]
 ): Promise<PaymentHistoryItem[]> {
   const data = await readClientsData();
-  const bySquareId = new Map(
-    data.clients.map((c) => [
-      c.squareCustomerId,
-      { name: `${c.firstName} ${c.lastName}`, email: c.email },
-    ])
-  );
+  const byCustomerId = new Map<string, { name: string; email: string }>();
+  for (const client of data.clients) {
+    const info = { name: `${client.firstName} ${client.lastName}`, email: client.email };
+    if (client.stripeCustomerId) byCustomerId.set(client.stripeCustomerId, info);
+    if (client.squareCustomerId) byCustomerId.set(client.squareCustomerId, info);
+  }
 
   return payments.map((payment) => {
     if (!payment.customerId) return payment;
-    const client = bySquareId.get(payment.customerId);
+    const client = byCustomerId.get(payment.customerId);
     if (!client) return payment;
     return {
       ...payment,

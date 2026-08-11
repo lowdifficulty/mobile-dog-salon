@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatAppointmentTitle } from "@/lib/booking/appointment-title";
+import { formatAppointmentTitle, getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { formatPetNames, getAppointmentPets } from "@/lib/booking/pets";
 import { formatAppointmentAddress } from "@/lib/scheduling/address";
 import { computeDayCalendarStats } from "@/lib/scheduling/day-calendar-stats";
@@ -22,6 +22,7 @@ import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-pr
 import { appointmentToStaffBookPrefill } from "@/lib/scheduling/staff-book-prefill";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
 import { activeVansOnDate, vanLabel, type VanId } from "@/lib/scheduling/vans";
+import AppointmentPaymentModal from "@/components/payments/AppointmentPaymentModal";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -169,6 +170,7 @@ export default function StaffAppointmentCalendar({
   const [adminOpenSlots, setAdminOpenSlots] = useState<AdminOpenSlot[]>([]);
   const [slotOccupancy, setSlotOccupancy] = useState<VanSlotOccupancy[]>([]);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [payAppointment, setPayAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -277,6 +279,7 @@ export default function StaffAppointmentCalendar({
   }
 
   return (
+    <>
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-8 items-start">
       <div className="site-card p-6">
         {mode === "groomer" && seesTeam && groomerId && (
@@ -498,6 +501,17 @@ export default function StaffAppointmentCalendar({
                                 <strong>Notes:</strong> {ap.notes}
                               </p>
                             ) : null}
+                            {ap.status !== "cancelled" &&
+                              getAppointmentBookedPrice(ap) != null &&
+                              (mode === "admin" || isOwn) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPayAppointment(ap)}
+                                  className="mt-2 inline-flex items-center rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-dark"
+                                >
+                                  Collect payment
+                                </button>
+                              )}
                             {mode === "groomer" && onRebook && isOwn && (
                               <button
                                 type="button"
@@ -644,5 +658,13 @@ export default function StaffAppointmentCalendar({
         </button>
       </div>
     </div>
+    {payAppointment && (
+      <AppointmentPaymentModal
+        appointment={payAppointment}
+        onClose={() => setPayAppointment(null)}
+        onPaid={() => setPayAppointment(null)}
+      />
+    )}
+  </>
   );
 }

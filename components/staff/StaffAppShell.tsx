@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import StaffDialerPopup from "@/components/admin/StaffDialerPopup";
+import {
+  StaffDialerProvider,
+  useStaffDialerPanel,
+} from "@/lib/twilio/staff-dialer-context";
 
 export type StaffNavItem = {
   id: string;
@@ -155,7 +159,25 @@ function NavIcon({ id }: { id: string }) {
   }
 }
 
-export default function StaffAppShell({
+export default function StaffAppShell(props: {
+  title: string;
+  eyebrow?: string;
+  items: StaffNavItem[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  onLogout?: () => void;
+  storageKey?: string;
+  showDialer?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <StaffDialerProvider enabled={Boolean(props.showDialer)}>
+      <StaffAppShellInner {...props} />
+    </StaffDialerProvider>
+  );
+}
+
+function StaffAppShellInner({
   title,
   eyebrow = "Workspace",
   items,
@@ -177,7 +199,7 @@ export default function StaffAppShell({
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [dialerOpen, setDialerOpen] = useState(false);
+  const { dialerOpen, openDialer, closeDialer, prefillPhone } = useStaffDialerPanel();
 
   useEffect(() => {
     try {
@@ -310,7 +332,7 @@ export default function StaffAppShell({
           {showDialer && (
             <button
               type="button"
-              onClick={() => setDialerOpen((v) => !v)}
+              onClick={() => (dialerOpen ? closeDialer() : openDialer())}
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
                 dialerOpen
                   ? "bg-green-600 text-white"
@@ -325,7 +347,9 @@ export default function StaffAppShell({
           )}
         </header>
         <main className="flex-1 min-h-0">{children}</main>
-        {showDialer && dialerOpen && <StaffDialerPopup onClose={() => setDialerOpen(false)} />}
+        {showDialer && dialerOpen && (
+          <StaffDialerPopup prefillPhone={prefillPhone} onClose={closeDialer} />
+        )}
       </div>
     </div>
   );

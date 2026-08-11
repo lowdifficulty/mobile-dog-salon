@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireClient } from "@/lib/payments/auth";
-import { removeCardOnFile } from "@/lib/payments/square";
+import { removeCardOnFile } from "@/lib/payments/gateway";
 
 export async function DELETE(
   _request: Request,

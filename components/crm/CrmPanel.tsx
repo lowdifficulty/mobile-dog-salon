@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import type { CrmConversationView } from "@/lib/crm/types";
 import {
-  STAFF_CALLBACK_HELP,
-  useStaffCallbackPhone,
-} from "@/lib/twilio/use-staff-callback-phone";
+  groomerConversationAvatarClass,
+  groomerConversationRowClass,
+} from "@/lib/scheduling/groomer-crm-colors";
+import { useStaffCallbackPhone } from "@/lib/twilio/use-staff-callback-phone";
+import { useStaffDialerPanel } from "@/lib/twilio/staff-dialer-context";
 
 type Platform = {
   configured: boolean;
@@ -39,6 +42,12 @@ type CrmContact = {
   lastInteractionAt?: string;
   updatedAt: string;
   groomerName?: string;
+  groomerId?: string;
+  primaryGroomerId?: "melanie" | "jessica" | "diamond" | null;
+  daysSinceLastAppointment?: number | null;
+  isFollowUp?: boolean;
+  hasUpcomingAppointment?: boolean;
+  lastPastAppointmentAt?: string | null;
 };
 
 type CrmInteraction = {
@@ -111,6 +120,24 @@ function initials(name?: string, phone?: string): string {
   return (phone || "?").slice(-2);
 }
 
+function formatDaysSince(days: number | null | undefined): string {
+  if (days == null) return "—";
+  if (days === 0) return "Today";
+  if (days === 1) return "1 day ago";
+  if (days < 14) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 8) return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  return `${months} month${months === 1 ? "" : "s"} ago`;
+}
+
+const VIEW_TABS: { id: CrmConversationView; label: string; dotClass?: string }[] = [
+  { id: "all", label: "All" },
+  { id: "melanie", label: "Melanie", dotClass: "bg-emerald-500" },
+  { id: "jessica", label: "Jessica", dotClass: "bg-blue-500" },
+  { id: "followUps", label: "Follow Ups" },
+];
+
 const CRM_POLL_MS = 10_000;
 
 export default function CrmPanel() {
@@ -132,12 +159,13 @@ export default function CrmPanel() {
   });
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
+  const [view, setView] = useState<CrmConversationView>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [listReady, setListReady] = useState(false);
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
-  const { staffPhone, setStaffPhone, configuredInSettings } = useStaffCallbackPhone();
+  const { staffPhone, setStaffPhone } = useStaffCallbackPhone();
+  const { openDialer } = useStaffDialerPanel();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -149,7 +177,7 @@ export default function CrmPanel() {
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
-      if (status !== "all") params.set("status", status);
+      if (view !== "all") params.set("view", view);
       if (unreadOnly) params.set("unread", "1");
       const res = await fetch(`/api/admin/crm/contacts?${params.toString()}`);
       if (!res.ok) throw new Error("Could not load CRM contacts");
@@ -162,7 +190,7 @@ export default function CrmPanel() {
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : "Load failed");
     }
-  }, [q, status, unreadOnly, selectedId]);
+  }, [q, view, unreadOnly, selectedId]);
 
   const loadDetail = useCallback(async (id: string, options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -184,6 +212,17 @@ export default function CrmPanel() {
   useEffect(() => {
     void loadContacts();
   }, [loadContacts]);
+
+  useEffect(() => {
+    if (!listReady) return;
+    if (contacts.length === 0) {
+      setSelectedId("");
+      return;
+    }
+    if (!contacts.some((c) => c.id === selectedId)) {
+      setSelectedId(contacts[0].id);
+    }
+  }, [contacts, listReady, selectedId]);
 
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
@@ -267,32 +306,9 @@ export default function CrmPanel() {
     }
   }
 
-  async function startCall() {
-    if (!selectedId) return;
-    const staff = staffPhone.trim();
-    if (!staff && !configuredInSettings) {
-      setError(STAFF_CALLBACK_HELP);
-      return;
-    }
-    setBusy("call");
-    setError(null);
-    setBanner(null);
-    try {
-      if (staff) setStaffPhone(staff);
-      const res = await fetch(`/api/admin/crm/contacts/${selectedId}/calls`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ staffPhone: staff || undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Call failed");
-      setBanner("Calling your phone first — answer to connect.");
-      await loadDetail(selectedId);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Call failed");
-    } finally {
-      setBusy(null);
-    }
+  function openCallDialer() {
+    if (!selected) return;
+    openDialer(selected.phone);
   }
 
   async function saveNote() {
@@ -385,16 +401,27 @@ export default function CrmPanel() {
               className="w-full rounded-lg border border-gray-200 bg-[#f8fafc] px-3 py-2 text-sm"
             />
             <div className="flex flex-wrap gap-1">
-              {(["all", "customer", "lead", "inactive"] as const).map((s) => (
+              {VIEW_TABS.map((tab) => (
                 <button
-                  key={s}
+                  key={tab.id}
                   type="button"
-                  onClick={() => setStatus(s)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold ${
-                    status === s ? "bg-brand text-white" : "bg-gray-100 text-gray-600"
+                  onClick={() => setView(tab.id)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                    view === tab.id
+                      ? tab.id === "melanie"
+                        ? "bg-emerald-600 text-white"
+                        : tab.id === "jessica"
+                          ? "bg-blue-600 text-white"
+                          : tab.id === "followUps"
+                            ? "bg-amber-600 text-white"
+                            : "bg-brand text-white"
+                      : "bg-gray-100 text-gray-600"
                   }`}
                 >
-                  {s === "all" ? "All" : s}
+                  {tab.dotClass && (
+                    <span className={`h-2 w-2 rounded-full ${tab.dotClass}`} aria-hidden />
+                  )}
+                  {tab.label}
                 </button>
               ))}
               <button
@@ -407,6 +434,11 @@ export default function CrmPanel() {
                 Unread
               </button>
             </div>
+            {view === "followUps" && (
+              <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5">
+                Last visit 2+ weeks ago with no future booking — sorted by longest overdue first.
+              </p>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {listReady && contacts.length === 0 && (
@@ -414,16 +446,23 @@ export default function CrmPanel() {
             )}
             {contacts.map((c) => {
               const active = c.id === selectedId;
+              const groomerId = c.primaryGroomerId ?? null;
+              const showFollowUpMeta = view === "followUps" || c.isFollowUp;
               return (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => setSelectedId(c.id)}
-                  className={`w-full text-left px-3 py-3 border-b border-gray-50 flex gap-3 hover:bg-[#f8fafc] ${
-                    active ? "bg-[#eef6ff]" : ""
-                  }`}
+                  className={`w-full text-left px-3 py-3 border-b border-gray-50 flex gap-3 ${groomerConversationRowClass(
+                    groomerId,
+                    active
+                  )}`}
                 >
-                  <div className="h-10 w-10 rounded-full bg-brand text-white text-xs font-bold flex items-center justify-center shrink-0">
+                  <div
+                    className={`h-10 w-10 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${groomerConversationAvatarClass(
+                      groomerId
+                    )}`}
+                  >
                     {initials(c.fullName, c.phone)}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -432,17 +471,34 @@ export default function CrmPanel() {
                         {c.fullName || formatPhoneDisplay(c.phone)}
                       </div>
                       <div className="text-[10px] text-gray-400 shrink-0">
-                        {formatWhen(c.lastInteractionAt || c.updatedAt)}
+                        {showFollowUpMeta
+                          ? formatDaysSince(c.daysSinceLastAppointment)
+                          : formatWhen(c.lastInteractionAt || c.updatedAt)}
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 truncate">
                       {formatPhoneDisplay(c.phone)}
                       {c.pets[0]?.petName ? ` · ${c.pets[0].petName}` : ""}
+                      {groomerId === "melanie" && " · Melanie"}
+                      {groomerId === "jessica" && " · Jessica"}
                     </div>
+                    {showFollowUpMeta && (
+                      <div className="text-[11px] font-semibold text-amber-700 mt-0.5">
+                        Last groomed {formatDaysSince(c.daysSinceLastAppointment)}
+                        {c.lastPastAppointmentAt
+                          ? ` · ${formatWhen(c.lastPastAppointmentAt)}`
+                          : ""}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] uppercase font-bold text-gray-400">
                         {c.status}
                       </span>
+                      {c.isFollowUp && view !== "followUps" && (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full px-1.5">
+                          Follow up
+                        </span>
+                      )}
                       {c.unreadCount > 0 && (
                         <span className="text-[10px] font-bold bg-accent text-white rounded-full px-1.5">
                           {c.unreadCount}
@@ -478,9 +534,8 @@ export default function CrmPanel() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => void startCall()}
-                    disabled={busy === "call"}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white disabled:opacity-50"
+                    onClick={openCallDialer}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white"
                   >
                     Call
                   </button>
@@ -654,10 +709,27 @@ export default function CrmPanel() {
                 )}
               </div>
 
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Pets
+              {(detail?.isFollowUp || selected.isFollowUp) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Follow up — last groomed{" "}
+                  {formatDaysSince(
+                    detail?.daysSinceLastAppointment ?? selected.daysSinceLastAppointment
+                  )}
+                  {(detail?.lastPastAppointmentAt || selected.lastPastAppointmentAt) && (
+                    <>
+                      {" "}
+                      on{" "}
+                      {formatWhen(
+                        detail?.lastPastAppointmentAt ||
+                          selected.lastPastAppointmentAt ||
+                          undefined
+                      )}
+                    </>
+                  )}
                 </div>
+              )}
+
+              <div>
                 {(detail?.pets || selected.pets).length === 0 && (
                   <div className="text-sm text-gray-400">No pets on file</div>
                 )}

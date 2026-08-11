@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireClient } from "@/lib/payments/auth";
+import { createCustomerPayment } from "@/lib/payments/gateway";
 import { findClientById } from "@/lib/payments/store";
-import { createCustomerPayment } from "@/lib/payments/square";
 
 export async function POST(request: Request) {
   try {
@@ -31,15 +31,18 @@ export async function POST(request: Request) {
 
     const amountCents = Math.round(amount * 100);
     const payment = await createCustomerPayment({
-      squareCustomerId: account.squareCustomerId,
+      account,
       sourceId: paymentSource,
       amountCents,
       note: note?.trim() || undefined,
+      savedCard: Boolean(cardId),
     });
 
     return NextResponse.json({ success: true, payment });
   } catch (err) {
     console.error("Payment failed:", err);
-    return NextResponse.json({ error: "Payment could not be processed. Please try again." }, { status: 400 });
+    const message =
+      err instanceof Error ? err.message : "Payment could not be processed. Please try again.";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

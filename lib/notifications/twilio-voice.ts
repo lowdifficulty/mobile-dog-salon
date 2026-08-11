@@ -106,6 +106,8 @@ async function buildRecordedDialTwiml(options: {
   callerId?: string;
   timeout: number;
   answerOnBridge?: boolean;
+  statusCallbackUrl?: string;
+  statusCallbackEvent?: string[];
 }): Promise<string> {
   const recordingCallback = await voiceRecordingCallbackUrl();
   const transcriptionCallback = await voiceTranscriptionCallbackUrl();
@@ -115,11 +117,33 @@ async function buildRecordedDialTwiml(options: {
   const recordingAttrs = recordingCallback
     ? ` record="record-from-answer-dual" recordingStatusCallback="${escapeXml(recordingCallback)}" recordingStatusCallbackEvent="completed" recordingStatusCallbackMethod="POST"`
     : "";
+  const statusEvents = options.statusCallbackEvent?.length
+    ? options.statusCallbackEvent.join(" ")
+    : "initiated ringing answered completed";
+  const statusAttrs = options.statusCallbackUrl
+    ? ` statusCallback="${escapeXml(options.statusCallbackUrl)}" statusCallbackEvent="${escapeXml(statusEvents)}" statusCallbackMethod="POST"`
+    : "";
   const startBlock = transcriptionCallback
     ? `<Start><Transcription statusCallbackUrl="${escapeXml(transcriptionCallback)}" track="both_tracks" languageCode="en-US" /></Start>`
     : "";
 
-  return `<?xml version="1.0" encoding="UTF-8"?><Response>${startBlock}<Dial callerId="${callerId}" timeout="${options.timeout}"${answerOnBridge}${recordingAttrs}><Number>${dialNumber}</Number></Dial></Response>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><Response>${startBlock}<Dial callerId="${callerId}" timeout="${options.timeout}"${answerOnBridge}${recordingAttrs}${statusAttrs}><Number>${dialNumber}</Number></Dial></Response>`;
+}
+
+/** TwiML when staff places an outbound call from the browser Voice SDK. */
+export async function buildClientOutboundTwiml(
+  customerPhone: string,
+  statusCallbackUrl?: string
+): Promise<string> {
+  const callerId = (await getTwilioVoiceCallerId()) || undefined;
+  return buildRecordedDialTwiml({
+    dialNumber: customerPhone,
+    callerId,
+    timeout: 45,
+    answerOnBridge: true,
+    statusCallbackUrl,
+    statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+  });
 }
 
 export async function buildBridgeTwiml(customerPhone: string): Promise<string> {

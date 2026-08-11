@@ -31,6 +31,7 @@ export async function GET() {
         voiceCallerId: runtime.voiceCallerId || "",
         staffCallbackNumber: runtime.staffCallbackNumber || "",
         voiceForwardNumber: runtime.voiceForwardNumber || "",
+        twimlAppSid: runtime.twimlAppSid || process.env.TWILIO_TWIML_APP_SID || "",
         webhookBaseUrl: runtime.webhookBaseUrl || expected.base,
         updatedAt: runtime.updatedAt,
         hasEnvApiKey: Boolean(
@@ -88,11 +89,37 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+      let twimlAppSid: string | undefined;
+      if (status.hasApiKey) {
+        try {
+          const { ensureTwilioTwimlApp } = await import("@/lib/twilio/twiml-app");
+          twimlAppSid = await ensureTwilioTwimlApp(client);
+        } catch (err) {
+          console.error("TwiML App provisioning failed:", err);
+        }
+      }
       return NextResponse.json({
         ok: true,
         status,
         webhooks: result.status,
+        twimlAppSid,
       });
+    }
+
+    if (body.action === "ensure-twilml-app") {
+      if (!client || !status.hasApiKey) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Browser calling requires API key credentials",
+            status,
+          },
+          { status: 400 }
+        );
+      }
+      const { ensureTwilioTwimlApp } = await import("@/lib/twilio/twiml-app");
+      const twimlAppSid = await ensureTwilioTwimlApp(client);
+      return NextResponse.json({ ok: true, twimlAppSid, status });
     }
 
     if (body.action === "dial") {

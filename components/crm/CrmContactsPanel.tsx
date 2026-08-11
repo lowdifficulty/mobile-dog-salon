@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import type { CrmContactListItem, CrmContactSortField } from "@/lib/crm/types";
 
@@ -14,32 +14,37 @@ type Stats = {
   unread: number;
 };
 
-type ContactDetail = CrmContact & {
-  interactions: { id: string; channel: string; direction: string; createdAt: string }[];
-  upcomingAppointments: {
-    id: string;
-    startAt: string;
-    status: string;
-    service: string;
-    petName: string;
-  }[];
-  pastAppointments: {
-    id: string;
-    startAt: string;
-    status: string;
-    service: string;
-    petName: string;
-  }[];
+type Column = {
+  id: CrmContactSortField;
+  label: string;
+  className?: string;
 };
 
-function formatWhen(iso?: string): string {
+const COLUMNS: Column[] = [
+  { id: "name", label: "Name", className: "min-w-[140px]" },
+  { id: "phone", label: "Phone", className: "min-w-[120px]" },
+  { id: "email", label: "Email", className: "min-w-[160px]" },
+  { id: "street", label: "Street", className: "min-w-[180px]" },
+  { id: "city", label: "City", className: "min-w-[120px]" },
+  { id: "zipCode", label: "Zip", className: "min-w-[72px]" },
+  { id: "zone", label: "Zone", className: "min-w-[88px]" },
+  { id: "areaCode", label: "Area", className: "min-w-[64px]" },
+  { id: "status", label: "Status", className: "min-w-[88px]" },
+  { id: "booked", label: "Booked", className: "min-w-[88px]" },
+  { id: "lastAppointment", label: "Last appt", className: "min-w-[100px]" },
+  { id: "lastInteraction", label: "Last activity", className: "min-w-[100px]" },
+  { id: "pets", label: "Pets", className: "min-w-[120px]" },
+  { id: "groomer", label: "Groomer", className: "min-w-[100px]" },
+];
+
+function formatWhen(iso?: string | null): string {
   if (!iso) return "—";
   try {
     return new Intl.DateTimeFormat("en-US", {
       timeZone: "America/Los_Angeles",
       month: "short",
       day: "numeric",
-      year: "numeric",
+      year: "2-digit",
     }).format(new Date(iso));
   } catch {
     return iso;
@@ -47,9 +52,9 @@ function formatWhen(iso?: string): string {
 }
 
 function zoneLabel(zone: 1 | 2 | null): string {
-  if (zone === 1) return "Zone 1 · OC";
-  if (zone === 2) return "Zone 2 · LA";
-  return "Unknown zone";
+  if (zone === 1) return "OC";
+  if (zone === 2) return "LA";
+  return "—";
 }
 
 function displayName(c: CrmContact): string {
@@ -60,14 +65,17 @@ function displayName(c: CrmContact): string {
   );
 }
 
-const SORT_OPTIONS: { value: CrmContactSortField; label: string }[] = [
-  { value: "lastInteraction", label: "Last activity" },
-  { value: "areaCode", label: "Area code" },
-  { value: "address", label: "Address" },
-  { value: "booked", label: "Appointment booked" },
-  { value: "lastAppointment", label: "Last appointment" },
-  { value: "zone", label: "Service zone" },
-];
+function petsLabel(c: CrmContact): string {
+  if (!c.pets.length) return "—";
+  return c.pets
+    .map((p) => [p.petName, p.petSize].filter(Boolean).join(" · "))
+    .join("; ");
+}
+
+function SortIndicator({ active, order }: { active: boolean; order: "asc" | "desc" }) {
+  if (!active) return <span className="text-gray-300 ml-1">↕</span>;
+  return <span className="ml-1">{order === "asc" ? "↑" : "↓"}</span>;
+}
 
 export default function CrmContactsPanel({
   onOpenConversation,
@@ -76,8 +84,6 @@ export default function CrmContactsPanel({
 }) {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [selectedId, setSelectedId] = useState("");
-  const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
   const [sort, setSort] = useState<CrmContactSortField>("lastInteraction");
@@ -108,34 +114,18 @@ export default function CrmContactsPanel({
     }
   }, [q, status, sort, sortOrder]);
 
-  const loadDetail = useCallback(async (id: string) => {
-    if (!id) {
-      setDetail(null);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/admin/crm/contacts/${id}`);
-      if (!res.ok) throw new Error("Could not load contact");
-      const data = await res.json();
-      setDetail(data.contact as ContactDetail);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Detail load failed");
-    }
-  }, []);
-
   useEffect(() => {
     void loadContacts();
   }, [loadContacts]);
 
-  useEffect(() => {
-    if (selectedId) void loadDetail(selectedId);
-    else setDetail(null);
-  }, [selectedId, loadDetail]);
-
-  const selected = useMemo(
-    () => contacts.find((c) => c.id === selectedId) || detail,
-    [contacts, selectedId, detail]
-  );
+  function toggleSort(field: CrmContactSortField) {
+    if (sort === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSort(field);
+      setSortOrder(field === "name" || field === "city" || field === "street" ? "asc" : "desc");
+    }
+  }
 
   async function syncCustomers() {
     setBusy(true);
@@ -158,9 +148,39 @@ export default function CrmContactsPanel({
     }
   }
 
-  function openConversation() {
-    if (!selectedId || !onOpenConversation) return;
-    onOpenConversation(selectedId);
+  function cellValue(c: CrmContact, column: CrmContactSortField): string {
+    switch (column) {
+      case "name":
+        return displayName(c);
+      case "phone":
+        return formatPhoneDisplay(c.phone);
+      case "email":
+        return c.email || "—";
+      case "street":
+        return c.street || c.address || "—";
+      case "city":
+        return c.parsedCity || c.city || "—";
+      case "zipCode":
+        return c.parsedZip || c.zipCode || "—";
+      case "zone":
+        return zoneLabel(c.serviceZone);
+      case "areaCode":
+        return c.areaCode || "—";
+      case "status":
+        return c.status;
+      case "booked":
+        return c.hasBookedAppointment ? "Yes" : "No";
+      case "lastAppointment":
+        return formatWhen(c.lastAppointmentAt);
+      case "lastInteraction":
+        return formatWhen(c.lastInteractionAt || c.updatedAt);
+      case "pets":
+        return petsLabel(c);
+      case "groomer":
+        return c.groomerName || "—";
+      default:
+        return "—";
+    }
   }
 
   return (
@@ -169,7 +189,7 @@ export default function CrmContactsPanel({
         <div>
           <h2 className="text-xl font-bold text-brand">Contacts</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Customers and leads from bookings, SMS, and CRM. Open a conversation to text or call.
+            Spreadsheet view — click a column header to sort. City and zip are parsed from addresses.
           </p>
         </div>
         {stats && (
@@ -199,7 +219,7 @@ export default function CrmContactsPanel({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search name, phone, email…"
+          placeholder="Search name, phone, email, city, zip…"
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm min-w-[220px] flex-1 max-w-md"
         />
         <select
@@ -212,25 +232,6 @@ export default function CrmContactsPanel({
           <option value="lead">Leads</option>
           <option value="inactive">Inactive</option>
         </select>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as CrmContactSortField)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              Sort: {opt.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => setSortOrder((o) => (o === "asc" ? "desc" : "asc"))}
-          className="px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 hover:bg-gray-50"
-          title={sortOrder === "asc" ? "Ascending" : "Descending"}
-        >
-          {sortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
-        </button>
         <button
           type="button"
           onClick={() => void syncCustomers()}
@@ -241,166 +242,80 @@ export default function CrmContactsPanel({
         </button>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-4 min-h-[520px]">
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col min-h-[420px]">
-          <div className="px-4 py-2 border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Directory
-          </div>
-          <div className="overflow-y-auto flex-1">
-            {loading && (
-              <div className="p-6 text-sm text-gray-500">Loading contacts…</div>
-            )}
-            {!loading && contacts.length === 0 && (
-              <div className="p-6 text-sm text-gray-500">No contacts match your filters.</div>
-            )}
-            {contacts.map((c) => {
-              const active = c.id === selectedId;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setSelectedId(c.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${
-                    active ? "bg-sky-50 border-l-4 border-l-brand" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-semibold text-brand text-sm">{displayName(c)}</div>
-                      <div className="text-xs text-gray-500">{formatPhoneDisplay(c.phone)}</div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[10px] uppercase font-semibold text-gray-500">
-                        {c.status}
-                      </span>
-                      {c.unreadCount > 0 && (
-                        <span className="text-[10px] font-bold bg-accent text-white rounded-full px-2 py-0.5">
-                          {c.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {c.lastInteractionAt && (
-                    <div className="text-[11px] text-gray-400 mt-1">
-                      Last activity {formatWhen(c.lastInteractionAt)}
-                    </div>
-                  )}
-                  <div className="text-[11px] text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
-                    {c.areaCode && <span>Area {c.areaCode}</span>}
-                    <span>{zoneLabel(c.serviceZone)}</span>
-                    {c.hasBookedAppointment ? (
-                      c.lastAppointmentAt ? (
-                        <span>Last appt {formatWhen(c.lastAppointmentAt)}</span>
-                      ) : (
-                        <span>Booked</span>
-                      )
-                    ) : (
-                      <span>Never booked</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-4 min-h-[420px]">
-          {!selected && (
-            <div className="text-sm text-gray-500 py-8 text-center">
-              Select a contact to view details.
-            </div>
-          )}
-          {selected && (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
-                    Contact
-                  </div>
-                  <div className="font-bold text-brand text-lg mt-1">
-                    {detail?.fullName || displayName(selected as CrmContact)}
-                  </div>
-                  <div className="text-sm text-gray-600">{formatPhoneDisplay(selected.phone)}</div>
-                  {(detail?.email || selected.email) && (
-                    <div className="text-sm text-gray-600">{detail?.email || selected.email}</div>
-                  )}
-                </div>
-                {onOpenConversation && (
-                  <button
-                    type="button"
-                    onClick={openConversation}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white"
-                  >
-                    Open conversation
-                  </button>
-                )}
-              </div>
-
-              {(detail?.address || selected.address) && (
-                <div className="text-sm text-gray-600">
-                  {[detail?.address || selected.address, detail?.city || selected.city, detail?.zipCode || selected.zipCode]
-                    .filter(Boolean)
-                    .join(", ")}
-                </div>
-              )}
-
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Pets
-                </div>
-                {(detail?.pets || selected.pets).length === 0 ? (
-                  <div className="text-sm text-gray-400">No pets on file</div>
-                ) : (
-                  (detail?.pets || selected.pets).map((p, i) => (
-                    <div key={`${p.petName}-${i}`} className="text-sm text-gray-700">
-                      {p.petName || "Pet"} {p.petSize ? `· ${p.petSize}` : ""}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Tags
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {(detail?.tags || selected.tags).map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200 text-left">
+                {COLUMNS.map((col) => (
+                  <th key={col.id} className={`px-3 py-2 font-semibold text-gray-600 ${col.className ?? ""}`}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.id)}
+                      className="inline-flex items-center hover:text-brand whitespace-nowrap"
                     >
-                      {tag}
-                    </span>
-                  ))}
-                  {(detail?.tags || selected.tags).length === 0 && (
-                    <span className="text-sm text-gray-400">None</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Upcoming appointments
-                </div>
-                {(detail?.upcomingAppointments || []).slice(0, 5).map((a) => (
-                  <div
-                    key={a.id}
-                    className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1"
-                  >
-                    {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
-                  </div>
+                      {col.label}
+                      <SortIndicator active={sort === col.id} order={sortOrder} />
+                    </button>
+                  </th>
                 ))}
-                {detail && detail.upcomingAppointments.length === 0 && (
-                  <div className="text-sm text-gray-400">None scheduled</div>
+                {onOpenConversation && (
+                  <th className="px-3 py-2 font-semibold text-gray-600 min-w-[88px] sticky right-0 bg-gray-50">
+                    Action
+                  </th>
                 )}
-              </div>
-
-              <div className="text-xs text-gray-500">
-                Source: {selected.source}
-                {selected.groomerName ? ` · Groomer: ${selected.groomerName}` : ""}
-              </div>
-            </div>
-          )}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr>
+                  <td colSpan={COLUMNS.length + (onOpenConversation ? 1 : 0)} className="px-4 py-8 text-gray-500">
+                    Loading contacts…
+                  </td>
+                </tr>
+              )}
+              {!loading && contacts.length === 0 && (
+                <tr>
+                  <td colSpan={COLUMNS.length + (onOpenConversation ? 1 : 0)} className="px-4 py-8 text-gray-500">
+                    No contacts match your filters.
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                contacts.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-gray-100 hover:bg-sky-50/40 even:bg-gray-50/40"
+                  >
+                    {COLUMNS.map((col) => (
+                      <td
+                        key={col.id}
+                        className={`px-3 py-2 text-gray-800 whitespace-nowrap ${col.className ?? ""}`}
+                        title={cellValue(c, col.id)}
+                      >
+                        <span className="block truncate max-w-[240px]">{cellValue(c, col.id)}</span>
+                        {col.id === "name" && c.unreadCount > 0 && (
+                          <span className="ml-1 inline-flex text-[10px] font-bold bg-accent text-white rounded-full px-1.5 py-0.5">
+                            {c.unreadCount}
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                    {onOpenConversation && (
+                      <td className="px-3 py-2 sticky right-0 bg-inherit">
+                        <button
+                          type="button"
+                          onClick={() => onOpenConversation(c.id)}
+                          className="text-xs font-semibold text-brand hover:underline"
+                        >
+                          Message
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

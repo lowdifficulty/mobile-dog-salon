@@ -12,7 +12,6 @@ import {
   findClientByPhone,
   updateClient,
 } from "@/lib/payments/store";
-import { createSquareCustomer, isSquareConfigured } from "@/lib/payments/square";
 import { readSchedulingData } from "@/lib/scheduling/store";
 
 function normalizePhone(phone: string): string {
@@ -64,16 +63,22 @@ export async function POST(request: Request) {
   }
 
   let squareCustomerId = "";
-  if (isSquareConfigured()) {
+  let stripeCustomerId = "";
+  const { createPaymentCustomerOnRegister, isPaymentsConfigured } = await import(
+    "@/lib/payments/gateway"
+  );
+  if (isPaymentsConfigured()) {
     try {
-      squareCustomerId = await createSquareCustomer({
+      const ids = await createPaymentCustomerOnRegister({
         email: normalizedEmail,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
       });
+      squareCustomerId = ids.squareCustomerId ?? "";
+      stripeCustomerId = ids.stripeCustomerId ?? "";
     } catch (err) {
-      console.error("Square customer creation failed (continuing):", err);
+      console.error("Payment customer creation failed (continuing):", err);
     }
   }
 
@@ -94,6 +99,7 @@ export async function POST(request: Request) {
     lastName: lastName.trim(),
     phone: phone.trim(),
     squareCustomerId,
+    stripeCustomerId,
     createdAt: new Date().toISOString(),
     lockedInDiscount: lockInDiscount === true,
     registrationComplete: true,

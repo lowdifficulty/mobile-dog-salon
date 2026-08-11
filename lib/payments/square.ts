@@ -67,6 +67,34 @@ async function resolveLocationId(): Promise<string> {
   throw new Error("No active Square location found. Set SQUARE_LOCATION_ID.");
 }
 
+export async function getSquareAccountStatus(): Promise<{
+  ok: boolean;
+  environment?: string;
+  locationId?: string;
+  locationName?: string;
+  error?: string;
+}> {
+  try {
+    if (!isSquareConfigured()) {
+      return { ok: false, error: "Square is not configured" };
+    }
+    const locationId = await resolveLocationId();
+    const client = getSquareClient();
+    const response = await client.locations.get({ locationId });
+    return {
+      ok: true,
+      environment: getSquarePublicConfig().environment,
+      locationId,
+      locationName: response.location?.name ?? undefined,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Square connection failed",
+    };
+  }
+}
+
 export async function createSquareCustomer(input: {
   email: string;
   firstName: string;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSquareClientConfig } from "@/lib/payments/square";
+import { getPaymentsPublicConfig } from "@/lib/payments/gateway";
 
 export async function GET() {
-  return NextResponse.json(await getSquareClientConfig());
+  return NextResponse.json(await getPaymentsPublicConfig());
 }

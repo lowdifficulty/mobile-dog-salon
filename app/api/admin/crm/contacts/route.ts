@@ -1,16 +1,28 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/scheduling/auth";
 import { listCrmContacts, refreshCrm } from "@/lib/crm/service";
-import type { CrmContactSortField } from "@/lib/crm/types";
+import type { CrmContactSortField, CrmConversationView } from "@/lib/crm/types";
 
 const SORT_FIELDS: CrmContactSortField[] = [
   "lastInteraction",
+  "name",
+  "phone",
+  "email",
+  "status",
+  "street",
+  "city",
+  "zipCode",
   "areaCode",
   "address",
   "booked",
   "lastAppointment",
+  "daysSinceLastAppointment",
   "zone",
+  "groomer",
+  "pets",
 ];
+
+const VIEW_OPTIONS: CrmConversationView[] = ["all", "melanie", "jessica", "followUps"];
 
 export async function GET(request: Request) {
   try {
@@ -18,11 +30,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const sortParam = searchParams.get("sort") as CrmContactSortField | null;
     const orderParam = searchParams.get("order");
+    const viewParam = searchParams.get("view") as CrmConversationView | null;
     const result = await listCrmContacts({
       q: searchParams.get("q") ?? undefined,
       status: (searchParams.get("status") as "all" | "lead" | "customer" | "inactive") || "all",
       tag: searchParams.get("tag") ?? undefined,
       unread: searchParams.get("unread") === "1",
+      view: viewParam && VIEW_OPTIONS.includes(viewParam) ? viewParam : undefined,
       sort: sortParam && SORT_FIELDS.includes(sortParam) ? sortParam : undefined,
       order: orderParam === "asc" || orderParam === "desc" ? orderParam : undefined,
     });

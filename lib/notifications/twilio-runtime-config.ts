@@ -15,6 +15,8 @@ export interface TwilioRuntimeConfig {
   staffCallbackNumber?: string;
   voiceForwardNumber?: string;
   webhookBaseUrl?: string;
+  /** TwiML App for browser dialer (Voice JS SDK). */
+  twimlAppSid?: string;
   updatedAt?: string;
 }
 
@@ -63,6 +65,12 @@ export async function writeTwilioRuntimeConfig(
     next.accountSid = next.accountSid.trim();
     if (next.accountSid && !next.accountSid.startsWith("AC")) {
       throw new Error("Account SID must start with AC");
+    }
+  }
+  if (next.twimlAppSid) {
+    next.twimlAppSid = next.twimlAppSid.trim();
+    if (next.twimlAppSid && !next.twimlAppSid.startsWith("AP")) {
+      throw new Error("TwiML App SID must start with AP");
     }
   }
   for (const key of ["fromNumber", "voiceCallerId", "staffCallbackNumber", "voiceForwardNumber"] as const) {

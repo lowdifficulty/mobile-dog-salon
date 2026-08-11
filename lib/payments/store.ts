@@ -106,6 +106,7 @@ export async function updateClient(
       | "serviceAddress"
       | "pendingLickyBooking"
       | "squareCustomerId"
+      | "stripeCustomerId"
     >
   >
 ): Promise<ClientAccount | null> {

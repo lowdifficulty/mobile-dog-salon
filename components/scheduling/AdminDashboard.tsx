@@ -6,7 +6,6 @@ import AdminAppShell, { type AdminNavItem } from "@/components/admin/AdminAppShe
 import TeamCalendarPanel from "./TeamCalendarPanel";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
-import LeadsPanel from "@/components/leads/LeadsPanel";
 import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
 import LickyTrainingPanel from "./LickyTrainingPanel";
 import StaffLoginLogPanel from "./StaffLoginLogPanel";
@@ -15,13 +14,12 @@ import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
-import CrmContactsPanel from "@/components/crm/CrmContactsPanel";
+import OpportunitiesPanel from "@/components/crm/OpportunitiesPanel";
 import SmsBotPanel from "@/components/crm/SmsBotPanel";
 import TwilioSettingsPanel from "@/components/admin/TwilioSettingsPanel";
 
 type Tab =
   | "crm"
-  | "crm-contacts"
   | "opportunities"
   | "sms-bot"
   | "twilio"
@@ -38,11 +36,10 @@ type Tab =
 
 const NAV: AdminNavItem[] = [
   { id: "crm", label: "Conversations", group: "CRM" },
-  { id: "crm-contacts", label: "Contacts", group: "CRM" },
   { id: "opportunities", label: "Opportunities", group: "CRM" },
   { id: "sms-bot", label: "SMS Chatbot", group: "CRM" },
   { id: "twilio", label: "Phone & SMS", group: "CRM" },
-  { id: "appointments", label: "List", group: "Operations" },
+  { id: "appointments", label: "Appointments", group: "Operations" },
   { id: "shifts", label: "Hours", group: "Operations" },
   { id: "team-calendar", label: "Team calendar", group: "Operations" },
   { id: "analytics", label: "Analytics", group: "Insights" },
@@ -85,11 +82,8 @@ export default function AdminDashboard() {
     >
       <div className={padded ? "p-4 md:p-6" : ""}>
         {tab === "crm" && <CrmPanel />}
-        {tab === "crm-contacts" && (
-          <CrmContactsPanel onOpenConversation={openCrmConversation} />
-        )}
         {tab === "opportunities" && (
-          <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
+          <OpportunitiesPanel onOpenConversation={openCrmConversation} />
         )}
         {tab === "sms-bot" && <SmsBotPanel />}
         {tab === "twilio" && <TwilioSettingsPanel />}

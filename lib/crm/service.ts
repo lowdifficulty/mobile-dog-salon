@@ -22,26 +22,71 @@ import {
   getContactServiceZone,
   zoneSortRank,
 } from "./contact-zones";
+import { parseContactAddress } from "./parse-address";
+import type { GroomerId } from "@/lib/scheduling/types";
 import type {
   CrmContact,
   CrmContactDetail,
   CrmContactListItem,
   CrmContactSortField,
+  CrmConversationView,
   CrmInteraction,
 } from "./types";
+
+const FOLLOW_UP_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type LinkedAppointment = {
+  id: string;
+  phone: string;
+  startAt: string;
+  groomerId: string;
+  status: string;
+};
 
 export type CrmListFilter = {
   q?: string;
   status?: "all" | "lead" | "customer" | "inactive";
   tag?: string;
   unread?: boolean;
+  view?: CrmConversationView;
   sort?: CrmContactSortField;
   order?: "asc" | "desc";
 };
 
+function resolvePrimaryGroomerId(
+  contact: CrmContact,
+  linked: LinkedAppointment[]
+): "melanie" | "jessica" | "diamond" | null {
+  if (
+    contact.groomerId === "melanie" ||
+    contact.groomerId === "jessica" ||
+    contact.groomerId === "diamond"
+  ) {
+    return contact.groomerId;
+  }
+
+  const name = (contact.groomerName || "").toLowerCase();
+  if (name.includes("melanie")) return "melanie";
+  if (name.includes("jessica") || name.includes("chris")) return "jessica";
+  if (name.includes("diamond")) return "diamond";
+
+  const confirmed = linked
+    .filter((a) => a.status === "confirmed")
+    .sort((a, b) => b.startAt.localeCompare(a.startAt));
+
+  for (const appt of confirmed) {
+    if (appt.groomerId === "melanie" || appt.groomerId === "jessica" || appt.groomerId === "diamond") {
+      return appt.groomerId as GroomerId;
+    }
+  }
+
+  return null;
+}
+
 function enrichContactWithSortMeta(
   contact: CrmContact,
-  appointments: { id: string; phone: string; startAt: string }[]
+  appointments: LinkedAppointment[]
 ): CrmContactListItem {
   const phoneDigits = contact.phone.replace(/\D/g, "");
   const linked = appointments.filter(
@@ -50,22 +95,56 @@ function enrichContactWithSortMeta(
       a.phone.replace(/\D/g, "").endsWith(phoneDigits)
   );
   const hasBookedAppointment = contact.appointmentIds.length > 0 || linked.length > 0;
+  const now = Date.now();
 
-  const pastStarts = linked
-    .map((a) => a.startAt)
-    .filter((startAt) => new Date(startAt).getTime() < Date.now());
-  const lastAppointmentAt =
-    pastStarts.length > 0
-      ? pastStarts.sort((a, b) => b.localeCompare(a))[0]
-      : null;
+  const confirmedLinked = linked.filter((a) => a.status === "confirmed");
+  const pastAppointments = confirmedLinked
+    .filter((a) => new Date(a.startAt).getTime() < now)
+    .sort((a, b) => b.startAt.localeCompare(a.startAt));
+  const upcomingAppointments = confirmedLinked.filter(
+    (a) => new Date(a.startAt).getTime() >= now
+  );
+
+  const lastPastAppointmentAt = pastAppointments[0]?.startAt ?? null;
+  const lastAppointmentAt = lastPastAppointmentAt;
+  const hasUpcomingAppointment = upcomingAppointments.length > 0;
+  const daysSinceLastAppointment = lastPastAppointmentAt
+    ? Math.floor((now - new Date(lastPastAppointmentAt).getTime()) / DAY_MS)
+    : null;
+  const isFollowUp = Boolean(
+    lastPastAppointmentAt &&
+      !hasUpcomingAppointment &&
+      daysSinceLastAppointment !== null &&
+      daysSinceLastAppointment >= FOLLOW_UP_DAYS
+  );
+  const primaryGroomerId = resolvePrimaryGroomerId(contact, linked);
+
+  const parsed = parseContactAddress(contact);
 
   return {
     ...contact,
     areaCode: extractAreaCode(contact.phone),
     hasBookedAppointment,
     lastAppointmentAt,
-    serviceZone: getContactServiceZone(contact),
+    lastPastAppointmentAt,
+    daysSinceLastAppointment,
+    hasUpcomingAppointment,
+    isFollowUp,
+    primaryGroomerId,
+    serviceZone: getContactServiceZone({
+      ...contact,
+      city: contact.city || parsed.city,
+      zipCode: contact.zipCode || parsed.zipCode,
+    }),
+    street: parsed.street,
+    parsedCity: parsed.city || contact.city || "",
+    parsedZip: parsed.zipCode || normalizeZipField(contact.zipCode),
   };
+}
+
+function normalizeZipField(raw?: string): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  return digits.length >= 5 ? digits.slice(0, 5) : "";
 }
 
 function sortContacts(
@@ -77,7 +156,58 @@ function sortContacts(
   const neverLast = order === "asc" ? 1 : -1;
 
   return [...contacts].sort((a, b) => {
+    const nameCompare = () =>
+      displayNameFromContact(a).localeCompare(displayNameFromContact(b)) * dir;
+
     switch (sort) {
+      case "name":
+        return nameCompare();
+      case "phone":
+        return a.phone.localeCompare(b.phone) * dir || nameCompare();
+      case "email": {
+        const av = (a.email || "").toLowerCase();
+        const bv = (b.email || "").toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
+      case "status":
+        return a.status.localeCompare(b.status) * dir || nameCompare();
+      case "street": {
+        const av = a.street.toLowerCase();
+        const bv = b.street.toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
+      case "city": {
+        const av = a.parsedCity.toLowerCase();
+        const bv = b.parsedCity.toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
+      case "zipCode": {
+        const av = a.parsedZip;
+        const bv = b.parsedZip;
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
+      case "groomer": {
+        const av = (a.groomerName || "").toLowerCase();
+        const bv = (b.groomerName || "").toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
+      case "pets": {
+        const av = a.pets.map((p) => p.petName).join(", ").toLowerCase();
+        const bv = b.pets.map((p) => p.petName).join(", ").toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || nameCompare();
+      }
       case "areaCode": {
         const av = a.areaCode ?? "";
         const bv = b.areaCode ?? "";
@@ -86,11 +216,11 @@ function sortContacts(
         return av.localeCompare(bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
       }
       case "address": {
-        const av = (a.address || a.city || a.zipCode || "").toLowerCase();
-        const bv = (b.address || b.city || b.zipCode || "").toLowerCase();
+        const av = [a.street, a.parsedCity, a.parsedZip].filter(Boolean).join(" ").toLowerCase();
+        const bv = [b.street, b.parsedCity, b.parsedZip].filter(Boolean).join(" ").toLowerCase();
         if (!av && bv) return neverLast;
         if (av && !bv) return -neverLast;
-        return av.localeCompare(bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
+        return av.localeCompare(bv) * dir || nameCompare();
       }
       case "booked": {
         const av = a.hasBookedAppointment ? 1 : 0;
@@ -102,8 +232,16 @@ function sortContacts(
         const bv = b.lastAppointmentAt;
         if (!av && bv) return neverLast;
         if (av && !bv) return -neverLast;
-        if (!av || !bv) return a.fullName?.localeCompare(b.fullName ?? "") || 0;
+        if (!av || !bv) return nameCompare();
         return av.localeCompare(bv) * dir;
+      }
+      case "daysSinceLastAppointment": {
+        const av = a.daysSinceLastAppointment;
+        const bv = b.daysSinceLastAppointment;
+        if (av == null && bv != null) return neverLast;
+        if (av != null && bv == null) return -neverLast;
+        if (av == null || bv == null) return nameCompare();
+        return (av - bv) * dir || nameCompare();
       }
       case "zone": {
         const av = zoneSortRank(a.serviceZone);
@@ -151,6 +289,13 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   if (filter.unread) {
     contacts = contacts.filter((c) => (c.unreadCount ?? 0) > 0);
   }
+  if (filter.view === "melanie") {
+    contacts = contacts.filter((c) => c.primaryGroomerId === "melanie");
+  } else if (filter.view === "jessica") {
+    contacts = contacts.filter((c) => c.primaryGroomerId === "jessica");
+  } else if (filter.view === "followUps") {
+    contacts = contacts.filter((c) => c.isFollowUp);
+  }
   if (q) {
     contacts = contacts.filter((c) => {
       const hay = [
@@ -162,6 +307,9 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
         c.address,
         c.city,
         c.zipCode,
+        c.street,
+        c.parsedCity,
+        c.parsedZip,
         ...c.pets.map((p) => p.petName),
         ...c.tags,
       ]
@@ -172,8 +320,12 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
     });
   }
 
-  const sortField = filter.sort ?? "lastInteraction";
-  const sortOrder = filter.order ?? "desc";
+  let sortField = filter.sort ?? "lastInteraction";
+  let sortOrder = filter.order ?? "desc";
+  if (filter.view === "followUps" && !filter.sort) {
+    sortField = "daysSinceLastAppointment";
+    sortOrder = "desc";
+  }
   contacts = sortContacts(contacts, sortField, sortOrder);
 
   const all = data.contacts;

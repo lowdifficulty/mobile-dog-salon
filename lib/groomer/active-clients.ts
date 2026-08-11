@@ -8,7 +8,7 @@ import { readLeadsData } from "@/lib/leads/store";
 import type { Lead, LeadNote } from "@/lib/leads/types";
 import { clientPhotoUrl } from "@/lib/groomer/client-photos";
 import { enrichPaymentsWithClients } from "@/lib/payments/staff";
-import { isSquareConfigured, listRecentPayments } from "@/lib/payments/square";
+import { isPaymentsConfigured, listRecentPayments } from "@/lib/payments/gateway";
 import { readClientsData } from "@/lib/payments/store";
 import type { ClientAccount, PaymentHistoryItem } from "@/lib/payments/types";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
@@ -180,7 +180,7 @@ export async function listGroomerActiveClients(
     ]);
 
   let allPayments: PaymentHistoryItem[] = [];
-  if (isSquareConfigured()) {
+  if (isPaymentsConfigured()) {
     try {
       allPayments = await enrichPaymentsWithClients(
         await listRecentPayments(200)
@@ -190,12 +190,12 @@ export async function listGroomerActiveClients(
     }
   }
 
-  const paymentsBySquareId = new Map<string, PaymentHistoryItem[]>();
+  const paymentsByCustomerId = new Map<string, PaymentHistoryItem[]>();
   for (const payment of allPayments) {
     if (!payment.customerId) continue;
-    const list = paymentsBySquareId.get(payment.customerId) ?? [];
+    const list = paymentsByCustomerId.get(payment.customerId) ?? [];
     list.push(payment);
-    paymentsBySquareId.set(payment.customerId, list);
+    paymentsByCustomerId.set(payment.customerId, list);
   }
 
   const now = Date.now();
@@ -231,7 +231,9 @@ export async function listGroomerActiveClients(
     );
 
     const clientPayments = portalClient
-      ? (paymentsBySquareId.get(portalClient.squareCustomerId) ?? [])
+      ? (paymentsByCustomerId.get(portalClient.stripeCustomerId || "") ??
+        paymentsByCustomerId.get(portalClient.squareCustomerId || "") ??
+        [])
       : [];
 
     const usedPaymentIds = new Set<string>();

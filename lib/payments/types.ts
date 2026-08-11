@@ -11,7 +11,8 @@ export interface ClientAccount {
   firstName: string;
   lastName: string;
   phone: string;
-  squareCustomerId: string;
+  squareCustomerId?: string;
+  stripeCustomerId?: string;
   createdAt: string;
   /** True after completing post-booking registration — locks 50% discount perk. */
   lockedInDiscount?: boolean;

@@ -106,6 +106,8 @@ function initials(name?: string, phone?: string): string {
   return (phone || "?").slice(-2);
 }
 
+const CRM_POLL_MS = 10_000;
+
 export default function CrmPanel() {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -127,7 +129,7 @@ export default function CrmPanel() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [listReady, setListReady] = useState(false);
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
   const { staffPhone, setStaffPhone, configuredInSettings } = useStaffCallbackPhone();
@@ -136,9 +138,9 @@ export default function CrmPanel() {
   const [banner, setBanner] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
-  const loadContacts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const loadContacts = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setError(null);
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
@@ -151,14 +153,14 @@ export default function CrmPanel() {
       setStats(data.stats ?? null);
       setPlatform(data.platform ?? null);
       if (!selectedId && data.contacts?.[0]?.id) setSelectedId(data.contacts[0].id);
+      setListReady(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Load failed");
-    } finally {
-      setLoading(false);
+      if (!silent) setError(e instanceof Error ? e.message : "Load failed");
     }
   }, [q, status, unreadOnly, selectedId]);
 
-  const loadDetail = useCallback(async (id: string) => {
+  const loadDetail = useCallback(async (id: string, options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
     if (!id) {
       setDetail(null);
       return;
@@ -170,7 +172,7 @@ export default function CrmPanel() {
       setDetail(data.contact as ContactDetail);
       setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Detail load failed");
+      if (!silent) setError(e instanceof Error ? e.message : "Detail load failed");
     }
   }, []);
 
@@ -182,15 +184,14 @@ export default function CrmPanel() {
     if (selectedId) void loadDetail(selectedId);
   }, [selectedId, loadDetail]);
 
-  /** Poll for inbound SMS while a thread is open (Twilio webhooks write to CRM store). */
+  /** Background refresh for inbound SMS — silent, every 10s while tab is visible. */
   useEffect(() => {
-    if (!selectedId) return;
     const tick = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      void loadDetail(selectedId);
-      void loadContacts();
+      void loadContacts({ silent: true });
+      if (selectedId) void loadDetail(selectedId, { silent: true });
     };
-    const id = window.setInterval(tick, 4000);
+    const id = window.setInterval(tick, CRM_POLL_MS);
     return () => window.clearInterval(id);
   }, [selectedId, loadDetail, loadContacts]);
 
@@ -403,8 +404,7 @@ export default function CrmPanel() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {loading && <div className="p-4 text-sm text-gray-500">Loading…</div>}
-            {!loading && contacts.length === 0 && (
+            {listReady && contacts.length === 0 && (
               <div className="p-4 text-sm text-gray-500">No conversations</div>
             )}
             {contacts.map((c) => {

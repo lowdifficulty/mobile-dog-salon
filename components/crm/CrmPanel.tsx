@@ -637,9 +637,11 @@ export default function CrmPanel() {
                                 ? suppressed
                                   ? "Bot draft (not sent)"
                                   : "Bot"
-                                : mine
-                                  ? "You"
-                                  : "Customer"}
+                                : ix.actor === "system" && ix.channel === "sms"
+                                  ? "Confirmation"
+                                  : mine
+                                    ? "You"
+                                    : "Customer"}
                           {" · "}
                           {formatWhen(ix.createdAt)}
                           {isCall && ix.durationSeconds

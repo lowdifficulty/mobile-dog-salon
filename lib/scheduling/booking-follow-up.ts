@@ -13,7 +13,7 @@ import type { Appointment } from "@/lib/scheduling/types";
 export async function runBookingFollowUp(
   appointment: Appointment,
   source: "booking" | "staff",
-  options?: { quiet?: boolean }
+  options?: { skipStaffNotifications?: boolean }
 ): Promise<void> {
   try {
     await upsertLead({
@@ -55,12 +55,30 @@ export async function runBookingFollowUp(
     console.error("Lead follow-up flag failed:", err);
   }
 
-  if (options?.quiet) return;
+  if (options?.skipStaffNotifications) {
+    // Batch staff bookings: still confirm the customer, skip duplicate staff noise.
+  } else {
+    try {
+      await sendCalendarInvites(appointment);
+    } catch (err) {
+      console.error("Calendar invite failed:", err);
+    }
 
-  try {
-    await sendCalendarInvites(appointment);
-  } catch (err) {
-    console.error("Calendar invite failed:", err);
+    try {
+      await sendStaffBookingNotifications(appointment);
+    } catch (err) {
+      console.error("Staff booking notifications failed:", err);
+    }
+
+    try {
+      const { sendBookingToGoHighLevel } = await import("@/lib/gohighlevel");
+      const ghlResult = await sendBookingToGoHighLevel(appointment);
+      if (ghlResult.errors.length) {
+        console.warn("GoHighLevel partial sync:", ghlResult.errors.join("; "));
+      }
+    } catch (err) {
+      console.error("GoHighLevel sync failed:", err);
+    }
   }
 
   try {
@@ -71,9 +89,10 @@ export async function runBookingFollowUp(
   }
 
   try {
-    await sendStaffBookingNotifications(appointment);
+    const { ensureBookingConfirmationInCrm } = await import("@/lib/crm/messaging");
+    await ensureBookingConfirmationInCrm(appointment);
   } catch (err) {
-    console.error("Staff booking notifications failed:", err);
+    console.error("CRM confirmation SMS log failed:", err);
   }
 
   try {
@@ -87,15 +106,5 @@ export async function runBookingFollowUp(
     }
   } catch (err) {
     console.error("QStash reminder scheduling failed:", err);
-  }
-
-  try {
-    const { sendBookingToGoHighLevel } = await import("@/lib/gohighlevel");
-    const ghlResult = await sendBookingToGoHighLevel(appointment);
-    if (ghlResult.errors.length) {
-      console.warn("GoHighLevel partial sync:", ghlResult.errors.join("; "));
-    }
-  } catch (err) {
-    console.error("GoHighLevel sync failed:", err);
   }
 }

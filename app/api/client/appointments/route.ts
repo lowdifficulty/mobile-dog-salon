@@ -3,6 +3,7 @@ import {
   createAppointment,
   type CreateAppointmentInput,
 } from "@/lib/scheduling/appointment-actions";
+import { runBookingFollowUp } from "@/lib/scheduling/booking-follow-up";
 import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { mergeAppointmentIds, listClientAppointments } from "@/lib/client/appointments";
 import { getClientServiceAddress } from "@/lib/client/licky-address";
@@ -97,6 +98,12 @@ export async function POST(request: Request) {
         result.appointment.id
       ),
     });
+
+    try {
+      await runBookingFollowUp(result.appointment, "booking");
+    } catch (err) {
+      console.error("Client booking follow-up failed:", err);
+    }
 
     return NextResponse.json({ appointment: result.appointment });
   } catch {

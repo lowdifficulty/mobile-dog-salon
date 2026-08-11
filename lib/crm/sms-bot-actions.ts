@@ -235,6 +235,13 @@ export async function smsBookSlot(
 
   await linkAppointmentToContact(contact, result.appointment.id);
 
+  try {
+    const { runBookingFollowUp } = await import("@/lib/scheduling/booking-follow-up");
+    await runBookingFollowUp(result.appointment, "booking");
+  } catch (err) {
+    console.error("SMS bot booking follow-up failed:", err);
+  }
+
   return {
     ok: true,
     appointmentId: result.appointment.id,

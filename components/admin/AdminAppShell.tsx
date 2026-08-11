@@ -10,6 +10,7 @@ export default function AdminAppShell({
   activeId,
   onSelect,
   onLogout,
+  headerTitle,
   children,
 }: {
   title: string;
@@ -17,6 +18,7 @@ export default function AdminAppShell({
   activeId: string;
   onSelect: (id: string) => void;
   onLogout?: () => void;
+  headerTitle?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -27,6 +29,7 @@ export default function AdminAppShell({
       activeId={activeId}
       onSelect={onSelect}
       onLogout={onLogout}
+      headerTitle={headerTitle}
       storageKey="mds-admin-sidebar-collapsed"
       showDialer
     >

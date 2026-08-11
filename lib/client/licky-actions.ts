@@ -288,6 +288,13 @@ export async function lickyBookAppointment(
     await clearPendingBooking(ctx);
   }
 
+  try {
+    const { runBookingFollowUp } = await import("@/lib/scheduling/booking-follow-up");
+    await runBookingFollowUp(result.appointment, "booking");
+  } catch (err) {
+    console.error("Licky booking follow-up failed:", err);
+  }
+
   const when = new Date(result.appointment.startAt).toLocaleString("en-US", {
     timeZone: "America/Los_Angeles",
     weekday: "short",

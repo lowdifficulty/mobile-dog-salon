@@ -168,6 +168,7 @@ export default function StaffAppShell(props: {
   onLogout?: () => void;
   storageKey?: string;
   showDialer?: boolean;
+  headerTitle?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -186,6 +187,7 @@ function StaffAppShellInner({
   onLogout,
   storageKey = "mds-staff-sidebar-collapsed",
   showDialer = false,
+  headerTitle,
   children,
 }: {
   title: string;
@@ -196,6 +198,7 @@ function StaffAppShellInner({
   onLogout?: () => void;
   storageKey?: string;
   showDialer?: boolean;
+  headerTitle?: string;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -244,7 +247,8 @@ function StaffAppShellInner({
     return acc;
   }, []);
 
-  const activeLabel = items.find((i) => i.id === activeId)?.label || title;
+  const activeLabel =
+    headerTitle || items.find((i) => i.id === activeId)?.label || title;
   const showNavLabels = !collapsed || mobileNavOpen;
 
   const sidebar = (

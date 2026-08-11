@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     for (let i = 0; i < result.appointments.length; i++) {
       await runBookingFollowUp(result.appointments[i], "staff", {
-        quiet: i > 0,
+        skipStaffNotifications: i > 0,
       });
     }
 

@@ -7,6 +7,8 @@ import {
   findContactByPhone,
   newContactId,
   newInteractionId,
+  readCrmData,
+  updateInteraction,
   upsertContact,
 } from "./store";
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
@@ -93,15 +95,60 @@ export async function ensureContactFromAppointment(appointment: Appointment): Pr
   return upsertContact(updated);
 }
 
+function systemSmsDedupeKey(
+  phone: string,
+  appointmentId: string,
+  kind: string
+): string {
+  return `${crmPhoneDigits(phone)}:${kind}:${appointmentId}`;
+}
+
+async function findSystemSmsInteraction(
+  phone: string,
+  appointmentId: string,
+  kind: string
+): Promise<CrmInteraction | null> {
+  const data = await readCrmData();
+  const key = systemSmsDedupeKey(phone, appointmentId, kind);
+  return (
+    data.interactions.find((ix) => {
+      if (ix.channel !== "sms" || ix.direction !== "outbound" || ix.actor !== "system") {
+        return false;
+      }
+      const ixKind = ix.metadata?.kind;
+      const ixAppt = ix.metadata?.appointmentId;
+      if (typeof ixKind !== "string" || typeof ixAppt !== "string") return false;
+      return systemSmsDedupeKey(ix.phone, ixAppt, ixKind) === key;
+    }) ?? null
+  );
+}
+
 /** Log an automated outbound SMS (booking confirmation, reminders) in CRM. */
 export async function recordSystemOutboundSms(options: {
   appointment: Appointment;
   body: string;
   summary: string;
   twilioSid?: string;
+  createdAt?: string;
   metadata?: Record<string, string | number | boolean | null>;
 }): Promise<void> {
   const contact = await ensureContactFromAppointment(options.appointment);
+  const kind = String(options.metadata?.kind ?? "");
+  const appointmentId = options.appointment.id;
+  const existing = await findSystemSmsInteraction(contact.phone, appointmentId, kind);
+
+  if (existing) {
+    const patch: Partial<CrmInteraction> = {};
+    if (options.body && existing.body !== options.body) patch.body = options.body;
+    if (options.twilioSid && existing.twilioSid !== options.twilioSid) {
+      patch.twilioSid = options.twilioSid;
+    }
+    if (Object.keys(patch).length > 0) {
+      await updateInteraction(existing.id, patch);
+    }
+    return;
+  }
+
   await appendInteraction({
     id: newInteractionId(),
     contactId: contact.id,
@@ -113,9 +160,40 @@ export async function recordSystemOutboundSms(options: {
     messageStatus: "sent",
     twilioSid: options.twilioSid,
     actor: "system",
-    createdAt: new Date().toISOString(),
+    createdAt: options.createdAt ?? new Date().toISOString(),
     metadata: options.metadata,
   });
+}
+
+/** Ensure booking confirmation SMS appears in Conversations (idempotent backfill). */
+export async function ensureBookingConfirmationInCrm(
+  appointment: Appointment
+): Promise<void> {
+  if (!appointment.smsOptIn || !appointment.phone.trim()) return;
+  if (appointment.status !== "confirmed") return;
+
+  const { bookingConfirmationSmsBody } = await import(
+    "@/lib/notifications/booking-confirmation"
+  );
+
+  await recordSystemOutboundSms({
+    appointment,
+    body: bookingConfirmationSmsBody(appointment),
+    summary: "Booking confirmation SMS",
+    createdAt: appointment.createdAt,
+    metadata: { appointmentId: appointment.id, kind: "booking_confirmation" },
+  });
+}
+
+export async function ensureContactVerificationSmsInCrm(
+  contact: CrmContact,
+  appointments: Appointment[]
+): Promise<void> {
+  const phone = crmPhoneDigits(contact.phone);
+  for (const appt of appointments) {
+    if (crmPhoneDigits(appt.phone) !== phone) continue;
+    await ensureBookingConfirmationInCrm(appt);
+  }
 }
 
 export async function ensureContactForPhone(phone: string): Promise<CrmContact> {

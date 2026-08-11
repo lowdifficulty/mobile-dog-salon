@@ -243,7 +243,46 @@ export default function CrmContactsPanel({
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="lg:hidden divide-y divide-gray-100">
+          {loading && <div className="px-4 py-8 text-gray-500 text-sm">Loading contacts…</div>}
+          {!loading && contacts.length === 0 && (
+            <div className="px-4 py-8 text-gray-500 text-sm">No contacts match your filters.</div>
+          )}
+          {!loading &&
+            contacts.map((c) => (
+              <div key={c.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-gray-900 truncate">{displayName(c)}</div>
+                    <div className="text-sm text-gray-600">{formatPhoneDisplay(c.phone)}</div>
+                    {c.email && <div className="text-sm text-gray-500 truncate">{c.email}</div>}
+                  </div>
+                  {c.unreadCount > 0 && (
+                    <span className="text-[10px] font-bold bg-accent text-white rounded-full px-1.5 py-0.5 shrink-0">
+                      {c.unreadCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span>{c.status}</span>
+                  {c.parsedCity || c.city ? <span>{c.parsedCity || c.city}</span> : null}
+                  {petsLabel(c) !== "—" ? <span>{petsLabel(c)}</span> : null}
+                  {c.groomerName ? <span>{c.groomerName}</span> : null}
+                </div>
+                {onOpenConversation && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenConversation(c.id)}
+                    className="text-sm font-semibold text-brand hover:underline"
+                  >
+                    Message
+                  </button>
+                )}
+              </div>
+            ))}
+        </div>
+
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-left">

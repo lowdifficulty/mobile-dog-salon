@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import type { CrmConversationView } from "@/lib/crm/types";
+import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import {
   groomerConversationAvatarClass,
   groomerConversationRowClass,
@@ -140,7 +141,13 @@ const VIEW_TABS: { id: CrmConversationView; label: string; dotClass?: string }[]
 
 const CRM_POLL_MS = 10_000;
 
+function paneClass(show: boolean) {
+  return show ? "flex flex-col min-h-0 min-w-0" : "hidden lg:flex lg:flex-col lg:min-h-0 lg:min-w-0";
+}
+
 export default function CrmPanel() {
+  const isLargeScreen = useMediaQuery("(min-width: 1024px)");
+  const deepLinkContactId = useRef<string | null>(null);
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
@@ -150,6 +157,7 @@ export default function CrmPanel() {
       const open = sessionStorage.getItem("mds-crm-open-contact");
       if (open) {
         sessionStorage.removeItem("mds-crm-open-contact");
+        deepLinkContactId.current = open;
         return open;
       }
     } catch {
@@ -157,6 +165,8 @@ export default function CrmPanel() {
     }
     return "";
   });
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
   const [view, setView] = useState<CrmConversationView>("all");
@@ -170,6 +180,26 @@ export default function CrmPanel() {
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (deepLinkContactId.current && selectedId === deepLinkContactId.current && !isLargeScreen) {
+      setMobileThreadOpen(true);
+      deepLinkContactId.current = null;
+    }
+  }, [isLargeScreen, selectedId]);
+
+  function openConversation(id: string) {
+    setSelectedId(id);
+    if (!isLargeScreen) {
+      setMobileThreadOpen(true);
+      setMobileDetailsOpen(false);
+    }
+  }
+
+  function backToConversationList() {
+    setMobileThreadOpen(false);
+    setMobileDetailsOpen(false);
+  }
 
   const loadContacts = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -185,12 +215,14 @@ export default function CrmPanel() {
       setContacts(data.contacts ?? []);
       setStats(data.stats ?? null);
       setPlatform(data.platform ?? null);
-      if (!selectedId && data.contacts?.[0]?.id) setSelectedId(data.contacts[0].id);
+      if (!selectedId && data.contacts?.[0]?.id && isLargeScreen) {
+        setSelectedId(data.contacts[0].id);
+      }
       setListReady(true);
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : "Load failed");
     }
-  }, [q, view, unreadOnly, selectedId]);
+  }, [q, view, unreadOnly, selectedId, isLargeScreen]);
 
   const loadDetail = useCallback(async (id: string, options?: { silent?: boolean }) => {
     const silent = options?.silent ?? false;
@@ -220,9 +252,13 @@ export default function CrmPanel() {
       return;
     }
     if (!contacts.some((c) => c.id === selectedId)) {
-      setSelectedId(contacts[0].id);
+      if (isLargeScreen && contacts[0]) setSelectedId(contacts[0].id);
+      else {
+        setSelectedId("");
+        setMobileThreadOpen(false);
+      }
     }
-  }, [contacts, listReady, selectedId]);
+  }, [contacts, listReady, selectedId, isLargeScreen]);
 
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
@@ -274,6 +310,7 @@ export default function CrmPanel() {
       if (!res.ok) throw new Error(data.error || "Refresh failed");
       setBanner(`Synced ${data.contactCount} contacts`);
       setSelectedId("");
+      setMobileThreadOpen(false);
       await loadContacts();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Refresh failed");
@@ -350,8 +387,11 @@ export default function CrmPanel() {
     }
   }
 
+  const showListPane = isLargeScreen || !mobileThreadOpen;
+  const showThreadPane = isLargeScreen || mobileThreadOpen;
+
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col min-h-[640px]">
+    <div className="h-[calc(100dvh-3.5rem)] flex flex-col min-h-0">
       {(banner || error || platform) && (
         <div className="px-4 py-2 border-b border-gray-200 bg-white flex flex-wrap gap-3 items-center text-xs">
           {platform && (
@@ -390,9 +430,9 @@ export default function CrmPanel() {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden">
         {/* Conversations list */}
-        <section className="border-r border-gray-200 bg-white flex flex-col min-h-0">
+        <section className={`${paneClass(showListPane)} border-r border-gray-200 bg-white`}>
           <div className="p-3 border-b border-gray-100 space-y-2">
             <input
               value={q}
@@ -452,7 +492,7 @@ export default function CrmPanel() {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setSelectedId(c.id)}
+                  onClick={() => openConversation(c.id)}
                   className={`w-full text-left px-3 py-3 border-b border-gray-50 flex gap-3 ${groomerConversationRowClass(
                     groomerId,
                     active
@@ -513,25 +553,42 @@ export default function CrmPanel() {
         </section>
 
         {/* Thread */}
-        <section className="bg-[#f5f7fb] flex flex-col min-h-0 border-r border-gray-200">
+        <section className={`${paneClass(showThreadPane)} bg-[#f5f7fb] border-r border-gray-200`}>
           {!selected && (
-            <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
-              Select a conversation
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-500 px-4 text-center">
+              Select a conversation to read and reply.
             </div>
           )}
           {selected && (
             <>
-              <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-bold text-brand">
-                    {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {formatPhoneDisplay(selected.phone)}
-                    {selected.email ? ` · ${selected.email}` : ""}
+              <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={backToConversationList}
+                    className="lg:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    aria-label="Back to conversations"
+                  >
+                    ←
+                  </button>
+                  <div className="min-w-0">
+                    <div className="font-bold text-brand truncate">
+                      {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {formatPhoneDisplay(selected.phone)}
+                      {selected.email ? ` · ${selected.email}` : ""}
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMobileDetailsOpen(true)}
+                    className="lg:hidden px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-700"
+                  >
+                    Info
+                  </button>
                   <button
                     type="button"
                     onClick={openCallDialer}
@@ -631,7 +688,7 @@ export default function CrmPanel() {
                 )}
               </div>
 
-              <div className="bg-white border-t border-gray-200 p-3 space-y-2">
+              <div className="bg-white border-t border-gray-200 p-3 space-y-2 shrink-0">
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -639,36 +696,38 @@ export default function CrmPanel() {
                   placeholder="Write an SMS…"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none"
                 />
-                <div className="flex flex-wrap gap-2 items-center">
-                  <button
-                    type="button"
-                    onClick={() => void sendSms()}
-                    disabled={busy === "sms" || !message.trim()}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white disabled:opacity-50"
-                  >
-                    Send
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void sendSms("lead_follow_up")}
-                    disabled={busy === "sms"}
-                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
-                  >
-                    Lead follow-up
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void sendSms("appointment_follow_up")}
-                    disabled={busy === "sms"}
-                    className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
-                  >
-                    Rebook
-                  </button>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void sendSms()}
+                      disabled={busy === "sms" || !message.trim()}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white disabled:opacity-50"
+                    >
+                      Send
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void sendSms("lead_follow_up")}
+                      disabled={busy === "sms"}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                    >
+                      Lead follow-up
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void sendSms("appointment_follow_up")}
+                      disabled={busy === "sms"}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                    >
+                      Rebook
+                    </button>
+                  </div>
                   <input
                     value={staffPhone}
                     onChange={(e) => setStaffPhone(e.target.value)}
                     placeholder="Your phone for click-to-call"
-                    className="ml-auto border border-gray-200 rounded-lg px-2 py-1.5 text-xs w-44"
+                    className="w-full sm:w-44 sm:ml-auto border border-gray-200 rounded-lg px-2 py-1.5 text-xs"
                   />
                 </div>
               </div>
@@ -676,128 +735,173 @@ export default function CrmPanel() {
           )}
         </section>
 
-        {/* Contact details */}
-        <section className="bg-white flex flex-col min-h-0 overflow-y-auto">
+        {/* Contact details — desktop sidebar */}
+        <section className="hidden lg:flex bg-white flex-col min-h-0 overflow-y-auto">
           {!selected && (
             <div className="p-6 text-sm text-gray-500">Contact details appear here.</div>
           )}
           {selected && (
-            <div className="p-4 space-y-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
-                  Contact
-                </div>
-                <div className="font-bold text-brand mt-1">
-                  {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {formatPhoneDisplay(selected.phone)}
-                </div>
-                {(detail?.email || selected.email) && (
-                  <div className="text-sm text-gray-600">{detail?.email || selected.email}</div>
-                )}
-                {(detail?.address || selected.address) && (
-                  <div className="text-sm text-gray-500 mt-1">
-                    {[
-                      detail?.address || selected.address,
-                      detail?.city || selected.city,
-                      detail?.zipCode || selected.zipCode,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </div>
-                )}
-              </div>
-
-              {(detail?.isFollowUp || selected.isFollowUp) && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  Follow up — last groomed{" "}
-                  {formatDaysSince(
-                    detail?.daysSinceLastAppointment ?? selected.daysSinceLastAppointment
-                  )}
-                  {(detail?.lastPastAppointmentAt || selected.lastPastAppointmentAt) && (
-                    <>
-                      {" "}
-                      on{" "}
-                      {formatWhen(
-                        detail?.lastPastAppointmentAt ||
-                          selected.lastPastAppointmentAt ||
-                          undefined
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div>
-                {(detail?.pets || selected.pets).length === 0 && (
-                  <div className="text-sm text-gray-400">No pets on file</div>
-                )}
-                {(detail?.pets || selected.pets).map((p, i) => (
-                  <div key={`${p.petName}-${i}`} className="text-sm text-gray-700">
-                    {p.petName || "Pet"} {p.petSize ? `· ${p.petSize}` : ""}
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Upcoming
-                </div>
-                {(detail?.upcomingAppointments || []).slice(0, 3).map((a) => (
-                  <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">
-                    {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
-                  </div>
-                ))}
-                {detail && detail.upcomingAppointments.length === 0 && (
-                  <div className="text-sm text-gray-400">None</div>
-                )}
-              </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={detail?.botEnabled ?? selected.botEnabled}
-                  onChange={(e) => void toggleBot(e.target.checked)}
-                  disabled={busy === "bot"}
-                />
-                SMS bot for this contact
-              </label>
-
-              <div className="flex flex-wrap gap-1">
-                {(detail?.tags || selected.tags).map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-                  Add note
-                </div>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  rows={3}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Internal note…"
-                />
-                <button
-                  type="button"
-                  onClick={() => void saveNote()}
-                  disabled={busy === "note" || !note.trim()}
-                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 disabled:opacity-50"
-                >
-                  Save note
-                </button>
-              </div>
-            </div>
+            <ContactDetailsContent
+              selected={selected}
+              detail={detail}
+              note={note}
+              setNote={setNote}
+              busy={busy}
+              onSaveNote={() => void saveNote()}
+              onToggleBot={(enabled) => void toggleBot(enabled)}
+            />
           )}
         </section>
+      </div>
+
+      {mobileDetailsOpen && selected && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close contact details"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileDetailsOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-2xl bg-white shadow-xl">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+              <h3 className="font-bold text-brand">Contact details</h3>
+              <button
+                type="button"
+                onClick={() => setMobileDetailsOpen(false)}
+                className="text-gray-500 hover:text-gray-800 px-2 text-xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <ContactDetailsContent
+              selected={selected}
+              detail={detail}
+              note={note}
+              setNote={setNote}
+              busy={busy}
+              onSaveNote={() => void saveNote()}
+              onToggleBot={(enabled) => void toggleBot(enabled)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContactDetailsContent({
+  selected,
+  detail,
+  note,
+  setNote,
+  busy,
+  onSaveNote,
+  onToggleBot,
+}: {
+  selected: CrmContact | ContactDetail;
+  detail: ContactDetail | null;
+  note: string;
+  setNote: (value: string) => void;
+  busy: string | null;
+  onSaveNote: () => void;
+  onToggleBot: (enabled: boolean) => void;
+}) {
+  return (
+    <div className="p-4 space-y-4">
+      <div>
+        <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Contact</div>
+        <div className="font-bold text-brand mt-1">
+          {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+        </div>
+        <div className="text-sm text-gray-600 mt-1">{formatPhoneDisplay(selected.phone)}</div>
+        {(detail?.email || selected.email) && (
+          <div className="text-sm text-gray-600">{detail?.email || selected.email}</div>
+        )}
+        {(detail?.address || selected.address) && (
+          <div className="text-sm text-gray-500 mt-1">
+            {[detail?.address || selected.address, detail?.city || selected.city, detail?.zipCode || selected.zipCode]
+              .filter(Boolean)
+              .join(", ")}
+          </div>
+        )}
+      </div>
+
+      {(detail?.isFollowUp || selected.isFollowUp) && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Follow up — last groomed{" "}
+          {formatDaysSince(detail?.daysSinceLastAppointment ?? selected.daysSinceLastAppointment)}
+          {(detail?.lastPastAppointmentAt || selected.lastPastAppointmentAt) && (
+            <>
+              {" "}
+              on{" "}
+              {formatWhen(detail?.lastPastAppointmentAt || selected.lastPastAppointmentAt || undefined)}
+            </>
+          )}
+        </div>
+      )}
+
+      <div>
+        {(detail?.pets || selected.pets).length === 0 && (
+          <div className="text-sm text-gray-400">No pets on file</div>
+        )}
+        {(detail?.pets || selected.pets).map((p, i) => (
+          <div key={`${p.petName}-${i}`} className="text-sm text-gray-700">
+            {p.petName || "Pet"} {p.petSize ? `· ${p.petSize}` : ""}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Upcoming</div>
+        {(detail?.upcomingAppointments || []).slice(0, 3).map((a) => (
+          <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">
+            {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
+          </div>
+        ))}
+        {detail && detail.upcomingAppointments.length === 0 && (
+          <div className="text-sm text-gray-400">None</div>
+        )}
+      </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={detail?.botEnabled ?? selected.botEnabled}
+          onChange={(e) => onToggleBot(e.target.checked)}
+          disabled={busy === "bot"}
+        />
+        SMS bot for this contact
+      </label>
+
+      <div className="flex flex-wrap gap-1">
+        {(detail?.tags || selected.tags).map((tag) => (
+          <span
+            key={tag}
+            className="text-[10px] uppercase font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      <div>
+        <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">Add note</div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          placeholder="Internal note…"
+        />
+        <button
+          type="button"
+          onClick={onSaveNote}
+          disabled={busy === "note" || !note.trim()}
+          className="mt-2 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 disabled:opacity-50"
+        >
+          Save note
+        </button>
       </div>
     </div>
   );

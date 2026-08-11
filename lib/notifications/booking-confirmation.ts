@@ -12,17 +12,11 @@ export async function sendCustomerConfirmationEmail(
   return sendCustomerConfirmationWithTemplate(appointment);
 }
 
-export async function sendCustomerConfirmationSms(
-  appointment: Appointment
-): Promise<boolean> {
-  if (!appointment.smsOptIn || !appointment.phone.trim()) {
-    return false;
-  }
-
+export function bookingConfirmationSmsBody(appointment: Appointment): string {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
   const petLabel = getAppointmentPetLabel(appointment);
 
-  const body = [
+  return [
     `Mobile Dog Salon: You're booked!`,
     `${petLabel} — ${serviceLabel}`,
     `${when.smsWhen}`,
@@ -30,32 +24,28 @@ export async function sendCustomerConfirmationSms(
     formatAppointmentAddress(appointment),
     `Reply STOP to opt out. HELP for help.`,
   ].join("\n");
+}
+
+export async function sendCustomerConfirmationSms(
+  appointment: Appointment
+): Promise<boolean> {
+  if (!appointment.smsOptIn || !appointment.phone.trim()) {
+    return false;
+  }
+
+  const body = bookingConfirmationSmsBody(appointment);
 
   const result = await sendSms(appointment.phone, body);
   if (result.ok) {
     try {
-      const { ensureCrmSeeded } = await import("@/lib/crm/seed");
-      const { findContactByPhone, appendInteraction, newInteractionId } = await import(
-        "@/lib/crm/store"
-      );
-      await ensureCrmSeeded();
-      const contact = await findContactByPhone(appointment.phone);
-      if (contact) {
-        await appendInteraction({
-          id: newInteractionId(),
-          contactId: contact.id,
-          phone: contact.phone,
-          channel: "sms",
-          direction: "outbound",
-          body,
-          summary: "Booking confirmation SMS",
-          messageStatus: "sent",
-          twilioSid: result.sid,
-          actor: "system",
-          createdAt: new Date().toISOString(),
-          metadata: { appointmentId: appointment.id, kind: "booking_confirmation" },
-        });
-      }
+      const { recordSystemOutboundSms } = await import("@/lib/crm/messaging");
+      await recordSystemOutboundSms({
+        appointment,
+        body,
+        summary: "Booking confirmation SMS",
+        twilioSid: result.sid,
+        metadata: { appointmentId: appointment.id, kind: "booking_confirmation" },
+      });
     } catch (err) {
       console.error("CRM log for confirmation SMS failed:", err);
     }

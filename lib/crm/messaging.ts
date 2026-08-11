@@ -1,5 +1,7 @@
 import "server-only";
 import { sendSms } from "@/lib/notifications/twilio";
+import type { Appointment } from "@/lib/scheduling/types";
+import { ensureCrmSeeded } from "./seed";
 import {
   appendInteraction,
   findContactByPhone,
@@ -8,7 +10,113 @@ import {
   upsertContact,
 } from "./store";
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
-import type { CrmContact, CrmInteraction } from "./types";
+import type { CrmContact, CrmInteraction, CrmPet } from "./types";
+
+function mergePetsFromAppointment(existing: CrmPet[], appointment: Appointment): CrmPet[] {
+  const next: CrmPet[] = [
+    {
+      petName: appointment.petName || "",
+      petSize: appointment.petSize,
+      petBreed: appointment.petBreed || undefined,
+    },
+    ...(appointment.additionalPets ?? []).map((pet) => ({
+      petName: pet.petName || "",
+      petSize: pet.petSize,
+    })),
+  ];
+  const map = new Map<string, CrmPet>();
+  for (const pet of [...existing, ...next]) {
+    const key = `${pet.petName.trim().toLowerCase()}|${pet.petSize ?? ""}`;
+    if (!pet.petName.trim() && !pet.petSize) continue;
+    map.set(key, pet);
+  }
+  return [...map.values()];
+}
+
+/** Ensure a CRM contact exists for an appointment phone, merging booking details. */
+export async function ensureContactFromAppointment(appointment: Appointment): Promise<CrmContact> {
+  await ensureCrmSeeded();
+  const digits = crmPhoneDigits(appointment.phone);
+  if (digits.length < 10) {
+    throw new Error("Appointment phone is invalid for CRM");
+  }
+
+  let contact = await findContactByPhone(appointment.phone);
+  const now = new Date().toISOString();
+
+  if (!contact) {
+    contact = {
+      id: newContactId(),
+      phone: digits,
+      phoneE164: crmPhoneE164(appointment.phone) ?? `+1${digits}`,
+      pets: [],
+      appointmentIds: [],
+      status: "customer",
+      tags: [],
+      source: "appointment",
+      unreadCount: 0,
+      botEnabled: true,
+      createdAt: appointment.createdAt || now,
+      updatedAt: now,
+    };
+  }
+
+  const tags = [...contact.tags];
+  if (appointment.smsOptIn && !tags.includes("sms-opt-in")) tags.push("sms-opt-in");
+
+  const updated: CrmContact = {
+    ...contact,
+    firstName: appointment.firstName || contact.firstName,
+    lastName: appointment.lastName || contact.lastName,
+    fullName: displayNameFromContact({
+      firstName: appointment.firstName || contact.firstName,
+      lastName: appointment.lastName || contact.lastName,
+      fullName: contact.fullName,
+    }),
+    email: appointment.email || contact.email,
+    address: appointment.address || contact.address,
+    city: appointment.city || contact.city,
+    zipCode: appointment.zipCode || contact.zipCode,
+    service: appointment.service || contact.service,
+    smsOptIn: appointment.smsOptIn ?? contact.smsOptIn,
+    groomerId: appointment.groomerId || contact.groomerId,
+    pets: mergePetsFromAppointment(contact.pets, appointment),
+    appointmentIds: contact.appointmentIds.includes(appointment.id)
+      ? contact.appointmentIds
+      : [...contact.appointmentIds, appointment.id],
+    status: contact.status === "inactive" ? contact.status : "customer",
+    source: contact.source === "import" ? "appointment" : contact.source,
+    tags,
+    updatedAt: now,
+  };
+
+  return upsertContact(updated);
+}
+
+/** Log an automated outbound SMS (booking confirmation, reminders) in CRM. */
+export async function recordSystemOutboundSms(options: {
+  appointment: Appointment;
+  body: string;
+  summary: string;
+  twilioSid?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+}): Promise<void> {
+  const contact = await ensureContactFromAppointment(options.appointment);
+  await appendInteraction({
+    id: newInteractionId(),
+    contactId: contact.id,
+    phone: contact.phone,
+    channel: "sms",
+    direction: "outbound",
+    body: options.body,
+    summary: options.summary,
+    messageStatus: "sent",
+    twilioSid: options.twilioSid,
+    actor: "system",
+    createdAt: new Date().toISOString(),
+    metadata: options.metadata,
+  });
+}
 
 export async function ensureContactForPhone(phone: string): Promise<CrmContact> {
   const existing = await findContactByPhone(phone);

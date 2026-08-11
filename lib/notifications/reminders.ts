@@ -8,7 +8,7 @@ import type { Appointment } from "@/lib/scheduling/types";
 
 export type ReminderKind = "24h" | "1h";
 
-function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
+export function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
   const petLabel = getAppointmentPetLabel(appointment);
   const lead =
@@ -52,31 +52,17 @@ export async function sendReminderSms(
   const result = await sendSms(appointment.phone, body);
   if (result.ok) {
     try {
-      const { ensureCrmSeeded } = await import("@/lib/crm/seed");
-      const { findContactByPhone, appendInteraction, newInteractionId } = await import(
-        "@/lib/crm/store"
-      );
-      await ensureCrmSeeded();
-      const contact = await findContactByPhone(appointment.phone);
-      if (contact) {
-        await appendInteraction({
-          id: newInteractionId(),
-          contactId: contact.id,
-          phone: contact.phone,
-          channel: "sms",
-          direction: "outbound",
-          body,
-          summary: kind === "24h" ? "24h reminder SMS" : "1h reminder SMS",
-          messageStatus: "sent",
-          twilioSid: result.sid,
-          actor: "system",
-          createdAt: new Date().toISOString(),
-          metadata: {
-            appointmentId: appointment.id,
-            kind: kind === "24h" ? "reminder24hSmsSentAt" : "reminder1hSmsSentAt",
-          },
-        });
-      }
+      const { recordSystemOutboundSms } = await import("@/lib/crm/messaging");
+      await recordSystemOutboundSms({
+        appointment,
+        body,
+        summary: kind === "24h" ? "24h reminder SMS" : "1h reminder SMS",
+        twilioSid: result.sid,
+        metadata: {
+          appointmentId: appointment.id,
+          kind: kind === "24h" ? "reminder24hSmsSentAt" : "reminder1hSmsSentAt",
+        },
+      });
     } catch (err) {
       console.error("CRM log for reminder SMS failed:", err);
     }

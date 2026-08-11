@@ -13,6 +13,8 @@ import {
   writeCrmData,
 } from "./store";
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
+import { bookingConfirmationSmsBody } from "@/lib/notifications/booking-confirmation";
+import { reminderSmsBody } from "@/lib/notifications/reminders";
 import type {
   CrmContact,
   CrmContactSource,
@@ -248,7 +250,7 @@ function appointmentSystemEvents(
       phone: contact.phone,
       channel: "sms",
       direction: "outbound",
-      body: "Booking confirmation SMS (historical — customer opted in at booking).",
+      body: bookingConfirmationSmsBody(appt),
       summary: "Booking confirmation SMS",
       messageStatus: "sent",
       actor: "system",
@@ -257,27 +259,31 @@ function appointmentSystemEvents(
     });
   }
 
-  const reminderFields: { key: keyof Appointment; label: string }[] = [
-    { key: "reminder24hSmsSentAt", label: "24h reminder SMS" },
-    { key: "reminder1hSmsSentAt", label: "1h reminder SMS" },
+  const reminderFields: { key: keyof Appointment; label: string; kind: "24h" | "1h" }[] = [
+    { key: "reminder24hSmsSentAt", label: "24h reminder SMS", kind: "24h" },
+    { key: "reminder1hSmsSentAt", label: "1h reminder SMS", kind: "1h" },
+    { key: "reminder2hSmsSentAt", label: "1h reminder SMS", kind: "1h" },
   ];
+  const loggedReminderKeys = new Set<string>();
   for (const field of reminderFields) {
     const sentAt = appt[field.key];
-    if (typeof sentAt === "string" && sentAt) {
-      events.push({
+    if (typeof sentAt !== "string" || !sentAt) continue;
+    const dedupeKey = `${appt.id}:${field.kind}`;
+    if (loggedReminderKeys.has(dedupeKey)) continue;
+    loggedReminderKeys.add(dedupeKey);
+    events.push({
         id: randomUUID(),
         contactId: contact.id,
         phone: contact.phone,
         channel: "sms",
         direction: "outbound",
-        body: `${field.label} sent.`,
+        body: reminderSmsBody(appt, field.kind),
         summary: field.label,
         messageStatus: "sent",
         actor: "system",
         createdAt: sentAt,
         metadata: { appointmentId: appt.id, kind: field.key },
       });
-    }
   }
 
   return events;
@@ -447,12 +453,33 @@ export async function refreshCrmContactsPreservingLiveInteractions(): Promise<Cr
   const snapshot = await buildCrmSnapshot();
 
   const liveChannels = new Set(["sms", "call"]);
-  const liveInteractions = existing.interactions.filter(
-    (i) =>
-      liveChannels.has(i.channel) &&
-      i.actor !== "system" &&
-      !(i.metadata && i.metadata.kind === "booking_confirmation")
+
+  function systemSmsKey(ix: CrmInteraction): string | null {
+    if (ix.channel !== "sms" || ix.direction !== "outbound" || ix.actor !== "system") {
+      return null;
+    }
+    const kind = ix.metadata?.kind;
+    if (typeof kind !== "string") return null;
+    return `${crmPhoneDigits(ix.phone)}:${kind}:${String(ix.metadata?.appointmentId ?? "")}`;
+  }
+
+  function isSyntheticPlaceholder(ix: CrmInteraction): boolean {
+    if (ix.actor !== "system" || ix.channel !== "sms") return false;
+    const body = ix.body ?? "";
+    return body.includes("historical") || body.endsWith(" sent.");
+  }
+
+  const preservedSystemSmsKeys = new Set(
+    existing.interactions
+      .filter((i) => systemSmsKey(i) && i.body && !isSyntheticPlaceholder(i))
+      .map((i) => systemSmsKey(i)!)
   );
+
+  const liveInteractions = existing.interactions.filter((i) => {
+    const key = systemSmsKey(i);
+    if (key && i.body && !isSyntheticPlaceholder(i)) return true;
+    return liveChannels.has(i.channel) && i.actor !== "system";
+  });
 
   // Remap live interactions onto refreshed contact ids by phone
   const phoneToContact = new Map(snapshot.contacts.map((c) => [c.phone, c]));
@@ -475,9 +502,15 @@ export async function refreshCrmContactsPreservingLiveInteractions(): Promise<Cr
     if (ix.direction === "outbound") contact.lastOutboundAt = ix.createdAt;
   }
 
+  const snapshotInteractions = snapshot.interactions.filter((ix) => {
+    const key = systemSmsKey(ix);
+    if (key && preservedSystemSmsKeys.has(key)) return false;
+    return true;
+  });
+
   const data: CrmData = {
     contacts: snapshot.contacts,
-    interactions: [...snapshot.interactions, ...remapped].sort((a, b) =>
+    interactions: [...snapshotInteractions, ...remapped].sort((a, b) =>
       a.createdAt.localeCompare(b.createdAt)
     ),
     seededAt: new Date().toISOString(),

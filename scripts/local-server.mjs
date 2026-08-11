@@ -118,6 +118,7 @@ export function startNextServerDetached(port = 3000) {
   child.unref();
   if (child.pid) {
     writeFileSync(pidPath, String(child.pid), "utf8");
+    writeFileSync(join(process.cwd(), ".local-server.port"), String(port), "utf8");
   }
 
   return child.pid;

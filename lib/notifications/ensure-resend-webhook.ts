@@ -128,15 +128,18 @@ export async function ensureResendWebhook(): Promise<{
   });
 
   if (created.error || !created.data) {
+    const message =
+      typeof created.error?.message === "string"
+        ? created.error.message
+        : "Failed to create Resend webhook";
     return {
       ok: false,
       created: false,
       reused: false,
       endpoint,
-      error:
-        typeof created.error?.message === "string"
-          ? created.error.message
-          : "Failed to create Resend webhook",
+      error: /restricted to only send emails/i.test(message)
+        ? `${message}. Create a full-access Resend API key (or add a webhook manually in the Resend dashboard to ${endpoint} and set RESEND_WEBHOOK_SECRET).`
+        : message,
     };
   }
 

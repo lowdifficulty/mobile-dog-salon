@@ -44,6 +44,7 @@ export default function AdminAppointmentsPanel({ refreshKey = 0 }: { refreshKey?
           allowOverrideAvailability
           allowDelete
           showRecentFilter
+          colorByGroomer
         />
       ) : (
         <StaffAppointmentCalendar mode="admin" refreshKey={refreshKey} />

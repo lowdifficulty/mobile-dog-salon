@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/persistence";
-import type { CrmContact, CrmData, CrmInteraction } from "./types";
+import type { CrmContact, CrmData, CrmInteraction, SmsBotSession } from "./types";
 import { crmPhoneDigits } from "./phone";
 
 const FILE_PATH = path.join(process.cwd(), "data", "crm.json");
@@ -183,6 +183,22 @@ export async function setContactBotEnabled(
   data.contacts[idx] = {
     ...data.contacts[idx],
     botEnabled,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeCrmData(data);
+  return data.contacts[idx];
+}
+
+export async function setContactSmsBotSession(
+  contactId: string,
+  session: SmsBotSession | null
+): Promise<CrmContact | null> {
+  const data = await readCrmData();
+  const idx = data.contacts.findIndex((c) => c.id === contactId);
+  if (idx < 0) return null;
+  data.contacts[idx] = {
+    ...data.contacts[idx],
+    smsBotSession: session,
     updatedAt: new Date().toISOString(),
   };
   await writeCrmData(data);

@@ -54,12 +54,14 @@ export default function AppointmentList({
   currentGroomerId,
   allowOverrideAvailability = false,
   allowDelete = false,
+  colorByGroomer: colorByGroomerProp,
 }: {
   apiUrl: string;
   filter: StaffAppointmentFilter;
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
   allowDelete?: boolean;
+  colorByGroomer?: boolean;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,24 +262,33 @@ export default function AppointmentList({
     );
   }
 
-  const colorByGroomer =
-    (filter === "upcoming" || filter === "all" || filter === "recent") && currentGroomerId;
-  const otherGroomerIds = colorByGroomer
-    ? (Object.keys(GROOMERS) as GroomerId[]).filter((id) => id !== currentGroomerId)
+  const useGroomerColors =
+    colorByGroomerProp ??
+    (Boolean(currentGroomerId) &&
+      (filter === "upcoming" || filter === "all" || filter === "recent"));
+  const legendGroomerIds = useGroomerColors
+    ? currentGroomerId
+      ? (Object.keys(GROOMERS) as GroomerId[]).filter((id) => id !== currentGroomerId)
+      : (Object.keys(GROOMERS) as GroomerId[])
     : [];
 
   return (
-    <div className="space-y-3">
-      {colorByGroomer && (
-        <p className="text-sm text-gray-600 mb-4 flex flex-wrap gap-4">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" aria-hidden />
-            My appointments
-          </span>
-          {otherGroomerIds.map((id) => (
+    <div className="space-y-1.5">
+      {useGroomerColors && (
+        <p className="text-xs text-gray-500 mb-2 flex flex-wrap gap-x-3 gap-y-1">
+          {currentGroomerId && (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(currentGroomerId)}`}
+                aria-hidden
+              />
+              My appointments
+            </span>
+          )}
+          {legendGroomerIds.map((id) => (
             <span key={id} className="inline-flex items-center gap-1.5">
               <span
-                className={`w-3 h-3 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(id)}`}
+                className={`w-2 h-2 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(id)}`}
                 aria-hidden
               />
               {groomerAppointmentLegendLabel(id)}
@@ -300,7 +311,7 @@ export default function AppointmentList({
         const cardAccentClass = groomerAppointmentCardClass(ap.groomerId, {
           isOwn: Boolean(isOwnAppointment),
           cancelled: ap.status === "cancelled",
-          colorByGroomer: Boolean(colorByGroomer),
+          colorByGroomer: useGroomerColors,
         });
 
         const canManage =
@@ -309,42 +320,53 @@ export default function AppointmentList({
         const showActions = canManage || allowDelete;
 
         return (
-          <div key={ap.id} className={`site-card p-4 border-l-4 ${cardAccentClass}`}>
-            <div className="flex flex-wrap justify-between gap-2 mb-2">
-              <div>
-                <p className="font-bold text-brand">{formatWhen(ap.startAt)}</p>
-                {filter === "recent" && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Booked {formatBookedAt(ap.createdAt)}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {ap.status === "cancelled" && (
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                    Cancelled
+          <div
+            key={ap.id}
+            className={`rounded-lg border border-l-[3px] px-3 py-2 shadow-sm ${cardAccentClass}`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="text-sm font-semibold text-gray-900">{formatWhen(ap.startAt)}</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(ap.groomerId)}`}
+                      aria-hidden
+                    />
+                    {GROOMERS[ap.groomerId].name}
                   </span>
+                  {ap.status === "cancelled" && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      Cancelled
+                    </span>
+                  )}
+                  {filter === "recent" && (
+                    <span className="text-[11px] text-gray-400">
+                      booked {formatBookedAt(ap.createdAt)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-800 leading-snug mt-0.5">
+                  <span className="font-medium">{appointmentTitle}</span>
+                  {(ap.petName?.trim() || ap.petBreed) && (
+                    <span className="text-gray-500">
+                      {" "}
+                      · {ap.petName?.trim()}
+                      {ap.petBreed ? ` (${ap.petBreed})` : ""}
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 truncate mt-0.5">
+                  {ap.firstName} {ap.lastName} · {ap.phone} · {formatAppointmentAddress(ap)}
+                </p>
+                {ap.notes && (
+                  <p className="text-xs text-gray-400 truncate mt-0.5">Notes: {ap.notes}</p>
                 )}
-                <p className="text-sm text-gray-500">{GROOMERS[ap.groomerId].name}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-800">
-              <strong>{appointmentTitle}</strong>
-            </p>
-            {(ap.petName?.trim() || ap.petBreed) && (
-              <p className="text-sm text-gray-600 mt-0.5">
-                {ap.petName?.trim()}
-                {ap.petBreed ? ` (${ap.petBreed})` : ""}
-              </p>
-            )}
-            <p className="text-sm text-gray-600 mt-1">
-              {ap.firstName} {ap.lastName} · {ap.phone}
-            </p>
-            <p className="text-sm text-gray-600">{formatAppointmentAddress(ap)}</p>
-            {ap.notes && <p className="text-sm text-gray-500 mt-2">Notes: {ap.notes}</p>}
 
             {showActions && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="mt-1.5 pt-1.5 border-t border-black/[0.04]">
                 {isEditingLead && canManage ? (
                   leadFormLoading || !leadFormValues ? (
                     <p className="text-sm text-gray-500">Loading client details…</p>
@@ -358,12 +380,12 @@ export default function AppointmentList({
                     />
                   )
                 ) : !isRescheduling && canManage ? (
-                  <div className="flex flex-wrap gap-3 items-center">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-center text-xs">
                     <button
                       type="button"
                       onClick={() => openEditLead(ap)}
                       disabled={isBusy}
-                      className="text-sm font-semibold text-brand hover:text-accent underline disabled:opacity-50"
+                      className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
                     >
                       Edit client
                     </button>
@@ -371,7 +393,7 @@ export default function AppointmentList({
                       type="button"
                       onClick={() => openReschedule(ap)}
                       disabled={isBusy}
-                      className="text-sm font-semibold text-brand hover:text-accent underline disabled:opacity-50"
+                      className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
                     >
                       Reschedule
                     </button>
@@ -386,7 +408,7 @@ export default function AppointmentList({
                       type="button"
                       onClick={() => handleCancel(ap)}
                       disabled={isBusy}
-                      className="text-sm font-semibold text-red-600 hover:text-red-800 underline disabled:opacity-50"
+                      className="font-semibold text-red-600 hover:text-red-800 disabled:opacity-50"
                     >
                       {isBusy ? "Working…" : "Cancel"}
                     </button>
@@ -395,7 +417,7 @@ export default function AppointmentList({
                         type="button"
                         onClick={() => handleDelete(ap)}
                         disabled={isBusy}
-                        className="text-sm font-semibold text-red-800 hover:text-red-950 underline disabled:opacity-50"
+                        className="font-semibold text-red-700 hover:text-red-900 disabled:opacity-50"
                       >
                         Delete
                       </button>

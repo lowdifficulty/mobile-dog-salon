@@ -280,9 +280,12 @@ export default function StaffAppointmentCalendar({
     <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] gap-8 items-start">
       <div className="site-card p-6">
         {mode === "groomer" && seesTeam && groomerId && (
-          <p className="text-sm text-gray-600 mb-4 flex flex-wrap gap-4">
+          <p className="text-xs text-gray-500 mb-3 flex flex-wrap gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-green-500 shrink-0" aria-hidden />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(groomerId)}`}
+                aria-hidden
+              />
               My appointments
             </span>
             {(Object.keys(GROOMERS) as GroomerId[])
@@ -300,8 +303,20 @@ export default function StaffAppointmentCalendar({
         )}
 
         {mode === "admin" && (
-          <p className="text-sm text-gray-600 mb-4">
-            All groomers — green = booked, pink = open slot.
+          <p className="text-xs text-gray-500 mb-3 flex flex-wrap gap-x-3 gap-y-1">
+            {(Object.keys(GROOMERS) as GroomerId[]).map((id) => (
+              <span key={id} className="inline-flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${groomerAppointmentLegendDotClass(id)}`}
+                  aria-hidden
+                />
+                {GROOMERS[id].name}
+              </span>
+            ))}
+            <span className="inline-flex items-center gap-1.5 text-gray-400">
+              <span className="w-2 h-2 rounded-full shrink-0 bg-gray-300" aria-hidden />
+              Open slot
+            </span>
           </p>
         )}
 
@@ -364,7 +379,7 @@ export default function StaffAppointmentCalendar({
                     : hasBooked
                       ? "bg-white text-gray-800 border-green-300 hover:border-green-400"
                       : hasOpen
-                        ? "bg-white text-gray-800 border-accent/30 hover:border-accent"
+                        ? "bg-white text-gray-800 border-gray-200 hover:border-gray-300"
                         : isPast
                           ? "bg-gray-50 text-gray-400 border-gray-100"
                           : "bg-gray-50 text-gray-500 border-gray-100 hover:border-gray-200"
@@ -380,7 +395,7 @@ export default function StaffAppointmentCalendar({
                   )}
                   {hasOpen && (
                     <span
-                      className={`w-2 h-2 rounded-full ${isSelected ? "bg-white/70" : "bg-accent"}`}
+                      className={`w-2 h-2 rounded-full ${isSelected ? "bg-white/70" : "bg-gray-300"}`}
                       title={`${dayOpenCount} open`}
                     />
                   )}
@@ -391,7 +406,7 @@ export default function StaffAppointmentCalendar({
         </div>
       </div>
 
-      <div className="site-card p-6 lg:sticky lg:top-8 space-y-6">
+      <div className="site-card p-4 lg:sticky lg:top-8 space-y-4">
         {selectedDate ? (
           <>
             <h3 className="text-lg font-bold text-brand">{formatDateLabel(selectedDate)}</h3>
@@ -428,7 +443,7 @@ export default function StaffAppointmentCalendar({
               {selectedAppointments.length === 0 ? (
                 <p className="text-sm text-gray-500">No appointments this day.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {selectedAppointments.map((ap) => {
                     const isOwn = groomerId ? ap.groomerId === groomerId : false;
                     const isExpanded = selectedAppointmentId === ap.id;
@@ -440,7 +455,7 @@ export default function StaffAppointmentCalendar({
                           onClick={() =>
                             setSelectedAppointmentId(isExpanded ? null : ap.id)
                           }
-                          className={`w-full text-left rounded-xl border px-3 py-2.5 transition-colors border-l-4 ${groomerAppointmentCardClass(
+                          className={`w-full text-left rounded-lg border px-2.5 py-1.5 transition-colors border-l-[3px] shadow-sm ${groomerAppointmentCardClass(
                             ap.groomerId,
                             {
                               isOwn: mode === "admin" ? false : isOwn,
@@ -449,20 +464,26 @@ export default function StaffAppointmentCalendar({
                             }
                           )}`}
                         >
-                          <p className="text-sm font-semibold text-brand">
-                            {formatWhen(ap.startAt)}
-                          </p>
-                          <p className="text-sm text-gray-800 mt-0.5">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="text-xs font-semibold text-gray-900">
+                              {formatWhen(ap.startAt)}
+                            </p>
+                            {(mode === "admin" || (seesTeam && !isOwn)) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-gray-500 shrink-0">
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${groomerAppointmentLegendDotClass(ap.groomerId)}`}
+                                  aria-hidden
+                                />
+                                {GROOMERS[ap.groomerId].name}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-700 leading-snug truncate">
                             {formatAppointmentTitle(ap)}
                           </p>
-                          {(mode === "admin" || (seesTeam && !isOwn)) && (
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {GROOMERS[ap.groomerId].name}
-                            </p>
-                          )}
                         </button>
                         {isExpanded && (
-                          <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-sm text-gray-700 space-y-1">
+                          <div className="mt-1 rounded-lg border border-gray-100 bg-white/80 px-2.5 py-2 text-xs text-gray-600 space-y-0.5">
                             <p>
                               <strong>Pet:</strong> {formatPetNames(getAppointmentPets(ap))}
                             </p>
@@ -581,7 +602,7 @@ export default function StaffAppointmentCalendar({
                               {vanSlots.map((slot) => (
                                 <span
                                   key={`${slot.van}-${slot.time}`}
-                                  className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-accent/10 text-brand border-accent/30"
+                                  className="px-2.5 py-1 rounded-full text-[11px] font-medium border bg-gray-50 text-gray-700 border-gray-200"
                                 >
                                   {slot.groomerName ? `${slot.groomerName} · ` : ""}
                                   {slot.displayTime}
@@ -601,7 +622,7 @@ export default function StaffAppointmentCalendar({
                   {selectedGroomerOpenSlots.map((time) => (
                     <span
                       key={time}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold border bg-accent/10 text-brand border-accent/30"
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border bg-gray-50 text-gray-700 border-gray-200"
                     >
                       {formatBookingBlockDisplay(time, groomerId!)}
                     </span>

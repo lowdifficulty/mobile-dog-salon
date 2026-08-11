@@ -11,7 +11,6 @@ import FunnelAnalyticsPanel from "@/components/leads/FunnelAnalyticsPanel";
 import LickyTrainingPanel from "./LickyTrainingPanel";
 import StaffLoginLogPanel from "./StaffLoginLogPanel";
 import StaffShiftsPanel from "./StaffShiftsPanel";
-import JobInterviewsPanel from "@/components/interviews/JobInterviewsPanel";
 import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
@@ -31,7 +30,6 @@ type Tab =
   | "appointments"
   | "team-calendar"
   | "shifts"
-  | "job-interviews"
   | "qa"
   | "payments"
   | "licky"
@@ -41,13 +39,12 @@ type Tab =
 const NAV: AdminNavItem[] = [
   { id: "crm", label: "Conversations", group: "CRM" },
   { id: "crm-contacts", label: "Contacts", group: "CRM" },
-  { id: "opportunities", label: "Appointments", group: "CRM" },
+  { id: "opportunities", label: "Opportunities", group: "CRM" },
   { id: "sms-bot", label: "SMS Chatbot", group: "CRM" },
   { id: "twilio", label: "Phone & SMS", group: "CRM" },
-  { id: "appointments", label: "Appointments", group: "Operations" },
+  { id: "appointments", label: "List", group: "Operations" },
   { id: "shifts", label: "Hours", group: "Operations" },
   { id: "team-calendar", label: "Team calendar", group: "Operations" },
-  { id: "job-interviews", label: "Job Interviews", group: "Operations" },
   { id: "analytics", label: "Analytics", group: "Insights" },
   { id: "accounting", label: "Accounting", group: "Insights" },
   { id: "emails", label: "Emails", group: "Insights" },
@@ -106,7 +103,6 @@ export default function AdminDashboard() {
           />
         )}
         {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
-        {tab === "job-interviews" && <JobInterviewsPanel />}
         {tab === "qa" && <QaDiagnosticsPanel />}
         {tab === "payments" && <StaffPaymentsPanel />}
         {tab === "emails" && <EmailCampaignsPanel />}

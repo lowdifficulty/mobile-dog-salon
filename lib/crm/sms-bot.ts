@@ -13,6 +13,7 @@ import {
   readSmsBotConfig,
   type SmsBotConfig,
 } from "./sms-bot-config";
+import { runSmsBotActionFlow } from "./sms-bot-flow";
 
 const BOOK_URL = `${companyLegal.siteUrl}/book`;
 const MY_APPT_URL = `${companyLegal.siteUrl}/my-appointment`;
@@ -132,7 +133,7 @@ function ruleBasedReply(
   }
 
   if (/\b(cancel|reschedule|move|change)\b/.test(text)) {
-    return `To cancel or reschedule, use ${MY_APPT_URL} or call/text ${companyLegal.businessPhoneDisplay}. We'll help ASAP.`;
+    return `You can text "cancel my appointment", "reschedule my appointment", or "book" and I'll walk you through it. Or use ${MY_APPT_URL} anytime.`;
   }
 
   if (/\b(price|cost|how much|rate)\b/.test(text)) {
@@ -222,16 +223,25 @@ export type SmsBotHandleResult = {
 
 const COMPLIANCE_KEYWORDS = new Set([
   "STOP",
-  "START",
   "HELP",
   "UNSUBSCRIBE",
-  "CANCEL",
   "END",
   "QUIT",
-  "UNSTOP",
-  "YES",
   "INFO",
 ]);
+
+async function composeSmsBotReply(
+  contact: CrmContact,
+  inboundBody: string,
+  config: SmsBotConfig
+): Promise<string> {
+  const ctx = await contactAppointmentContext(contact);
+  const actionResult = await runSmsBotActionFlow(contact, inboundBody, config);
+  if (actionResult) return actionResult.reply;
+
+  const draft = ruleBasedReply(inboundBody, contact, ctx);
+  return maybeAiPolish(inboundBody, contact, draft, ctx, config);
+}
 
 /**
  * Generate an SMS chatbot reply for lead / appointment follow-up.
@@ -251,19 +261,11 @@ export async function handleInboundSmsWithBot(options: {
   }
 
   const keyword = options.inboundBody.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
-  if (COMPLIANCE_KEYWORDS.has(keyword)) {
+  if (COMPLIANCE_KEYWORDS.has(keyword) && options.inboundBody.trim().split(/\s+/).length === 1) {
     return { replied: false, mode: config.mode };
   }
 
-  const ctx = await contactAppointmentContext(options.contact);
-  const draft = ruleBasedReply(options.inboundBody, options.contact, ctx);
-  const body = await maybeAiPolish(
-    options.inboundBody,
-    options.contact,
-    draft,
-    ctx,
-    config
-  );
+  const body = await composeSmsBotReply(options.contact, options.inboundBody, config);
 
   const allowed =
     options.forceSend || phoneAllowedForSmsBot(options.contact.phone, config);
@@ -300,15 +302,7 @@ export async function simulateSmsBotReply(options: {
   inboundBody: string;
 }): Promise<{ body: string; mode: "test" | "live"; draftOnly: boolean }> {
   const config = await readSmsBotConfig();
-  const ctx = await contactAppointmentContext(options.contact);
-  const draft = ruleBasedReply(options.inboundBody, options.contact, ctx);
-  const body = await maybeAiPolish(
-    options.inboundBody,
-    options.contact,
-    draft,
-    ctx,
-    config
-  );
+  const body = await composeSmsBotReply(options.contact, options.inboundBody, config);
   return {
     body,
     mode: config.mode,

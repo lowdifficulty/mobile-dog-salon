@@ -18,6 +18,8 @@ export interface SmsBotConfig {
   systemPrompt: string;
   /** Extra logic / instructions appended into the bot prompt */
   customLogic: string;
+  /** When true, SMS bot can book, cancel, and reschedule via multi-turn flows. */
+  enableActions: boolean;
   /** Digits-only phones allowed when mode=test */
   testPhones: string[];
   updatedAt?: string;
@@ -32,6 +34,7 @@ export function emptySmsBotConfig(): SmsBotConfig {
     useAiPolish: true,
     systemPrompt: DEFAULT_SMS_BOT_SYSTEM_PROMPT,
     customLogic: "",
+    enableActions: true,
     testPhones: [],
   };
 }
@@ -58,6 +61,7 @@ function normalizeConfig(input: Partial<SmsBotConfig>): SmsBotConfig {
     useAiPolish: input.useAiPolish !== false,
     systemPrompt: (input.systemPrompt || base.systemPrompt).trim() || base.systemPrompt,
     customLogic: (input.customLogic || "").trim(),
+    enableActions: input.enableActions !== false,
     testPhones: Array.from(
       new Set(
         (input.testPhones || [])

@@ -73,7 +73,31 @@ export interface CrmContact {
   botEnabled: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Multi-turn SMS bot state (book / cancel / reschedule). */
+  smsBotSession?: SmsBotSession | null;
 }
+
+export type SmsBotSessionFlow =
+  | "confirm_cancel"
+  | "pick_reschedule"
+  | "confirm_reschedule"
+  | "pick_book"
+  | "confirm_book";
+
+export type SmsBotSessionSlot = {
+  index: number;
+  slotKey: string;
+  label: string;
+};
+
+export type SmsBotSession = {
+  flow: SmsBotSessionFlow;
+  appointmentId?: string;
+  slotKey?: string;
+  service?: string;
+  slots?: SmsBotSessionSlot[];
+  expiresAt: string;
+};
 
 /** Sort metadata attached to contacts in list responses. */
 export type CrmContactSortField =

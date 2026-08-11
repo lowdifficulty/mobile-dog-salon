@@ -16,13 +16,27 @@ function twiml(message?: string): NextResponse {
   });
 }
 
+function isSmsOptOut(body: string): boolean {
+  const normalized = body.trim().toUpperCase();
+  return /^(STOP|UNSUBSCRIBE|END|QUIT|CANCEL)(\s+ALL)?$/.test(normalized);
+}
+
+function isSmsOptIn(body: string): boolean {
+  const normalized = body.trim().toUpperCase();
+  return /^(START|UNSTOP|YES)$/.test(normalized);
+}
+
+function isSmsHelp(body: string): boolean {
+  const normalized = body.trim().toUpperCase();
+  return /^(HELP|INFO)$/.test(normalized);
+}
+
 /** Twilio webhook for inbound SMS — compliance keywords + CRM inbox + SMS bot. */
 export async function POST(request: Request) {
   const formData = await request.formData();
   const rawBody = formData.get("Body")?.toString().trim() ?? "";
   const from = formData.get("From")?.toString() ?? "";
   const messageSid = formData.get("MessageSid")?.toString();
-  const keyword = rawBody.split(/\s+/)[0]?.toUpperCase() ?? "";
 
   try {
     await ensureCrmSeeded();
@@ -30,7 +44,7 @@ export async function POST(request: Request) {
     console.error("CRM seed on inbound SMS failed:", err);
   }
 
-  if (keyword === "STOP" || keyword === "UNSUBSCRIBE" || keyword === "CANCEL" || keyword === "END" || keyword === "QUIT") {
+  if (isSmsOptOut(rawBody)) {
     await recordSmsOptOut(from);
     try {
       await recordInboundSms({ from, body: rawBody, twilioSid: messageSid });
@@ -40,7 +54,7 @@ export async function POST(request: Request) {
     return twiml(`${name}: You are unsubscribed and will no longer receive SMS messages. Reply START to resubscribe.`);
   }
 
-  if (keyword === "START" || keyword === "UNSTOP" || keyword === "YES") {
+  if (isSmsOptIn(rawBody)) {
     await recordSmsOptIn(from);
     try {
       await recordInboundSms({ from, body: rawBody, twilioSid: messageSid });
@@ -52,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (keyword === "HELP" || keyword === "INFO") {
+  if (isSmsHelp(rawBody)) {
     try {
       await recordInboundSms({ from, body: rawBody, twilioSid: messageSid });
     } catch (err) {
@@ -81,6 +95,6 @@ export async function POST(request: Request) {
   }
 
   return twiml(
-    `${name}: Reply HELP for help, STOP to opt out, BOOK for booking help, or schedule online at ${companyLegal.siteUrl}/book`
+    `${name}: Reply HELP for help, STOP to opt out, BOOK to schedule, or text "cancel my appointment" to manage visits. ${companyLegal.siteUrl}/book`
   );
 }

@@ -6,6 +6,7 @@ type BotConfig = {
   mode: "test" | "live";
   enabled: boolean;
   useAiPolish: boolean;
+  enableActions: boolean;
   systemPrompt: string;
   customLogic: string;
   testPhones: string[];
@@ -105,7 +106,9 @@ export default function SmsBotPanel() {
         <h2 className="text-xl font-bold text-brand">SMS Chatbot</h2>
         <p className="text-sm text-gray-600 mt-1">
           Keep the bot in <strong>test mode</strong> until replies look right. In test mode it
-          only sends to allowlisted phones; other contacts get a CRM draft only.
+          only sends to allowlisted phones; other contacts get a CRM draft only. With{" "}
+          <strong>scheduling actions</strong> on, customers can book, cancel, and reschedule over
+          SMS (reply YES to confirm).
         </p>
       </div>
 
@@ -137,6 +140,14 @@ export default function SmsBotPanel() {
               onChange={(e) => setConfig({ ...config, useAiPolish: e.target.checked })}
             />
             Use AI polish (OpenAI)
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={config.enableActions !== false}
+              onChange={(e) => setConfig({ ...config, enableActions: e.target.checked })}
+            />
+            Book / cancel / reschedule via SMS
           </label>
         </div>
 

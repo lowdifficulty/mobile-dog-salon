@@ -173,6 +173,8 @@ export default function EmailCampaignsPanel() {
             ? "Resend webhook connected. New delivery events will update this table."
             : "Resend webhook already connected."
         );
+      } else if (data.sync?.errorSample && (data.sync?.updated ?? 0) === 0) {
+        setError(data.sync.errorSample);
       } else {
         setMessage(
           `Synced from Resend: checked ${data.sync?.checked ?? 0}, updated ${data.sync?.updated ?? 0}.`
@@ -292,8 +294,9 @@ export default function EmailCampaignsPanel() {
         <h2 className="text-lg font-bold text-brand mb-1">Email analytics</h2>
         <p className="text-sm text-gray-600 mb-4">
           <strong>Sent</strong> means Resend accepted the message (mail did go out).{" "}
-          <strong>Delivered / Opened / Clicked / Bounced</strong> only update after the Resend
-          webhook is connected, or after you sync status from Resend.
+          <strong>Delivered / Opened / Clicked / Bounced</strong> only update after a Resend
+          webhook is connected, or after you sync status from Resend. A send-only API key can
+          send mail but cannot manage webhooks or read delivery status.
         </p>
         {analytics ? (
           <>

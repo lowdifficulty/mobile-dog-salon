@@ -81,15 +81,18 @@ export async function ensureResendWebhook(): Promise<{
 
   const listed = await resend.webhooks.list({ limit: 100 });
   if (listed.error) {
+    const message =
+      typeof listed.error.message === "string"
+        ? listed.error.message
+        : "Failed to list Resend webhooks";
     return {
       ok: false,
       created: false,
       reused: false,
       endpoint,
-      error:
-        typeof listed.error.message === "string"
-          ? listed.error.message
-          : "Failed to list Resend webhooks",
+      error: /restricted to only send emails/i.test(message)
+        ? `${message}. Create a full-access Resend API key (or add a webhook manually in the Resend dashboard to https://mobiledog-salon.com/api/webhooks/resend and set RESEND_WEBHOOK_SECRET).`
+        : message,
     };
   }
 

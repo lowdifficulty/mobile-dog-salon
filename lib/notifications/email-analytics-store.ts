@@ -213,7 +213,12 @@ function applyLastEventToRecord(
 /** Backfill delivery/open/click/bounce timestamps from Resend's email API. */
 export async function syncEmailDeliveryFromResend(options?: {
   limit?: number;
-}): Promise<{ checked: number; updated: number; errors: number }> {
+}): Promise<{
+  checked: number;
+  updated: number;
+  errors: number;
+  errorSample?: string;
+}> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("RESEND_API_KEY is not set");
@@ -231,6 +236,7 @@ export async function syncEmailDeliveryFromResend(options?: {
 
   let updated = 0;
   let errors = 0;
+  let errorSample: string | undefined;
   const byId = new Map(data.sends.map((s, index) => [s.id, index]));
 
   for (const candidate of candidates) {
@@ -241,6 +247,12 @@ export async function syncEmailDeliveryFromResend(options?: {
       const got = await resend.emails.get(candidate.resendId);
       if (got.error || !got.data?.last_event) {
         errors += 1;
+        if (!errorSample && got.error) {
+          errorSample =
+            typeof got.error.message === "string"
+              ? got.error.message
+              : "Resend email lookup failed";
+        }
         continue;
       }
       const at = got.data.created_at ?? new Date().toISOString();
@@ -256,8 +268,11 @@ export async function syncEmailDeliveryFromResend(options?: {
         data.sends[index] = next;
         updated += 1;
       }
-    } catch {
+    } catch (err) {
       errors += 1;
+      if (!errorSample) {
+        errorSample = err instanceof Error ? err.message : "Resend email lookup failed";
+      }
     }
   }
 
@@ -265,5 +280,9 @@ export async function syncEmailDeliveryFromResend(options?: {
     await writeEmailAnalytics(data);
   }
 
-  return { checked: candidates.length, updated, errors };
+  if (errorSample && /restricted to only send emails/i.test(errorSample)) {
+    errorSample = `${errorSample}. Delivery sync needs a Resend API key with read access (not send-only).`;
+  }
+
+  return { checked: candidates.length, updated, errors, errorSample };
 }

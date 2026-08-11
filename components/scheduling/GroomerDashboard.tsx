@@ -123,6 +123,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         }}
         onLogout={logout}
         storageKey="mds-groomer-sidebar-collapsed"
+        showDialer
       >
         <div className={padded ? "p-4 md:p-6" : ""} data-groomer-shell="ghl-v1">
           <DashboardErrorBoundary>

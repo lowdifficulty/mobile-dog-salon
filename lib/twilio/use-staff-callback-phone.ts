@@ -20,11 +20,11 @@ export function useStaffCallbackPhone() {
       /* ignore */
     }
 
-    void fetch("/api/admin/twilio")
+    void fetch("/api/staff/twilio/config")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (cancelled || !data?.config) return;
-        const configured = String(data.config.staffCallbackNumber || "").trim();
+        if (cancelled || !data) return;
+        const configured = String(data.staffCallbackNumber || "").trim();
         setConfiguredInSettings(Boolean(configured));
         if (configured) {
           setStaffPhone((current) => current.trim() || configured);
@@ -53,4 +53,4 @@ export function useStaffCallbackPhone() {
 }
 
 export const STAFF_CALLBACK_HELP =
-  "Enter your cell phone (not the business line), or save it under Admin → Phone & SMS → Staff click-to-call phone and click Save settings.";
+  "Enter your cell phone (not the business line). Your admin can also save a default under Phone & SMS → Staff click-to-call phone.";

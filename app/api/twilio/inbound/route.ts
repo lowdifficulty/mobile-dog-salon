@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import twilio from "twilio";
 import { companyLegal } from "@/lib/company-legal";
 import { recordSmsOptIn, recordSmsOptOut } from "@/lib/notifications/sms-opt-out";
+import {
+  isSmsHelpMessage,
+  isSmsOptInMessage,
+  isSmsOptOutMessage,
+} from "@/lib/notifications/sms-compliance";
 import { ensureCrmSeeded } from "@/lib/crm/seed";
 import { recordInboundSms } from "@/lib/crm/messaging";
 import { handleInboundSmsWithBot } from "@/lib/crm/sms-bot";
@@ -19,19 +24,15 @@ function twiml(message?: string): NextResponse {
 }
 
 function isSmsOptOut(body: string): boolean {
-  const normalized = body.trim().toUpperCase();
-  return /^(STOP|UNSUBSCRIBE|END|QUIT|CANCEL)(\s+ALL)?$/.test(normalized);
+  return isSmsOptOutMessage(body);
 }
 
 function isSmsOptIn(body: string): boolean {
-  const normalized = body.trim().toUpperCase();
-  // YES is used for bot confirmations (cancel/reschedule/book) — not opt-in.
-  return /^(START|UNSTOP)$/.test(normalized);
+  return isSmsOptInMessage(body);
 }
 
 function isSmsHelp(body: string): boolean {
-  const normalized = body.trim().toUpperCase();
-  return /^(HELP|INFO)$/.test(normalized);
+  return isSmsHelpMessage(body);
 }
 
 /** Twilio webhook for inbound SMS — compliance keywords + CRM inbox + SMS bot. */
@@ -101,6 +102,6 @@ export async function POST(request: Request) {
   }
 
   return twiml(
-    `${name}: Reply HELP for help, STOP to opt out, BOOK to schedule, or text "cancel my appointment" to manage visits. ${companyLegal.siteUrl}/book`
+    `${name}: Reply HELP for help, STOP to opt out, BOOK to schedule, or CANCEL to cancel your visit. ${companyLegal.siteUrl}/book`
   );
 }

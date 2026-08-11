@@ -16,10 +16,64 @@ import type {
   GroomerId,
 } from "./types";
 import { limitCustomerSlotsPerDay } from "./customer-slot-display";
-import { isVanSlotTaken } from "./van-overlap";
+import { isVanSlotTaken, VanOccupancyIndex } from "./van-overlap";
 
 export { VAN_COUNT } from "./vans";
-export { isVanSlotTaken };
+export { isVanSlotTaken, VanOccupancyIndex };
+
+/** Indexed lookups for slot availability — build once per range request. */
+export class SlotAvailabilityContext {
+  readonly occupancyIndex: VanOccupancyIndex;
+  private readonly appointmentsByDateGroomer = new Map<string, Appointment[]>();
+  private readonly availabilityByDate = new Map<string, AvailabilityDay[]>();
+
+  constructor(appointments: Appointment[], availability: AvailabilityDay[]) {
+    this.occupancyIndex = new VanOccupancyIndex(appointments, availability);
+
+    for (const ap of appointments) {
+      if (ap.status === "cancelled") continue;
+      const slot = parseSlotFromIso(ap.startAt);
+      const key = `${slot.date}|${ap.groomerId}`;
+      const list = this.appointmentsByDateGroomer.get(key) ?? [];
+      list.push(ap);
+      this.appointmentsByDateGroomer.set(key, list);
+    }
+
+    for (const day of availability) {
+      const list = this.availabilityByDate.get(day.date) ?? [];
+      list.push(day);
+      this.availabilityByDate.set(day.date, list);
+    }
+  }
+
+  isSlotTakenForGroomer(
+    groomerId: GroomerId,
+    date: string,
+    time: string,
+    durationMinutes: number,
+    excludeAppointmentId?: string
+  ): boolean {
+    const start = parsePacificDateTime(date, time);
+    const end = new Date(
+      start.getTime() + appointmentBlockMinutes(durationMinutes, groomerId) * 60 * 1000
+    );
+
+    for (const ap of this.appointmentsByDateGroomer.get(`${date}|${groomerId}`) ?? []) {
+      if (ap.id === excludeAppointmentId) continue;
+      const apStart = new Date(ap.startAt);
+      const apEnd = new Date(
+        apStart.getTime() +
+          appointmentBlockMinutes(ap.durationMinutes, ap.groomerId) * 60 * 1000
+      );
+      if (overlaps(start, end, apStart, apEnd)) return true;
+    }
+    return false;
+  }
+
+  availabilityForDate(date: string): AvailabilityDay[] {
+    return this.availabilityByDate.get(date) ?? [];
+  }
+}
 
 const ACTIVE_GROOMER_IDS = BOOKABLE_GROOMER_IDS;
 
@@ -70,20 +124,24 @@ export function getAvailableSlotsForDate(
   date: string,
   availability: AvailabilityDay[],
   appointments: Appointment[],
-  service: string
+  service: string,
+  context?: SlotAvailabilityContext
 ): AvailableSlot[] {
   if (!isBookableDate(date)) return [];
 
+  const ctx =
+    context ?? new SlotAvailabilityContext(appointments, availability);
+  const dayEntries = ctx.availabilityForDate(date);
   const slots: AvailableSlot[] = [];
 
-  for (const day of availability) {
+  for (const day of dayEntries) {
     if (day.date !== date) continue;
     if (!ACTIVE_GROOMER_IDS.includes(day.groomerId)) continue;
     if (!isCustomerBookableDateForGroomer(day.groomerId, date)) continue;
 
     const duration = bookingDurationMinutesForGroomer(day.groomerId);
     const blockStarts = listSelfBookingStarts(day.times, day.groomerId, (time) =>
-      isSlotTaken(day.groomerId, date, time, duration, appointments) ||
+      ctx.isSlotTakenForGroomer(day.groomerId, date, time, duration) ||
       isVanSlotTaken(
         date,
         time,
@@ -92,7 +150,8 @@ export function getAvailableSlotsForDate(
         undefined,
         availabilityVan(day),
         availability,
-        day.groomerId
+        day.groomerId,
+        ctx.occupancyIndex
       )
     );
 
@@ -118,11 +177,12 @@ export function getDatesWithAvailability(
   fromDate: string,
   toDate: string
 ): string[] {
+  const ctx = new SlotAvailabilityContext(appointments, availability);
   const dates: string[] = [];
   let cursor = fromDate;
   while (cursor <= toDate) {
     if (
-      getAvailableSlotsForDate(cursor, availability, appointments, service).length > 0
+      getAvailableSlotsForDate(cursor, availability, appointments, service, ctx).length > 0
     ) {
       dates.push(cursor);
     }
@@ -274,13 +334,15 @@ export function getRangeAvailability(
   service: string
 ): WeekDayAvailability[] {
   const count = Math.max(1, Math.min(dayCount, 90));
+  const ctx = new SlotAvailabilityContext(appointments, availability);
   return Array.from({ length: count }, (_, i) => addDays(fromDate, i)).map((date) => {
     const d = new Date(`${date}T12:00:00`);
     const slots = getAvailableSlotsForDate(
       date,
       availability,
       appointments,
-      service
+      service,
+      ctx
     );
     return {
       date,

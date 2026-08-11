@@ -214,7 +214,13 @@ export default function AvailabilityEditor({
     cache: vanCache,
     loading,
     refresh: refreshAvailability,
-  } = useVanPrefetchCache(fetchVanAvailability, [apiBase, maxDate], refreshKey, selectedVan);
+  } = useVanPrefetchCache(
+    fetchVanAvailability,
+    [apiBase, maxDate],
+    refreshKey,
+    selectedVan,
+    effectiveLockedVan ? [effectiveLockedVan] : undefined
+  );
 
   useEffect(() => {
     const vanData = vanCache[selectedVan];

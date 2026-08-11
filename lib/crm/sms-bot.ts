@@ -17,6 +17,7 @@ import {
   type SmsBotConfig,
 } from "./sms-bot-config";
 import { runSmsBotActionFlow } from "./sms-bot-flow";
+import { SMS_COMPLIANCE_KEYWORDS } from "@/lib/notifications/sms-compliance";
 
 const BOOK_URL = `${companyLegal.siteUrl}/book`;
 const MY_APPT_URL = `${companyLegal.siteUrl}/my-appointment`;
@@ -224,15 +225,6 @@ export type SmsBotHandleResult = {
   mode?: "test" | "live";
 };
 
-const COMPLIANCE_KEYWORDS = new Set([
-  "STOP",
-  "HELP",
-  "UNSUBSCRIBE",
-  "END",
-  "QUIT",
-  "INFO",
-]);
-
 async function composeSmsBotReply(
   contact: CrmContact,
   inboundBody: string,
@@ -265,7 +257,7 @@ export async function handleInboundSmsWithBot(options: {
   }
 
   const keyword = options.inboundBody.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
-  if (COMPLIANCE_KEYWORDS.has(keyword) && options.inboundBody.trim().split(/\s+/).length === 1) {
+  if (SMS_COMPLIANCE_KEYWORDS.has(keyword) && options.inboundBody.trim().split(/\s+/).length === 1) {
     return { replied: false, mode: config.mode };
   }
 

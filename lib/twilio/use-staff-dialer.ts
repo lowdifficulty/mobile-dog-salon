@@ -27,11 +27,10 @@ export function useStaffDialer() {
   const dialBridge = useCallback(
     async (to: string, staff: string) => {
       if (staff) setStaffPhone(staff);
-      const res = await fetch("/api/admin/twilio", {
+      const res = await fetch("/api/staff/twilio/dial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "dial",
           to,
           staffPhone: staff || undefined,
         }),

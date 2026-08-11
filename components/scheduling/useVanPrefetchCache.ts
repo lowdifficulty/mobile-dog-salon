@@ -8,7 +8,9 @@ export function useVanPrefetchCache<T>(
   deps: DependencyList,
   refreshKey = 0,
   /** Fetch this van first so the UI can render before the other van loads. */
-  primaryVan?: VanId
+  primaryVan?: VanId,
+  /** When set, only these vans are fetched (e.g. groomer locked to one van). */
+  vans?: VanId[]
 ) {
   const [cache, setCache] = useState<Partial<Record<VanId, T>>>({});
   const [loading, setLoading] = useState(true);
@@ -17,14 +19,20 @@ export function useVanPrefetchCache<T>(
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
+    const targetVans = vans?.length ? vans : [...VAN_IDS];
     const order = primaryVan
-      ? [primaryVan, ...VAN_IDS.filter((van) => van !== primaryVan)]
-      : [...VAN_IDS];
+      ? [primaryVan, ...targetVans.filter((van) => van !== primaryVan)]
+      : targetVans;
 
     const next: Partial<Record<VanId, T>> = {};
     let failures = 0;
 
     const firstVan = order[0];
+    if (!firstVan) {
+      setLoading(false);
+      return;
+    }
+
     const firstData = await fetchVan(firstVan);
     if (firstData !== null) next[firstVan] = firstData;
     else failures += 1;
@@ -33,7 +41,7 @@ export function useVanPrefetchCache<T>(
 
     const rest = order.slice(1);
     if (rest.length === 0) {
-      if (failures === VAN_IDS.length) setError("Could not load data.");
+      if (failures === targetVans.length) setError("Could not load data.");
       return;
     }
 
@@ -50,7 +58,7 @@ export function useVanPrefetchCache<T>(
     }
 
     setCache({ ...next });
-    if (failures === VAN_IDS.length) {
+    if (failures === targetVans.length) {
       setError("Could not load data.");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

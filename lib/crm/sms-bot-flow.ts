@@ -204,7 +204,7 @@ async function continueSession(
 }
 
 function wantsCancel(text: string, raw: string): boolean {
-  if (/^cancel$/i.test(raw.trim())) return false;
+  if (/^cancel$/i.test(raw.trim())) return true;
   return (
     /\bcancel my\b/.test(text) ||
     /\bwant to cancel\b/.test(text) ||

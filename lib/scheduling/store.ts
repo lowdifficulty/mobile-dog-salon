@@ -17,6 +17,11 @@ const REDIS_KEY = "mds:scheduling";
 const READ_CACHE_MS = 15_000;
 
 let readCache: { data: SchedulingData; at: number } | null = null;
+let schedulingDataVersion = 0;
+
+export function getSchedulingDataVersion(): number {
+  return schedulingDataVersion;
+}
 
 function cloneSchedulingData(data: SchedulingData): SchedulingData {
   return normalizeSchedulingData({
@@ -34,6 +39,7 @@ export function normalizeSchedulingData(data: SchedulingData): SchedulingData {
 
 export function invalidateSchedulingReadCache(): void {
   readCache = null;
+  schedulingDataVersion += 1;
 }
 
 export function emptySchedulingData(): SchedulingData {

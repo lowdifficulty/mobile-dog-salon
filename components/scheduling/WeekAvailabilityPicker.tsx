@@ -10,7 +10,8 @@ import {
 } from "@/lib/scheduling/fallback-availability";
 import { resolveGroomerClientDisplayName } from "@/lib/scheduling/groomers";
 
-const DAYS_TO_FETCH = 60;
+const INITIAL_DAYS = 14;
+const TOTAL_DAYS = 60;
 const VISIBLE_DAY_COUNT = 5;
 
 interface WeekDay extends FallbackWeekDay {}
@@ -90,10 +91,11 @@ function formatDayRange(days: WeekDay[]): string {
 
 async function fetchAvailabilityRange(
   fromDate: string,
-  service: string
+  service: string,
+  days = TOTAL_DAYS
 ): Promise<{ days: WeekDay[]; devAllSlots: boolean }> {
   const res = await fetch(
-    `/api/availability?from=${fromDate}&days=${DAYS_TO_FETCH}&service=${encodeURIComponent(service)}`,
+    `/api/availability?from=${fromDate}&days=${days}&service=${encodeURIComponent(service)}`,
     { cache: "no-store" }
   );
   if (!res.ok) {
@@ -141,7 +143,7 @@ export default function WeekAvailabilityPicker({
         if (cancelled) return;
         const localDays = applyGroomerDisplayNames(
           filterCalendarDays(
-            buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
+            buildFallbackRangeDays(fromDate, TOTAL_DAYS, { groomerId, groomerIds }),
             groomerId,
             groomerIds
           ),
@@ -156,7 +158,7 @@ export default function WeekAvailabilityPicker({
       }
 
       try {
-        const result = await fetchAvailabilityRange(fromDate, service);
+        const result = await fetchAvailabilityRange(fromDate, service, INITIAL_DAYS);
         if (cancelled) return;
         const filteredDays = applyGroomerDisplayNames(
           filterCalendarDays(result.days, groomerId, groomerIds),
@@ -167,7 +169,7 @@ export default function WeekAvailabilityPicker({
           setDays(
             applyGroomerDisplayNames(
               filterCalendarDays(
-                buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
+                buildFallbackRangeDays(fromDate, TOTAL_DAYS, { groomerId, groomerIds }),
                 groomerId,
                 groomerIds
               ),
@@ -182,13 +184,26 @@ export default function WeekAvailabilityPicker({
           setDevAllSlots(result.devAllSlots);
           setFallbackMode(false);
           onAvailabilityMeta?.({ fallbackMode: false, devAllSlots: result.devAllSlots });
+          setLoading(false);
+
+          void fetchAvailabilityRange(fromDate, service, TOTAL_DAYS).then((full) => {
+            if (cancelled) return;
+            const mergedDays = applyGroomerDisplayNames(
+              filterCalendarDays(full.days, groomerId, groomerIds),
+              groomerDisplayNames
+            );
+            if (mergedDays.some((day) => day.slots.length > 0)) {
+              setDays(mergedDays);
+              setDevAllSlots(full.devAllSlots);
+            }
+          });
         }
       } catch {
         if (cancelled) return;
         setDays(
           applyGroomerDisplayNames(
             filterCalendarDays(
-              buildFallbackRangeDays(fromDate, DAYS_TO_FETCH, { groomerId, groomerIds }),
+              buildFallbackRangeDays(fromDate, TOTAL_DAYS, { groomerId, groomerIds }),
               groomerId,
               groomerIds
             ),
@@ -249,7 +264,7 @@ export default function WeekAvailabilityPicker({
         <p className="text-sm text-gray-600">Loading availability…</p>
       ) : availableDays.length === 0 ? (
         <p className="text-sm text-gray-600 rounded-xl bg-white border border-gray-200 px-4 py-3">
-          No open appointments in the next {DAYS_TO_FETCH} days
+          No open appointments in the next {TOTAL_DAYS} days
           {groomerId ? " for this groomer" : ""}. Check back soon — groomers post availability in
           their calendars.
         </p>

@@ -27,6 +27,7 @@ import {
   validateSlotHold,
 } from "@/lib/scheduling/slot-holds";
 import { vanForGroomer } from "@/lib/scheduling/vans";
+import { isValidCustomerEmail, resolveBookingEmail } from "@/lib/booking/customer-email";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -85,8 +86,10 @@ async function handleBookPost(request: Request) {
   }
 
   const emailTrimmed = String(email ?? "").trim();
-  const bookingEmail =
-    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+  if (emailTrimmed && !isValidCustomerEmail(emailTrimmed)) {
+    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
+  }
+  const bookingEmail = resolveBookingEmail(phoneTrimmed, emailTrimmed);
 
   if (smsOptIn && !phoneTrimmed) {
     return NextResponse.json({ error: "Phone number required for SMS opt-in" }, { status: 400 });

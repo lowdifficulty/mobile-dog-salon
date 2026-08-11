@@ -1,9 +1,7 @@
 import "server-only";
 import { sendCustomerConfirmationWithTemplate } from "./staff-booking-notify";
 import { sendSms } from "./twilio";
-import { appointmentSummaryLines } from "./appointment-format";
-import { formatAppointmentAddress } from "@/lib/scheduling/address";
-import { getAppointmentPetLabel } from "@/lib/booking/pets";
+import { formatBookingConfirmationSmsWhen } from "./appointment-format";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function sendCustomerConfirmationEmail(
@@ -13,17 +11,8 @@ export async function sendCustomerConfirmationEmail(
 }
 
 export function bookingConfirmationSmsBody(appointment: Appointment): string {
-  const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
-  const petLabel = getAppointmentPetLabel(appointment);
-
-  return [
-    `Mobile Dog Salon: You're booked!`,
-    `${petLabel} — ${serviceLabel}`,
-    `${when.smsWhen}`,
-    `Groomer: ${groomerName}`,
-    formatAppointmentAddress(appointment),
-    `Reply STOP to opt out. HELP for help.`,
-  ].join("\n");
+  const when = formatBookingConfirmationSmsWhen(appointment);
+  return `This is Licky with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed ${when}. Any special instructions for your pup?`;
 }
 
 export async function sendCustomerConfirmationSms(

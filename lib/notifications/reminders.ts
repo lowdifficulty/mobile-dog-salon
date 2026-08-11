@@ -1,4 +1,5 @@
 import "server-only";
+import { customerNotificationEmail } from "@/lib/booking/customer-email";
 import { appointmentEmailVariables } from "./appointment-email-vars";
 import { sendTemplatedEmail } from "./send-templated-email";
 import { appointmentSummaryLines } from "./appointment-format";
@@ -29,11 +30,14 @@ export async function sendReminderEmail(
   appointment: Appointment,
   kind: ReminderKind
 ): Promise<boolean> {
+  const to = customerNotificationEmail(appointment.email);
+  if (!to) return false;
+
   const templateId = kind === "24h" ? "reminder_24h" : "reminder_1h";
   const vars = appointmentEmailVariables(appointment);
   const result = await sendTemplatedEmail({
     templateId,
-    to: appointment.email,
+    to,
     variables: vars,
     appointmentId: appointment.id,
   });

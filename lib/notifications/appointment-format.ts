@@ -41,6 +41,28 @@ export function formatAppointmentWhen(appointment: Appointment): {
   };
 }
 
+export function formatBookingConfirmationSmsWhen(appointment: Appointment): string {
+  const start = new Date(appointment.startAt);
+  const weekday = start.toLocaleDateString("en-US", {
+    timeZone: APPOINTMENT_TZ,
+    weekday: "long",
+  });
+  const month = start.toLocaleDateString("en-US", {
+    timeZone: APPOINTMENT_TZ,
+    month: "numeric",
+  });
+  const day = start.toLocaleDateString("en-US", {
+    timeZone: APPOINTMENT_TZ,
+    day: "numeric",
+  });
+  const time = start.toLocaleTimeString("en-US", {
+    timeZone: APPOINTMENT_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${weekday} ${month}/${day} at ${time}`;
+}
+
 export function appointmentSummaryLines(appointment: Appointment): {
   groomerName: string;
   serviceLabel: string;

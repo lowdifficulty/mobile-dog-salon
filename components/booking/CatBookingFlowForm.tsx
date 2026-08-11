@@ -33,6 +33,7 @@ import {
   type BookingPet,
 } from "@/lib/booking/pets";
 import { holdBookingSlot } from "@/lib/booking/slot-hold-client";
+import { isValidCustomerEmail } from "@/lib/booking/customer-email";
 import {
   bookingInputClass,
   getDevSkipBookableDate,
@@ -49,6 +50,7 @@ interface BookingFormData {
   service: string;
   fullName: string;
   phone: string;
+  email: string;
   address: string;
   city: string;
   zipCode: string;
@@ -62,6 +64,7 @@ const initialData: BookingFormData = {
   service: "",
   fullName: "",
   phone: "",
+  email: "",
   address: "",
   city: "",
   zipCode: "",
@@ -208,7 +211,11 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
       case 2:
         return Boolean(data.slotKey);
       case 3:
-        return isValidBookingContact(data.address, data.city, data.zipCode) && isValidBookingPhone(data.phone);
+        return (
+          isValidBookingContact(data.address, data.city, data.zipCode) &&
+          isValidBookingPhone(data.phone) &&
+          (!data.email.trim() || isValidCustomerEmail(data.email))
+        );
       default:
         return false;
     }
@@ -250,6 +257,7 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
           service: data.service,
           firstName,
           lastName,
+          email: data.email.trim() || undefined,
           phone: data.phone,
           smsOptIn: true,
           address,
@@ -306,7 +314,7 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
         firstName: splitBookingName(data.fullName).firstName,
         lastName: splitBookingName(data.fullName).lastName,
         phone: data.phone,
-        email: "",
+        email: data.email.trim(),
         address: data.address,
         city: data.city,
         zipCode: data.zipCode,
@@ -342,7 +350,11 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
               Your 50% discount is applied — {formatPrice(selectedPrice)} for this visit.
             </p>
           )}
-          <p className="text-xs text-gray-500 mb-6">You&apos;ll receive a confirmation text shortly.</p>
+          <p className="text-xs text-gray-500 mb-6">
+            {data.email.trim()
+              ? "You'll receive a confirmation email and text shortly."
+              : "You'll receive a confirmation text shortly. Add your email next time for email confirmations too."}
+          </p>
         </div>
         <div className="max-w-md mx-auto">
           <AddToCalendarButtons details={calendarDetails} />
@@ -539,6 +551,22 @@ export default function CatBookingFlowForm({ onClose }: CatBookingFlowFormProps)
                     className={bookingInputClass}
                   />
                 </div>
+              </div>
+              <div>
+                <label htmlFor="cat-booking-email" className="block text-xs font-medium text-gray-700 mb-1">
+                  Email for confirmation & reminders
+                </label>
+                <input
+                  id="cat-booking-email"
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={data.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  placeholder="you@example.com"
+                  className={bookingInputClass}
+                />
               </div>
               <div>
                 <label htmlFor="cat-booking-phone" className="block text-xs font-medium text-gray-700 mb-1">

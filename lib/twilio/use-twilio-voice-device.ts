@@ -5,6 +5,16 @@ import { Call, Device } from "@twilio/voice-sdk";
 
 export type VoiceCallPhase = "idle" | "connecting" | "ringing" | "open" | "closed";
 
+function formatTwilioVoiceError(error: { code?: number; message?: string }): string {
+  const code = typeof error.code === "number" ? error.code : null;
+  const message = error.message?.trim() || "Call failed";
+  if (code == null) return message;
+  if (code === 31000) {
+    return `${message} (${code}). Allow microphone access, or switch to Cell bridge.`;
+  }
+  return `${message} (${code})`;
+}
+
 function toDialParam(phone: string): string {
   const trimmed = phone.trim();
   if (trimmed.startsWith("+")) return trimmed;
@@ -49,7 +59,7 @@ export function useTwilioVoiceDevice() {
         });
 
         device.on("error", (event) => {
-          setBrowserError(event.message || "Voice device error");
+          setBrowserError(formatTwilioVoiceError(event));
         });
 
         device.on("tokenWillExpire", async () => {
@@ -149,7 +159,7 @@ export function useTwilioVoiceDevice() {
           setCallPhase("idle");
         });
         outgoing.on("error", (event) => {
-          setBrowserError(event.message || "Call failed");
+          setBrowserError(formatTwilioVoiceError(event));
           setCallPhase("idle");
         });
 

@@ -33,6 +33,7 @@ import {
   type StaffRecurrenceFrequency,
 } from "@/lib/scheduling/recurring-appointments";
 import { vanForGroomer } from "@/lib/scheduling/vans";
+import { resolveBookingEmail } from "@/lib/booking/customer-email";
 import type { Appointment, AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -301,8 +302,7 @@ export async function createAppointment(
   }
 
   const emailTrimmed = String(input.email ?? "").trim();
-  const bookingEmail =
-    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+  const bookingEmail = resolveBookingEmail(phoneTrimmed, emailTrimmed);
 
   const appointment: Appointment = {
     id: randomUUID(),
@@ -365,8 +365,7 @@ function buildAppointmentRecord(
   const cityName = String(input.city ?? "").trim();
   const zipTrimmed = String(input.zipCode ?? "").trim();
   const emailTrimmed = String(input.email ?? "").trim();
-  const bookingEmail =
-    emailTrimmed || `${phoneTrimmed.replace(/\D/g, "")}@booking.mobiledog-salon.com`;
+  const bookingEmail = resolveBookingEmail(phoneTrimmed, emailTrimmed);
 
   return {
     id: randomUUID(),

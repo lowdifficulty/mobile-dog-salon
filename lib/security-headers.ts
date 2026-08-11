@@ -26,7 +26,7 @@ export const SECURITY_HEADERS = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+    value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
   },
   {
     key: "Content-Security-Policy",
@@ -79,6 +79,19 @@ export const SECURITY_HEADERS = [
         "https://api.stripe.com",
         "https://m.stripe.com",
         "https://m.stripe.network",
+        // Twilio Voice SDK (browser dialer / WebRTC)
+        "https://eventgw.twilio.com",
+        "https://eventgw.us1.twilio.com",
+        "wss://voice-js.roaming.twilio.com",
+        "wss://voice-js.us1.twilio.com",
+        "wss://voice-js.ashburn.twilio.com",
+        "https://media.twiliocdn.com",
+        "https://sdk.twilio.com",
+      ].join(" "),
+      [
+        "media-src 'self' blob: mediastream:",
+        "https://media.twiliocdn.com",
+        "https://sdk.twilio.com",
       ].join(" "),
       [
         "frame-src 'self'",

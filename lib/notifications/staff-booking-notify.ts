@@ -2,6 +2,7 @@ import "server-only";
 import type { Appointment } from "@/lib/scheduling/types";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentEmailVariables } from "./appointment-email-vars";
+import { customerNotificationEmail } from "@/lib/booking/customer-email";
 import { sendTemplatedEmail } from "./send-templated-email";
 import { GROOMERS, MELANIE_BOOKING_NOTIFY_EMAILS } from "@/lib/scheduling/groomers";
 
@@ -38,12 +39,20 @@ export async function sendStaffBookingNotifications(
 export async function sendCustomerConfirmationWithTemplate(
   appointment: Appointment
 ): Promise<boolean> {
+  const to = customerNotificationEmail(appointment.email);
+  if (!to) {
+    console.log(
+      `Skipping confirmation email — customer did not provide an email (${appointment.id})`
+    );
+    return false;
+  }
+
   const vars = appointmentEmailVariables(appointment);
   const ics = buildIcsEvent(appointment);
 
   const result = await sendTemplatedEmail({
     templateId: "booking_confirmation",
-    to: appointment.email,
+    to,
     variables: vars,
     appointmentId: appointment.id,
     attachments: [

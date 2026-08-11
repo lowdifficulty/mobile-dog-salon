@@ -1,4 +1,5 @@
 import "server-only";
+import { customerNotificationEmail } from "@/lib/booking/customer-email";
 import type { Appointment } from "@/lib/scheduling/types";
 import { readLeadsData, writeLeadsData } from "@/lib/leads/store";
 import { appointmentEmailVariables } from "./appointment-email-vars";
@@ -11,9 +12,12 @@ export async function sendRebook3wEmail(appointment: Appointment): Promise<boole
   vars.discountLine =
     "Your 50% phone discount is still active — book your next visit to keep it on your account.";
 
+  const to = customerNotificationEmail(appointment.email);
+  if (!to) return false;
+
   const result = await sendTemplatedEmail({
     templateId: "rebook_3w",
-    to: appointment.email,
+    to,
     variables: vars,
     appointmentId: appointment.id,
   });

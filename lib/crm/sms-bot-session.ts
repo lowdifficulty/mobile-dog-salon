@@ -11,6 +11,11 @@ export function smsBotSessionExpired(session: SmsBotSession | null | undefined):
   return Date.now() > new Date(session.expiresAt).getTime();
 }
 
+/** Active multi-turn flow — compliance keywords should not hijack the reply. */
+export function hasActiveSmsBotSession(session: SmsBotSession | null | undefined): boolean {
+  return Boolean(session && !smsBotSessionExpired(session));
+}
+
 export function buildSmsBotSession(
   flow: SmsBotSession["flow"],
   partial: Omit<SmsBotSession, "flow" | "expiresAt"> = {}

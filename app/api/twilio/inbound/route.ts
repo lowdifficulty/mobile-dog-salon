@@ -5,6 +5,8 @@ import { recordSmsOptIn, recordSmsOptOut } from "@/lib/notifications/sms-opt-out
 import { ensureCrmSeeded } from "@/lib/crm/seed";
 import { recordInboundSms } from "@/lib/crm/messaging";
 import { handleInboundSmsWithBot } from "@/lib/crm/sms-bot";
+import { findContactByPhone } from "@/lib/crm/store";
+import { hasActiveSmsBotSession } from "@/lib/crm/sms-bot-session";
 
 const { name, businessPhoneDisplay, contactEmail } = companyLegal;
 
@@ -23,7 +25,8 @@ function isSmsOptOut(body: string): boolean {
 
 function isSmsOptIn(body: string): boolean {
   const normalized = body.trim().toUpperCase();
-  return /^(START|UNSTOP|YES)$/.test(normalized);
+  // YES is used for bot confirmations (cancel/reschedule/book) — not opt-in.
+  return /^(START|UNSTOP)$/.test(normalized);
 }
 
 function isSmsHelp(body: string): boolean {
@@ -44,6 +47,9 @@ export async function POST(request: Request) {
     console.error("CRM seed on inbound SMS failed:", err);
   }
 
+  const existingContact = await findContactByPhone(from);
+  const inBotFlow = hasActiveSmsBotSession(existingContact?.smsBotSession);
+
   if (isSmsOptOut(rawBody)) {
     await recordSmsOptOut(from);
     try {
@@ -54,7 +60,7 @@ export async function POST(request: Request) {
     return twiml(`${name}: You are unsubscribed and will no longer receive SMS messages. Reply START to resubscribe.`);
   }
 
-  if (isSmsOptIn(rawBody)) {
+  if (!inBotFlow && isSmsOptIn(rawBody)) {
     await recordSmsOptIn(from);
     try {
       await recordInboundSms({ from, body: rawBody, twilioSid: messageSid });
@@ -66,7 +72,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (isSmsHelp(rawBody)) {
+  if (!inBotFlow && isSmsHelp(rawBody)) {
     try {
       await recordInboundSms({ from, body: rawBody, twilioSid: messageSid });
     } catch (err) {

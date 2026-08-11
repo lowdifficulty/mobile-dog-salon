@@ -7,7 +7,12 @@ import type { GroomerId } from "@/lib/scheduling/types";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
 import type { CrmContact } from "./types";
 import { recordBotSms } from "./messaging";
-import { listInteractionsForContact, appendInteraction, newInteractionId } from "./store";
+import {
+  findContactById,
+  appendInteraction,
+  newInteractionId,
+  listInteractionsForContact,
+} from "./store";
 import {
   phoneAllowedForSmsBot,
   readSmsBotConfig,
@@ -235,12 +240,13 @@ async function composeSmsBotReply(
   inboundBody: string,
   config: SmsBotConfig
 ): Promise<string> {
-  const ctx = await contactAppointmentContext(contact);
-  const actionResult = await runSmsBotActionFlow(contact, inboundBody, config);
+  const fresh = (await findContactById(contact.id)) ?? contact;
+  const ctx = await contactAppointmentContext(fresh);
+  const actionResult = await runSmsBotActionFlow(fresh, inboundBody, config);
   if (actionResult) return actionResult.reply;
 
-  const draft = ruleBasedReply(inboundBody, contact, ctx);
-  return maybeAiPolish(inboundBody, contact, draft, ctx, config);
+  const draft = ruleBasedReply(inboundBody, fresh, ctx);
+  return maybeAiPolish(inboundBody, fresh, draft, ctx, config);
 }
 
 /**

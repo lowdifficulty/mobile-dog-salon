@@ -24,6 +24,13 @@ type AnalyticsSummary = {
     clickedAt?: string;
     bouncedAt?: string;
   }[];
+  webhook?: {
+    configured: boolean;
+    webhookId?: string;
+    endpoint?: string;
+    hasSigningSecret: boolean;
+    source: "env" | "runtime" | "none";
+  };
 };
 
 export default function EmailCampaignsPanel() {
@@ -36,6 +43,7 @@ export default function EmailCampaignsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [templateTestTo, setTemplateTestTo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -145,6 +153,43 @@ export default function EmailCampaignsPanel() {
     }
   }
 
+  async function runAnalyticsAction(action: "ensure-webhook" | "sync-delivery") {
+    setSyncing(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/email-analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, limit: 250 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Action failed");
+      }
+      if (action === "ensure-webhook") {
+        setMessage(
+          data.created
+            ? "Resend webhook connected. New delivery events will update this table."
+            : "Resend webhook already connected."
+        );
+      } else {
+        setMessage(
+          `Synced from Resend: checked ${data.sync?.checked ?? 0}, updated ${data.sync?.updated ?? 0}.`
+        );
+      }
+      if (data.byTemplate) {
+        setAnalytics(data as AnalyticsSummary);
+      } else {
+        void load();
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   function focusBulkTestEmailField() {
     const el = document.getElementById("bulk-test-email");
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -246,14 +291,41 @@ export default function EmailCampaignsPanel() {
       <div className="site-card p-6">
         <h2 className="text-lg font-bold text-brand mb-1">Email analytics</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Sends are logged when Resend delivers mail. Opens and clicks update when the Resend webhook
-          is configured at <code className="text-xs">/api/webhooks/resend</code>.
+          <strong>Sent</strong> means Resend accepted the message (mail did go out).{" "}
+          <strong>Delivered / Opened / Clicked / Bounced</strong> only update after the Resend
+          webhook is connected, or after you sync status from Resend.
         </p>
         {analytics ? (
           <>
-            <p className="text-sm font-semibold text-gray-800 mb-3">
-              Total sends logged: {analytics.totalSent}
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <p className="text-sm font-semibold text-gray-800">
+                Total sends logged: {analytics.totalSent}
+              </p>
+              <p className="text-xs text-gray-600 sm:ml-auto">
+                Webhook:{" "}
+                {analytics.webhook?.configured
+                  ? `connected (${analytics.webhook.source})`
+                  : "not connected — Delivered stays 0"}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                type="button"
+                disabled={syncing}
+                onClick={() => void runAnalyticsAction("ensure-webhook")}
+                className="site-btn px-4 py-2 text-sm disabled:opacity-50"
+              >
+                {syncing ? "Working…" : "Connect Resend webhook"}
+              </button>
+              <button
+                type="button"
+                disabled={syncing}
+                onClick={() => void runAnalyticsAction("sync-delivery")}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-xl disabled:opacity-50"
+              >
+                {syncing ? "Working…" : "Sync delivery status"}
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead>

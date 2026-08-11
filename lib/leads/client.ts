@@ -39,7 +39,7 @@ export interface SaveLeadPayload {
   groomerId?: string;
   groomerName?: string;
   message?: string;
-  source?: "booking" | "booking-hb" | "booking-oc" | "booking-jessica" | "booking-melanie" | "contact" | "franchise";
+  source?: "booking" | "booking-hb" | "booking-oc" | "booking-jessica" | "booking-melanie" | "contact" | "franchise" | "heyflow";
   /** USD value sent to Meta only (not stored in CRM). */
   metaConversionValue?: number;
 }

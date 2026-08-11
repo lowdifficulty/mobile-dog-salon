@@ -134,6 +134,9 @@ function applyLead(contact: CrmContact, lead: Lead, nowIso: string): void {
   if (lead.smsOptIn && !contact.tags.includes("sms-opt-in")) {
     contact.tags.push("sms-opt-in");
   }
+  if (lead.source === "heyflow" && !contact.tags.includes("heyflow")) {
+    contact.tags.push("heyflow");
+  }
   void nowIso;
 }
 

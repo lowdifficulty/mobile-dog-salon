@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import StaffDialerPanel from "@/components/admin/StaffDialerPanel";
 
 type Status = {
   configured: boolean;
@@ -24,6 +25,16 @@ type Config = {
   hasEnvAccountSid: boolean;
 };
 
+type WebhookStatus = {
+  phoneNumber: string;
+  smsUrl: string | null;
+  voiceUrl: string | null;
+  smsConnected: boolean;
+  voiceConnected: boolean;
+  expectedSmsUrl: string;
+  expectedVoiceUrl: string;
+};
+
 export default function TwilioSettingsPanel() {
   const [status, setStatus] = useState<Status | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
@@ -33,6 +44,8 @@ export default function TwilioSettingsPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [webhooks, setWebhooks] = useState<WebhookStatus | null>(null);
+  const [configuring, setConfiguring] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +56,7 @@ export default function TwilioSettingsPanel() {
       const data = await res.json();
       setStatus(data.status);
       setConfig(data.config);
+      setWebhooks(data.webhooks ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -92,14 +106,42 @@ export default function TwilioSettingsPanel() {
       const nums = (data.numbers || [])
         .map((n: { phoneNumber: string }) => n.phoneNumber)
         .join(", ");
+      const account = data.account as { friendlyName?: string; status?: string } | null | undefined;
       setTestResult(
-        `Connected to ${data.account.friendlyName} (${data.account.status}). Numbers: ${nums || "none"}`
+        account?.friendlyName
+          ? `Connected to ${account.friendlyName}${account.status ? ` (${account.status})` : ""}. Numbers: ${nums || "none"}`
+          : `Twilio API connected. Numbers: ${nums || "none"}`
       );
+      setWebhooks(data.webhooks ?? null);
       setStatus(data.status);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Test failed");
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function connectWebhooks() {
+    setConfiguring(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/twilio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "configure-webhooks" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Could not configure webhooks");
+      setWebhooks(data.webhooks ?? null);
+      setMessage(
+        "SMS & voice webhooks connected. Inbound texts now hit the CRM + SMS bot at /api/twilio/inbound."
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Webhook setup failed");
+    } finally {
+      setConfiguring(false);
     }
   }
 
@@ -160,8 +202,8 @@ export default function TwilioSettingsPanel() {
             ["accountSid", "Account SID (AC…)", "ACxxxxxxxx"],
             ["fromNumber", "SMS From number", "+19497558994"],
             ["voiceCallerId", "Voice caller ID", "+19497558994"],
-            ["staffCallbackNumber", "Staff click-to-call phone", "+1…"],
-            ["voiceForwardNumber", "Inbound call forward-to", "+1…"],
+            ["staffCallbackNumber", "Staff click-to-call phone", "+19493863351"],
+            ["voiceForwardNumber", "Inbound call forward-to", "+19493863351"],
             ["webhookBaseUrl", "Webhook base URL", "https://mobiledog-salon.com"],
           ] as const
         ).map(([key, label, placeholder]) => (
@@ -195,13 +237,56 @@ export default function TwilioSettingsPanel() {
           >
             {testing ? "Testing…" : "Test connection"}
           </button>
+          <button
+            type="button"
+            onClick={() => void connectWebhooks()}
+            disabled={configuring || !status?.configured}
+            className="px-4 py-2 rounded-lg text-sm font-semibold border border-brand text-brand bg-white disabled:opacity-50"
+          >
+            {configuring ? "Connecting…" : "Connect SMS bot webhooks"}
+          </button>
         </div>
+      </div>
+
+      <StaffDialerPanel />
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2 text-sm">
+        <h3 className="font-semibold text-brand">Inbound SMS (CRM + bot)</h3>
+        <p className="text-gray-600 text-xs">
+          If customers see Twilio&apos;s default “Thanks for the message. Configure your number’s SMS
+          URL…”, your number is not pointed at this site yet.
+        </p>
+        <p className="text-gray-600 text-xs">
+          Use a personal cell for staff callback and inbound forward — not the business Twilio
+          number (+19497558994). If those match the business line, outbound calls play the
+          greeting then hang up.
+        </p>
+        {webhooks ? (
+          <ul className="text-xs space-y-1 font-mono break-all">
+            <li>
+              SMS:{" "}
+              <span className={webhooks.smsConnected ? "text-green-700" : "text-amber-800"}>
+                {webhooks.smsConnected ? "connected" : "not connected"}
+              </span>
+              {webhooks.smsUrl ? ` · ${webhooks.smsUrl}` : " · (empty)"}
+            </li>
+            <li className="text-gray-500">Should be: {webhooks.expectedSmsUrl}</li>
+            <li>
+              Voice:{" "}
+              <span className={webhooks.voiceConnected ? "text-green-700" : "text-amber-800"}>
+                {webhooks.voiceConnected ? "connected" : "not connected"}
+              </span>
+            </li>
+          </ul>
+        ) : (
+          <p className="text-xs text-gray-500">Save From number, then use Connect SMS bot webhooks.</p>
+        )}
       </div>
 
       <div className="text-xs text-gray-500 space-y-1">
         <p>
-          Twilio Console → Phone Number → Messaging webhook:{" "}
-          <code>/api/twilio/inbound</code>
+          Manual fallback — Twilio Console → Phone Number → Messaging webhook:{" "}
+          <code>/api/twilio/inbound</code> (POST)
         </p>
         <p>
           Voice webhook: <code>/api/twilio/voice</code>

@@ -26,6 +26,7 @@ function NavIcon({ id }: { id: string }) {
         </svg>
       );
     case "contacts":
+    case "crm-contacts":
     case "clients":
       return (
         <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

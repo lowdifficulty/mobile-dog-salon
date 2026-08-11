@@ -6,8 +6,10 @@ import {
   ensureCrmSeeded,
   refreshCrmContactsPreservingLiveInteractions,
 } from "./seed";
+import { getPersistenceMode } from "@/lib/scheduling/persistence";
 import {
   findContactById,
+  invalidateCrmReadCache,
   listInteractionsForContact,
   listRecentInteractions,
   markContactRead,
@@ -36,6 +38,7 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   platform: Awaited<ReturnType<typeof twilioStatus>> & {
     smsBotEnabled: boolean;
     smsBotMode?: string;
+    crmStorage: ReturnType<typeof getPersistenceMode>;
   };
 }> {
   await ensureCrmSeeded();
@@ -96,6 +99,7 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
       ...platform,
       smsBotEnabled: botConfig?.enabled ?? botEnabled,
       smsBotMode: botConfig?.mode,
+      crmStorage: getPersistenceMode(),
     },
   };
 }
@@ -104,6 +108,7 @@ export async function getCrmContactDetail(
   contactId: string
 ): Promise<CrmContactDetail | null> {
   await ensureCrmSeeded();
+  invalidateCrmReadCache();
   const contact = await findContactById(contactId);
   if (!contact) return null;
 

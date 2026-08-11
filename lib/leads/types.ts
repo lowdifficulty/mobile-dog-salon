@@ -107,7 +107,7 @@ export interface Lead {
   lastActiveAt?: string;
   notes: LeadNote[];
   photos?: ClientPhoto[];
-  source: "booking" | "booking-hb" | "booking-oc" | "booking-jessica" | "booking-melanie" | "contact" | "franchise";
+  source: "booking" | "booking-hb" | "booking-oc" | "booking-jessica" | "booking-melanie" | "contact" | "franchise" | "heyflow";
   createdAt: string;
   updatedAt: string;
 }
@@ -143,5 +143,5 @@ export interface LeadUpsertInput {
   visitOutcome?: VisitOutcome;
   listStatus?: LeadListStatus;
   message?: string;
-  source?: "booking" | "booking-hb" | "booking-oc" | "contact" | "franchise";
+  source?: "booking" | "booking-hb" | "booking-oc" | "contact" | "franchise" | "heyflow";
 }

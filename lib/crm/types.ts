@@ -10,7 +10,8 @@ export type CrmContactSource =
   | "franchise"
   | "client_portal"
   | "appointment"
-  | "import";
+  | "import"
+  | "heyflow";
 
 export type CrmInteractionChannel = "sms" | "call" | "note" | "email" | "system";
 

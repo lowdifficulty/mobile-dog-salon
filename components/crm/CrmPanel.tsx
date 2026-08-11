@@ -10,6 +10,7 @@ type Platform = {
   mode: string;
   smsBotEnabled: boolean;
   smsBotMode?: string;
+  crmStorage?: "redis" | "file" | "ephemeral";
 };
 
 type CrmContact = {
@@ -105,7 +106,19 @@ export default function CrmPanel() {
   const [contacts, setContacts] = useState<CrmContact[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const open = sessionStorage.getItem("mds-crm-open-contact");
+      if (open) {
+        sessionStorage.removeItem("mds-crm-open-contact");
+        return open;
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  });
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
@@ -164,6 +177,18 @@ export default function CrmPanel() {
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
   }, [selectedId, loadDetail]);
+
+  /** Poll for inbound SMS while a thread is open (Twilio webhooks write to CRM store). */
+  useEffect(() => {
+    if (!selectedId) return;
+    const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      void loadDetail(selectedId);
+      void loadContacts();
+    };
+    const id = window.setInterval(tick, 4000);
+    return () => window.clearInterval(id);
+  }, [selectedId, loadDetail, loadContacts]);
 
   useEffect(() => {
     try {
@@ -311,6 +336,18 @@ export default function CrmPanel() {
             <span className="text-gray-500">
               Twilio {platform.configured ? "ready" : "needs setup"} · SMS bot{" "}
               {platform.smsBotEnabled ? `on (${platform.smsBotMode || "test"})` : "off"}
+              {platform.crmStorage === "file" ? " · CRM: local file (inbound SMS only on production Redis)" : platform.crmStorage === "redis" ? " · CRM: live" : null}
+            </span>
+          )}
+          {platform?.crmStorage === "file" && (
+            <span className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+              Inbound texts are stored on production only. Paste KV credentials into{" "}
+              <code className="text-[11px]">.env.local</code> from the Vercel dashboard (env pull
+              omits secrets), restart localhost, or use{" "}
+              <a href="https://mobiledog-salon.com/admin" className="underline font-semibold">
+                live admin
+              </a>
+              .
             </span>
           )}
           {stats && (

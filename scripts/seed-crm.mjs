@@ -112,6 +112,7 @@ for (const lead of leads) {
     c.tags.push("abandoned-funnel");
   }
   if (lead.smsOptIn && !c.tags.includes("sms-opt-in")) c.tags.push("sms-opt-in");
+  if (lead.source === "heyflow" && !c.tags.includes("heyflow")) c.tags.push("heyflow");
   for (const note of lead.notes ?? []) {
     interactions.push({
       id: randomUUID(),

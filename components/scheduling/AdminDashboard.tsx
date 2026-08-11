@@ -16,12 +16,14 @@ import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
+import CrmContactsPanel from "@/components/crm/CrmContactsPanel";
 import SmsBotPanel from "@/components/crm/SmsBotPanel";
 import TwilioSettingsPanel from "@/components/admin/TwilioSettingsPanel";
 
 type Tab =
   | "crm"
-  | "contacts"
+  | "crm-contacts"
+  | "opportunities"
   | "sms-bot"
   | "twilio"
   | "analytics"
@@ -38,7 +40,8 @@ type Tab =
 
 const NAV: AdminNavItem[] = [
   { id: "crm", label: "Conversations", group: "CRM" },
-  { id: "contacts", label: "Opportunities", group: "CRM" },
+  { id: "crm-contacts", label: "Contacts", group: "CRM" },
+  { id: "opportunities", label: "Opportunities", group: "CRM" },
   { id: "sms-bot", label: "SMS Chatbot", group: "CRM" },
   { id: "twilio", label: "Phone & SMS", group: "CRM" },
   { id: "appointments", label: "Appointments", group: "Operations" },
@@ -64,6 +67,15 @@ export default function AdminDashboard() {
     router.refresh();
   }
 
+  function openCrmConversation(contactId: string) {
+    try {
+      sessionStorage.setItem("mds-crm-open-contact", contactId);
+    } catch {
+      /* ignore */
+    }
+    setTab("crm");
+  }
+
   const padded = tab !== "crm";
 
   return (
@@ -76,7 +88,10 @@ export default function AdminDashboard() {
     >
       <div className={padded ? "p-4 md:p-6" : ""}>
         {tab === "crm" && <CrmPanel />}
-        {tab === "contacts" && (
+        {tab === "crm-contacts" && (
+          <CrmContactsPanel onOpenConversation={openCrmConversation} />
+        )}
+        {tab === "opportunities" && (
           <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
         )}
         {tab === "sms-bot" && <SmsBotPanel />}

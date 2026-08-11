@@ -72,6 +72,20 @@ export async function writeTwilioRuntimeConfig(
       next[key] = e164;
     }
   }
+
+  const businessLine =
+    next.fromNumber ||
+    current.fromNumber ||
+    process.env.TWILIO_FROM_NUMBER?.trim() ||
+    next.voiceCallerId ||
+    current.voiceCallerId;
+  for (const key of ["staffCallbackNumber", "voiceForwardNumber"] as const) {
+    if (next[key] && businessLine && next[key] === businessLine) {
+      throw new Error(
+        `${key === "staffCallbackNumber" ? "Staff callback" : "Inbound forward"} must be a personal cell phone, not the business Twilio number (${businessLine})`
+      );
+    }
+  }
   if (next.webhookBaseUrl) {
     next.webhookBaseUrl = next.webhookBaseUrl.trim().replace(/\/$/, "");
   }
@@ -113,16 +127,30 @@ export async function resolveTwilioVoiceCallerId(): Promise<string | null> {
 
 export async function resolveTwilioStaffCallback(): Promise<string | null> {
   const env = process.env.TWILIO_STAFF_CALLBACK_NUMBER?.trim();
-  if (env) return env;
+  if (env) {
+    const from = await resolveTwilioFromNumber();
+    if (from && env === from) return null;
+    return env;
+  }
   const cfg = await readTwilioRuntimeConfig();
-  return cfg.staffCallbackNumber?.trim() || null;
+  const staff = cfg.staffCallbackNumber?.trim() || null;
+  const from = await resolveTwilioFromNumber();
+  if (staff && from && staff === from) return null;
+  return staff;
 }
 
 export async function resolveTwilioVoiceForward(): Promise<string | null> {
   const env = process.env.TWILIO_VOICE_FORWARD_NUMBER?.trim();
-  if (env) return env;
+  if (env) {
+    const from = await resolveTwilioFromNumber();
+    if (from && env === from) return null;
+    return env;
+  }
   const cfg = await readTwilioRuntimeConfig();
-  return cfg.voiceForwardNumber?.trim() || null;
+  const forward = cfg.voiceForwardNumber?.trim() || null;
+  const from = await resolveTwilioFromNumber();
+  if (forward && from && forward === from) return null;
+  return forward;
 }
 
 export async function resolveTwilioWebhookBase(): Promise<string | null> {

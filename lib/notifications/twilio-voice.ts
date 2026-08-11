@@ -44,6 +44,16 @@ export async function startOutboundBridgeCall(options: {
   if (!customerPhone) {
     return { ok: false, error: "Invalid customer phone number" };
   }
+  if (staffPhone === callerId) {
+    return {
+      ok: false,
+      error:
+        "Staff callback cannot be the business Twilio number — use your cell phone so click-to-call can bridge correctly",
+    };
+  }
+  if (customerPhone === callerId) {
+    return { ok: false, error: "Cannot call the business line from the dialer" };
+  }
 
   try {
     const call = await client.calls.create({
@@ -64,26 +74,36 @@ export async function startOutboundBridgeCall(options: {
 
 export async function buildBridgeTwiml(customerPhone: string): Promise<string> {
   const response = new twilio.twiml.VoiceResponse();
-  response.say(
-    { voice: "alice" },
-    "Connecting you to the Mobile Dog Salon customer. Please hold."
-  );
   const dial = response.dial({
     callerId: (await getTwilioVoiceCallerId()) || undefined,
-    timeout: 30,
+    timeout: 45,
+    answerOnBridge: true,
   });
   dial.number(customerPhone);
   return response.toString();
+}
+
+async function resolveInboundForwardTarget(
+  options?: { forwardTo?: string }
+): Promise<string | null> {
+  const callerId = normalizePhoneE164((await getTwilioVoiceCallerId()) || "");
+  const candidates = [
+    normalizePhoneE164(options?.forwardTo || ""),
+    normalizePhoneE164((await getTwilioStaffCallbackNumber()) || ""),
+    normalizePhoneE164((await resolveTwilioVoiceForward()) || ""),
+  ].filter(Boolean) as string[];
+
+  for (const phone of candidates) {
+    if (phone !== callerId) return phone;
+  }
+  return null;
 }
 
 export async function buildInboundVoiceTwiml(options?: {
   forwardTo?: string;
 }): Promise<string> {
   const response = new twilio.twiml.VoiceResponse();
-  const forwardTo =
-    normalizePhoneE164(options?.forwardTo || "") ||
-    normalizePhoneE164((await getTwilioStaffCallbackNumber()) || "") ||
-    normalizePhoneE164((await resolveTwilioVoiceForward()) || "");
+  const forwardTo = await resolveInboundForwardTarget(options);
 
   response.say(
     { voice: "alice" },

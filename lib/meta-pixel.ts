@@ -11,7 +11,8 @@ export type MetaLeadSource =
   | "booking-jessica"
   | "booking-melanie"
   | "contact"
-  | "franchise";
+  | "franchise"
+  | "heyflow";
 
 declare global {
   interface Window {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
 import { formatPrice } from "@/lib/pricing";
 import type { Appointment } from "@/lib/scheduling/types";
+import type { SavedCardSummary } from "@/lib/payments/types";
 import PaymentCardField, { type PaymentCardInstance } from "./PaymentCardField";
 
 function formatWhen(startAt: string) {
@@ -35,6 +36,9 @@ export default function AppointmentPaymentModal({
   const [cardholderName, setCardholderName] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
   const [tip, setTip] = useState("");
+  const [savedCards, setSavedCards] = useState<SavedCardSummary[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState("");
+  const [useNewCard, setUseNewCard] = useState(true);
   const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
   const [paymentsConfigured, setPaymentsConfigured] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -43,6 +47,27 @@ export default function AppointmentPaymentModal({
 
   useEffect(() => {
     setCardholderName("");
+    setSavedCards([]);
+    setSelectedCardId("");
+    setUseNewCard(true);
+  }, [appointment.id]);
+
+  useEffect(() => {
+    fetch(
+      `/api/staff/payments/appointment?appointmentId=${encodeURIComponent(appointment.id)}`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const cards: SavedCardSummary[] = data.savedCards ?? [];
+        setSavedCards(cards);
+        if (cards.length > 0) {
+          setSelectedCardId(cards[0].id);
+          setUseNewCard(false);
+        } else {
+          setUseNewCard(true);
+        }
+      })
+      .catch(() => undefined);
   }, [appointment.id]);
 
   useEffect(() => {
@@ -91,36 +116,50 @@ export default function AppointmentPaymentModal({
       setError("Total must be between $1 and $10,000.");
       return;
     }
-    if (!payCard) {
-      setError("Card form is not ready yet.");
-      return;
-    }
-    if (!cardholderName.trim()) {
-      setError("Enter the name on the card.");
-      return;
+
+    const payingWithSavedCard = !useNewCard && savedCards.length > 0 && selectedCardId;
+
+    if (!payingWithSavedCard) {
+      if (!payCard) {
+        setError("Card form is not ready yet.");
+        return;
+      }
+      if (!cardholderName.trim()) {
+        setError("Enter the name on the card.");
+        return;
+      }
     }
 
     setBusy(true);
     try {
-      const tokenResult = await payCard.tokenize({
-        cardholderName: cardholderName.trim(),
-      });
-      if (tokenResult.status !== "OK" || !tokenResult.token) {
-        setError(tokenResult.errors?.[0]?.message ?? "Could not read card.");
-        setBusy(false);
-        return;
+      let body: Record<string, unknown> = {
+        appointmentId: appointment.id,
+        serviceDollars,
+        tipDollars: tipDollars,
+      };
+
+      if (payingWithSavedCard) {
+        body.cardId = selectedCardId;
+      } else {
+        const tokenResult = await payCard!.tokenize({
+          cardholderName: cardholderName.trim(),
+        });
+        if (tokenResult.status !== "OK" || !tokenResult.token) {
+          setError(tokenResult.errors?.[0]?.message ?? "Could not read card.");
+          setBusy(false);
+          return;
+        }
+        body = {
+          ...body,
+          sourceId: tokenResult.token,
+          cardholderName: cardholderName.trim(),
+        };
       }
 
       const res = await fetch("/api/staff/payments/appointment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appointmentId: appointment.id,
-          sourceId: tokenResult.token,
-          cardholderName: cardholderName.trim(),
-          serviceDollars,
-          tipDollars: tipDollars,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -130,7 +169,9 @@ export default function AppointmentPaymentModal({
       }
 
       setSuccess(
-        `Paid ${formatMoney(data.payment.totalDollars ?? totalDollars)}. Card saved for ${appointment.phone}.`
+        data.cardSaved
+          ? `Paid ${formatMoney(data.payment.totalDollars ?? totalDollars)}. Card saved for ${appointment.phone} — ready for their next visit.`
+          : `Paid ${formatMoney(data.payment.totalDollars ?? totalDollars)} using card on file.`
       );
       onPaid?.();
     } catch {
@@ -219,32 +260,74 @@ export default function AppointmentPaymentModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Name on card
-            </label>
-            <input
-              type="text"
-              value={cardholderName}
-              onChange={(e) => setCardholderName(e.target.value)}
-              autoComplete="off"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl"
-              required
-            />
-          </div>
+            {savedCards.length > 0 && (
+              <div className="mb-4">
+                <p className="block text-sm font-medium text-gray-700 mb-2">Payment method</p>
+                <div className="space-y-2">
+                  {savedCards.map((card) => (
+                    <label
+                      key={card.id}
+                      className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="apptPayCard"
+                        checked={!useNewCard && selectedCardId === card.id}
+                        onChange={() => {
+                          setUseNewCard(false);
+                          setSelectedCardId(card.id);
+                        }}
+                      />
+                      <span className="text-sm font-semibold text-gray-800">
+                        {card.brand ?? "Card"} ···{card.last4}
+                        {card.expMonth && card.expYear
+                          ? ` · exp ${card.expMonth}/${String(card.expYear).slice(-2)}`
+                          : ""}
+                      </span>
+                    </label>
+                  ))}
+                  <label className="flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl cursor-pointer">
+                    <input
+                      type="radio"
+                      name="apptPayCard"
+                      checked={useNewCard}
+                      onChange={() => setUseNewCard(true)}
+                    />
+                    <span className="text-sm font-semibold text-gray-800">Use a new card</span>
+                  </label>
+                </div>
+              </div>
+            )}
 
-          <div>
-            <p className="block text-sm font-medium text-gray-700 mb-1.5">
-              Card number · Expiration · CVV · ZIP
-            </p>
-            <p className="text-xs text-gray-500 mb-2">
-              Enter card details in the secure form below (PCI-compliant — numbers never touch our
-              servers).
-            </p>
-            <PaymentCardField onReady={handlePayCardReady} disabled={busy} />
+            {(useNewCard || savedCards.length === 0) && (
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Name on card
+                </label>
+                <input
+                  type="text"
+                  value={cardholderName}
+                  onChange={(e) => setCardholderName(e.target.value)}
+                  autoComplete="off"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl mb-4"
+                  required
+                />
+                <p className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Card number · Expiration · CVV · ZIP
+                </p>
+                <p className="text-xs text-gray-500 mb-2">
+                  Enter card details in the secure form below (PCI-compliant — numbers never touch
+                  our servers).
+                </p>
+                <PaymentCardField onReady={handlePayCardReady} disabled={busy} />
+              </>
+            )}
           </div>
 
           <p className="text-xs text-gray-500">
-            Card will be saved to {appointment.phone} for future visits.
+            {useNewCard || savedCards.length === 0
+              ? `New cards are saved to ${appointment.phone} for future visits.`
+              : `Charging the card on file for ${appointment.phone}.`}
           </p>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

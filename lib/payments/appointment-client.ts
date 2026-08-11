@@ -6,6 +6,7 @@ import { normalizePhone } from "@/lib/leads/normalize";
 import { hashClientPassword } from "@/lib/payments/auth";
 import {
   createClient,
+  findClientById,
   findClientByEmail,
   findClientByPhone,
   updateClient,
@@ -45,12 +46,21 @@ export async function ensureClientForAppointment(
       : null);
 
   if (account) {
+    let linked = account;
     const appointmentIds = mergeAppointmentIds(account.appointmentIds, appointment.id);
     if (appointmentIds !== account.appointmentIds) {
-      const updated = await updateClient(account.id, { appointmentIds });
-      if (updated) account = updated;
+      linked = (await updateClient(account.id, { appointmentIds })) ?? account;
     }
-    return account;
+
+    const { isPaymentsConfigured, ensurePaymentCustomer } = await import(
+      "@/lib/payments/gateway"
+    );
+    if (isPaymentsConfigured()) {
+      await ensurePaymentCustomer(linked);
+      linked = (await findClientById(linked.id)) ?? linked;
+    }
+
+    return linked;
   }
 
   const email = await resolveClientEmail(appointment);

@@ -107,4 +107,14 @@ export async function runBookingFollowUp(
   } catch (err) {
     console.error("QStash reminder scheduling failed:", err);
   }
+
+  try {
+    const { isPaymentsConfigured } = await import("@/lib/payments/gateway");
+    if (isPaymentsConfigured()) {
+      const { ensureClientForAppointment } = await import("@/lib/payments/appointment-client");
+      await ensureClientForAppointment(appointment);
+    }
+  } catch (err) {
+    console.error("Payment client link failed:", err);
+  }
 }

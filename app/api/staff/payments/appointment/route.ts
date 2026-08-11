@@ -7,6 +7,7 @@ import {
 import {
   createCustomerPayment,
   isPaymentsConfigured,
+  listCustomerCards,
   saveCardOnFile,
 } from "@/lib/payments/gateway";
 import { requireStaff } from "@/lib/scheduling/auth";
@@ -27,6 +28,21 @@ export async function GET(request: Request) {
     }
 
     const serviceDollars = getAppointmentBookedPrice(appointment);
+    const paymentsConfigured = isPaymentsConfigured();
+
+    let clientId: string | undefined;
+    let savedCards: Awaited<ReturnType<typeof listCustomerCards>> = [];
+
+    if (paymentsConfigured) {
+      try {
+        const account = await ensureClientForAppointment(appointment);
+        clientId = account.id;
+        savedCards = await listCustomerCards(account);
+      } catch (err) {
+        console.error("Appointment payment client lookup failed:", err);
+      }
+    }
+
     return NextResponse.json({
       appointmentId: appointment.id,
       serviceDollars,
@@ -35,7 +51,9 @@ export async function GET(request: Request) {
       petName: appointment.petName,
       startAt: appointment.startAt,
       status: appointment.status,
-      paymentsConfigured: isPaymentsConfigured(),
+      paymentsConfigured,
+      clientId,
+      savedCards,
     });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -53,6 +71,7 @@ export async function POST(request: Request) {
     const {
       appointmentId,
       sourceId,
+      cardId,
       cardholderName,
       postalCode,
       serviceDollars: serviceDollarsInput,
@@ -60,15 +79,16 @@ export async function POST(request: Request) {
     } = body as {
       appointmentId?: string;
       sourceId?: string;
+      cardId?: string;
       cardholderName?: string;
       postalCode?: string;
       serviceDollars?: number | string;
       tipDollars?: number | string;
     };
 
-    if (!appointmentId || !sourceId) {
+    if (!appointmentId || (!sourceId && !cardId)) {
       return NextResponse.json(
-        { error: "appointmentId and card details are required" },
+        { error: "appointmentId and a saved card or new card details are required" },
         { status: 400 }
       );
     }
@@ -111,23 +131,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Total must be between $1 and $10,000" }, { status: 400 });
     }
 
-    if (!cardholderName?.trim()) {
-      return NextResponse.json({ error: "Enter the name on the card." }, { status: 400 });
-    }
-
     const account = await ensureClientForAppointment(appointment);
-    const name = cardholderName.trim();
-
-    const savedCard = await saveCardOnFile(account, sourceId, name, postalCode?.trim());
     const note = formatAppointmentPaymentNote({
       appointment,
       serviceDollars,
       tipDollars: tipAmount,
     });
 
+    let paymentSourceId: string;
+    let cardSaved = false;
+
+    if (cardId) {
+      const cards = await listCustomerCards(account);
+      if (!cards.some((card) => card.id === cardId)) {
+        return NextResponse.json({ error: "Saved card not found for this client" }, { status: 400 });
+      }
+      paymentSourceId = cardId;
+    } else {
+      if (!cardholderName?.trim()) {
+        return NextResponse.json({ error: "Enter the name on the card." }, { status: 400 });
+      }
+      const savedCard = await saveCardOnFile(
+        account,
+        sourceId!,
+        cardholderName.trim(),
+        postalCode?.trim()
+      );
+      paymentSourceId = savedCard.id;
+      cardSaved = true;
+    }
+
     const payment = await createCustomerPayment({
       account,
-      sourceId: savedCard.id,
+      sourceId: paymentSourceId,
       amountCents,
       note,
       savedCard: true,
@@ -143,7 +179,7 @@ export async function POST(request: Request) {
         tipDollars: tipAmount,
         totalDollars,
       },
-      cardSaved: true,
+      cardSaved,
       clientId: account.id,
     });
   } catch (err) {

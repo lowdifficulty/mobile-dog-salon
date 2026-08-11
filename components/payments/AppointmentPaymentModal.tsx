@@ -30,17 +30,33 @@ export default function AppointmentPaymentModal({
   onClose: () => void;
   onPaid?: () => void;
 }) {
-  const serviceDollars = useMemo(() => getAppointmentBookedPrice(appointment), [appointment]);
-  const defaultName = `${appointment.firstName} ${appointment.lastName}`.trim();
+  const quotedServiceDollars = useMemo(() => getAppointmentBookedPrice(appointment), [appointment]);
 
-  const [cardholderName, setCardholderName] = useState(defaultName);
+  const [cardholderName, setCardholderName] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [serviceAmount, setServiceAmount] = useState("");
   const [tip, setTip] = useState("");
   const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
   const [paymentsConfigured, setPaymentsConfigured] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    setCardholderName("");
+    setPostalCode("");
+  }, [appointment.id]);
+
+  useEffect(() => {
+    if (quotedServiceDollars != null) {
+      setServiceAmount(quotedServiceDollars.toFixed(2));
+    }
+  }, [appointment.id, quotedServiceDollars]);
+
+  const serviceDollars = useMemo(() => {
+    const value = Number(serviceAmount);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }, [serviceAmount]);
 
   const tipDollars = useMemo(() => {
     const value = Number(tip);
@@ -66,7 +82,15 @@ export default function AppointmentPaymentModal({
     setSuccess("");
 
     if (serviceDollars == null || totalDollars == null) {
-      setError("Could not determine the appointment price.");
+      setError("Enter a valid service amount.");
+      return;
+    }
+    if (serviceDollars < 1 || serviceDollars > 10000) {
+      setError("Service amount must be between $1 and $10,000.");
+      return;
+    }
+    if (totalDollars < 1 || totalDollars > 10000) {
+      setError("Total must be between $1 and $10,000.");
       return;
     }
     if (!payCard) {
@@ -102,6 +126,7 @@ export default function AppointmentPaymentModal({
           sourceId: tokenResult.token,
           cardholderName: cardholderName.trim(),
           postalCode: postalCode.trim(),
+          serviceDollars,
           tipDollars: tipDollars,
         }),
       });
@@ -130,7 +155,7 @@ export default function AppointmentPaymentModal({
     );
   }
 
-  if (serviceDollars == null) {
+  if (quotedServiceDollars == null) {
     return (
       <PaymentModalShell appointment={appointment} onClose={onClose}>
         <p className="text-sm text-amber-800">
@@ -147,11 +172,34 @@ export default function AppointmentPaymentModal({
           Online payments are not configured yet. Add Square or Stripe credentials first.
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
           <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm space-y-1">
-            <div className="flex justify-between gap-3">
-              <span className="text-gray-600">Service</span>
-              <span className="font-semibold text-gray-900">{formatPrice(serviceDollars)}</span>
+            <div className="flex justify-between gap-3 items-center">
+              <label htmlFor="appt-service" className="text-gray-600">
+                Service
+              </label>
+              <div className="flex flex-col items-end gap-0.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-500">$</span>
+                  <input
+                    id="appt-service"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    step="0.01"
+                    value={serviceAmount}
+                    onChange={(e) => setServiceAmount(e.target.value)}
+                    className="w-28 rounded-lg border border-gray-200 px-2 py-1 text-right text-sm font-semibold text-gray-900"
+                  />
+                </div>
+                {quotedServiceDollars != null &&
+                  serviceDollars != null &&
+                  serviceDollars !== quotedServiceDollars && (
+                    <span className="text-xs text-gray-500">
+                      Quoted {formatPrice(quotedServiceDollars)}
+                    </span>
+                  )}
+              </div>
             </div>
             <div className="flex justify-between gap-3 items-center">
               <label htmlFor="appt-tip" className="text-gray-600">
@@ -186,7 +234,7 @@ export default function AppointmentPaymentModal({
               type="text"
               value={cardholderName}
               onChange={(e) => setCardholderName(e.target.value)}
-              autoComplete="cc-name"
+              autoComplete="off"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl"
               required
             />
@@ -212,8 +260,7 @@ export default function AppointmentPaymentModal({
               inputMode="numeric"
               value={postalCode}
               onChange={(e) => setPostalCode(e.target.value)}
-              autoComplete="postal-code"
-              placeholder="92660"
+              autoComplete="off"
               className="w-full max-w-[10rem] px-4 py-3 border border-gray-200 rounded-xl"
               required
             />

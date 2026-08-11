@@ -55,12 +55,14 @@ export async function POST(request: Request) {
       sourceId,
       cardholderName,
       postalCode,
+      serviceDollars: serviceDollarsInput,
       tipDollars,
     } = body as {
       appointmentId?: string;
       sourceId?: string;
       cardholderName?: string;
       postalCode?: string;
+      serviceDollars?: number | string;
       tipDollars?: number | string;
     };
 
@@ -80,10 +82,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Cannot pay for a cancelled appointment" }, { status: 400 });
     }
 
-    const serviceDollars = getAppointmentBookedPrice(appointment);
-    if (serviceDollars == null) {
+    const quotedServiceDollars = getAppointmentBookedPrice(appointment);
+    if (quotedServiceDollars == null) {
       return NextResponse.json({ error: "Could not determine appointment price" }, { status: 400 });
     }
+
+    const service =
+      serviceDollarsInput != null && serviceDollarsInput !== ""
+        ? Number(serviceDollarsInput)
+        : quotedServiceDollars;
+    if (!Number.isFinite(service) || service < 1 || service > 10000) {
+      return NextResponse.json(
+        { error: "Service amount must be between $1 and $10,000" },
+        { status: 400 }
+      );
+    }
+    const serviceDollars = service;
 
     const tip = Number(tipDollars);
     const tipAmount = Number.isFinite(tip) && tip >= 0 ? tip : 0;
@@ -93,13 +107,16 @@ export async function POST(request: Request) {
 
     const totalDollars = serviceDollars + tipAmount;
     const amountCents = Math.round(totalDollars * 100);
-    if (amountCents < 100) {
-      return NextResponse.json({ error: "Total must be at least $1" }, { status: 400 });
+    if (amountCents < 100 || totalDollars > 10000) {
+      return NextResponse.json({ error: "Total must be between $1 and $10,000" }, { status: 400 });
+    }
+
+    if (!cardholderName?.trim()) {
+      return NextResponse.json({ error: "Enter the name on the card." }, { status: 400 });
     }
 
     const account = await ensureClientForAppointment(appointment);
-    const name =
-      cardholderName?.trim() || `${appointment.firstName} ${appointment.lastName}`.trim();
+    const name = cardholderName.trim();
 
     const savedCard = await saveCardOnFile(account, sourceId, name, postalCode?.trim());
     const note = formatAppointmentPaymentNote({

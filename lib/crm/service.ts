@@ -17,17 +17,112 @@ import {
   setContactBotEnabled,
 } from "./store";
 import { displayNameFromContact } from "./phone";
-import type { CrmContact, CrmContactDetail, CrmInteraction } from "./types";
+import {
+  extractAreaCode,
+  getContactServiceZone,
+  zoneSortRank,
+} from "./contact-zones";
+import type {
+  CrmContact,
+  CrmContactDetail,
+  CrmContactListItem,
+  CrmContactSortField,
+  CrmInteraction,
+} from "./types";
 
 export type CrmListFilter = {
   q?: string;
   status?: "all" | "lead" | "customer" | "inactive";
   tag?: string;
   unread?: boolean;
+  sort?: CrmContactSortField;
+  order?: "asc" | "desc";
 };
 
+function enrichContactWithSortMeta(
+  contact: CrmContact,
+  appointments: { id: string; phone: string; startAt: string }[]
+): CrmContactListItem {
+  const phoneDigits = contact.phone.replace(/\D/g, "");
+  const linked = appointments.filter(
+    (a) =>
+      contact.appointmentIds.includes(a.id) ||
+      a.phone.replace(/\D/g, "").endsWith(phoneDigits)
+  );
+  const hasBookedAppointment = contact.appointmentIds.length > 0 || linked.length > 0;
+
+  const pastStarts = linked
+    .map((a) => a.startAt)
+    .filter((startAt) => new Date(startAt).getTime() < Date.now());
+  const lastAppointmentAt =
+    pastStarts.length > 0
+      ? pastStarts.sort((a, b) => b.localeCompare(a))[0]
+      : null;
+
+  return {
+    ...contact,
+    areaCode: extractAreaCode(contact.phone),
+    hasBookedAppointment,
+    lastAppointmentAt,
+    serviceZone: getContactServiceZone(contact),
+  };
+}
+
+function sortContacts(
+  contacts: CrmContactListItem[],
+  sort: CrmContactSortField,
+  order: "asc" | "desc"
+): CrmContactListItem[] {
+  const dir = order === "asc" ? 1 : -1;
+  const neverLast = order === "asc" ? 1 : -1;
+
+  return [...contacts].sort((a, b) => {
+    switch (sort) {
+      case "areaCode": {
+        const av = a.areaCode ?? "";
+        const bv = b.areaCode ?? "";
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
+      }
+      case "address": {
+        const av = (a.address || a.city || a.zipCode || "").toLowerCase();
+        const bv = (b.address || b.city || b.zipCode || "").toLowerCase();
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        return av.localeCompare(bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
+      }
+      case "booked": {
+        const av = a.hasBookedAppointment ? 1 : 0;
+        const bv = b.hasBookedAppointment ? 1 : 0;
+        return (av - bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
+      }
+      case "lastAppointment": {
+        const av = a.lastAppointmentAt;
+        const bv = b.lastAppointmentAt;
+        if (!av && bv) return neverLast;
+        if (av && !bv) return -neverLast;
+        if (!av || !bv) return a.fullName?.localeCompare(b.fullName ?? "") || 0;
+        return av.localeCompare(bv) * dir;
+      }
+      case "zone": {
+        const av = zoneSortRank(a.serviceZone);
+        const bv = zoneSortRank(b.serviceZone);
+        return (av - bv) * dir || a.fullName?.localeCompare(b.fullName ?? "") || 0;
+      }
+      case "lastInteraction":
+      default:
+        return (
+          (a.lastInteractionAt || a.updatedAt).localeCompare(
+            b.lastInteractionAt || b.updatedAt
+          ) * dir
+        );
+    }
+  });
+}
+
 export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
-  contacts: CrmContact[];
+  contacts: CrmContactListItem[];
   stats: {
     total: number;
     leads: number;
@@ -43,9 +138,10 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
 }> {
   await ensureCrmSeeded();
   const data = await readCrmData();
+  const { appointments } = await readSchedulingData();
   const q = filter.q?.trim().toLowerCase();
 
-  let contacts = [...data.contacts];
+  let contacts = data.contacts.map((c) => enrichContactWithSortMeta(c, appointments));
   if (filter.status && filter.status !== "all") {
     contacts = contacts.filter((c) => c.status === filter.status);
   }
@@ -76,9 +172,9 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
     });
   }
 
-  contacts.sort((a, b) =>
-    (b.lastInteractionAt || b.updatedAt).localeCompare(a.lastInteractionAt || a.updatedAt)
-  );
+  const sortField = filter.sort ?? "lastInteraction";
+  const sortOrder = filter.order ?? "desc";
+  contacts = sortContacts(contacts, sortField, sortOrder);
 
   const all = data.contacts;
   const [platform, botEnabled, botConfig] = await Promise.all([

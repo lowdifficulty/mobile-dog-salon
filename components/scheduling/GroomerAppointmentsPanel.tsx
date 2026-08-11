@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
 import type { GroomerId } from "@/lib/scheduling/types";
 
+import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
+
 const StaffAppointmentCalendar = dynamic(() => import("./StaffAppointmentCalendar"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
@@ -19,9 +21,11 @@ const VIEWS: { id: View; label: string }[] = [
 export default function GroomerAppointmentsPanel({
   groomerId,
   refreshKey = 0,
+  onRebook,
 }: {
   groomerId: GroomerId;
   refreshKey?: number;
+  onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
 }) {
   const [view, setView] = useState<View>("calendar");
 
@@ -52,7 +56,12 @@ export default function GroomerAppointmentsPanel({
           allowOverrideAvailability
         />
       ) : (
-        <StaffAppointmentCalendar mode="groomer" groomerId={groomerId} refreshKey={refreshKey} />
+        <StaffAppointmentCalendar
+          mode="groomer"
+          groomerId={groomerId}
+          refreshKey={refreshKey}
+          onRebook={onRebook}
+        />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import {
 } from "./twilio-client";
 import { normalizePhoneE164 } from "./twilio";
 import { resolveTwilioVoiceForward } from "./twilio-runtime-config";
+import { crmPublicBaseUrl } from "@/lib/crm/public-url";
 
 export type StartOutboundCallResult = {
   ok: boolean;
@@ -72,15 +73,63 @@ export async function startOutboundBridgeCall(options: {
   }
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+async function voiceRecordingCallbackUrl(): Promise<string | null> {
+  try {
+    const base = await crmPublicBaseUrl();
+    return `${base}/api/twilio/voice/recording`;
+  } catch {
+    return null;
+  }
+}
+
+async function voiceTranscriptionCallbackUrl(): Promise<string | null> {
+  try {
+    const base = await crmPublicBaseUrl();
+    return `${base}/api/twilio/voice/transcription`;
+  } catch {
+    return null;
+  }
+}
+
+/** TwiML with realtime transcription + dual-channel recording on the bridged dial leg. */
+async function buildRecordedDialTwiml(options: {
+  dialNumber: string;
+  callerId?: string;
+  timeout: number;
+  answerOnBridge?: boolean;
+}): Promise<string> {
+  const recordingCallback = await voiceRecordingCallbackUrl();
+  const transcriptionCallback = await voiceTranscriptionCallbackUrl();
+  const callerId = options.callerId ? escapeXml(options.callerId) : "";
+  const dialNumber = escapeXml(options.dialNumber);
+  const answerOnBridge = options.answerOnBridge ? ' answerOnBridge="true"' : "";
+  const recordingAttrs = recordingCallback
+    ? ` record="record-from-answer-dual" recordingStatusCallback="${escapeXml(recordingCallback)}" recordingStatusCallbackEvent="completed" recordingStatusCallbackMethod="POST"`
+    : "";
+  const startBlock = transcriptionCallback
+    ? `<Start><Transcription statusCallbackUrl="${escapeXml(transcriptionCallback)}" track="both_tracks" languageCode="en-US" /></Start>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?><Response>${startBlock}<Dial callerId="${callerId}" timeout="${options.timeout}"${answerOnBridge}${recordingAttrs}><Number>${dialNumber}</Number></Dial></Response>`;
+}
+
 export async function buildBridgeTwiml(customerPhone: string): Promise<string> {
-  const response = new twilio.twiml.VoiceResponse();
-  const dial = response.dial({
-    callerId: (await getTwilioVoiceCallerId()) || undefined,
+  const callerId = (await getTwilioVoiceCallerId()) || undefined;
+  return buildRecordedDialTwiml({
+    dialNumber: customerPhone,
+    callerId,
     timeout: 45,
     answerOnBridge: true,
   });
-  dial.number(customerPhone);
-  return response.toString();
 }
 
 async function resolveInboundForwardTarget(
@@ -102,30 +151,33 @@ async function resolveInboundForwardTarget(
 export async function buildInboundVoiceTwiml(options?: {
   forwardTo?: string;
 }): Promise<string> {
-  const response = new twilio.twiml.VoiceResponse();
   const forwardTo = await resolveInboundForwardTarget(options);
+  const recordingCallback = await voiceRecordingCallbackUrl();
+  const transcriptionCallback = await voiceTranscriptionCallbackUrl();
+  const callerId = escapeXml((await getTwilioVoiceCallerId()) || "");
 
-  response.say(
-    { voice: "alice" },
-    "Thank you for calling Mobile Dog Salon. Good dogs take baths."
-  );
-
-  if (forwardTo) {
-    response.say({ voice: "alice" }, "Please hold while we connect you.");
-    const dial = response.dial({
-      callerId: (await getTwilioVoiceCallerId()) || undefined,
-      timeout: 25,
-    });
-    dial.number(forwardTo);
-  } else {
+  if (!forwardTo) {
+    const response = new twilio.twiml.VoiceResponse();
+    response.say(
+      { voice: "alice" },
+      "Thank you for calling Mobile Dog Salon. Good dogs take baths."
+    );
     response.say(
       { voice: "alice" },
       "We are unable to take your call right now. Please text this number or book online at mobile dog dash salon dot com slash book. Goodbye."
     );
     response.hangup();
+    return response.toString();
   }
 
-  return response.toString();
+  const startBlock = transcriptionCallback
+    ? `<Start><Transcription statusCallbackUrl="${escapeXml(transcriptionCallback)}" track="both_tracks" languageCode="en-US" /></Start>`
+    : "";
+  const recordingAttrs = recordingCallback
+    ? ` record="record-from-answer-dual" recordingStatusCallback="${escapeXml(recordingCallback)}" recordingStatusCallbackEvent="completed" recordingStatusCallbackMethod="POST"`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Thank you for calling Mobile Dog Salon. Good dogs take baths.</Say><Say voice="alice">Please hold while we connect you.</Say>${startBlock}<Dial callerId="${callerId}" timeout="25"${recordingAttrs}><Number>${escapeXml(forwardTo)}</Number></Dial></Response>`;
 }
 
 export function mapTwilioCallStatus(

@@ -14,25 +14,12 @@ import {
   STAFF_RECURRENCE_OPTIONS,
   type StaffRecurrenceFrequency,
 } from "@/lib/scheduling/recurring-appointments";
+import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
 import { bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
 import { formatDurationLabel } from "@/lib/scheduling/services";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-export interface StaffBookAppointmentPrefill {
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  email?: string;
-  petName?: string;
-  petBreed?: string;
-  petSize?: string;
-  additionalPets?: BookingPet[];
-  service?: string;
-  address?: string;
-  city?: string;
-  zipCode?: string;
-  notes?: string;
-}
+export type { StaffBookAppointmentPrefill };
 
 function emptyPet(size = "medium"): BookingPet {
   return { petName: "", petSize: size };
@@ -75,7 +62,9 @@ export default function StaffBookAppointmentForm({
   const [notes, setNotes] = useState(prefill?.notes ?? "");
   const [recurrence, setRecurrence] = useState<StaffRecurrenceFrequency>("none");
   const [durationMinutes, setDurationMinutes] = useState(() =>
-    bookingDurationMinutesForGroomer(defaultGroomerId)
+    prefill?.durationMinutes && prefill.durationMinutes >= 60
+      ? prefill.durationMinutes
+      : bookingDurationMinutesForGroomer(defaultGroomerId)
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,13 +77,15 @@ export default function StaffBookAppointmentForm({
     if (multiDog) {
       setDurationMinutes((prev) => {
         const suggested = Math.min(480, blockMinutes * pets.length);
+        if (prefill?.durationMinutes && prefill.durationMinutes >= blockMinutes) {
+          return prefill.durationMinutes;
+        }
         return prev < blockMinutes ? suggested : prev;
       });
-      if (recurrence !== "none") setRecurrence("none");
     } else {
       setDurationMinutes(blockMinutes);
     }
-  }, [multiDog, pets.length, blockMinutes, recurrence]);
+  }, [multiDog, pets.length, blockMinutes, prefill?.durationMinutes]);
 
   useEffect(() => {
     setDurationMinutes(bookingDurationMinutesForGroomer(groomerId));
@@ -102,9 +93,9 @@ export default function StaffBookAppointmentForm({
   }, [groomerId]);
 
   const plannedDates = useMemo(() => {
-    if (!date || recurrence === "none" || multiDog) return date ? [date] : [];
+    if (!date || recurrence === "none") return date ? [date] : [];
     return listRecurringStaffDates(date, recurrence);
-  }, [date, recurrence, multiDog]);
+  }, [date, recurrence]);
 
   function resetForm() {
     setDate("");
@@ -171,7 +162,7 @@ export default function StaffBookAppointmentForm({
           city,
           zipCode,
           notes: combinedNotes || undefined,
-          recurrence: multiDog ? "none" : recurrence,
+          recurrence,
           durationMinutes: multiDog ? durationMinutes : undefined,
           overrideAvailability: true,
         }),
@@ -217,10 +208,13 @@ export default function StaffBookAppointmentForm({
     <div className="site-card p-5 mb-6 border border-accent/30">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-lg font-bold text-brand">Book appointment</h2>
+          <h2 className="text-lg font-bold text-brand">
+            {prefill ? "Rebook client" : "Book appointment"}
+          </h2>
           <p className="text-sm text-gray-600">
-            Re-book a client on any future date, even if you haven&apos;t set availability yet.
-            Add multiple dogs to set a custom visit length and hourly start time.
+            {prefill
+              ? "Client details are filled in — pick a new date, adjust dogs, visit length, and repeat schedule."
+              : "Re-book a client on any future date, even if you haven't set availability yet. Add multiple dogs to set a custom visit length, hourly start time, and repeat schedule."}
           </p>
         </div>
         <button
@@ -353,9 +347,8 @@ export default function StaffBookAppointmentForm({
           <label className="block text-sm font-semibold text-gray-700 mb-1">Repeat</label>
           <select
             value={recurrence}
-            disabled={multiDog}
             onChange={(e) => setRecurrence(e.target.value as StaffRecurrenceFrequency)}
-            className="w-full max-w-md px-4 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-50"
+            className="w-full max-w-md px-4 py-2 border border-gray-200 rounded-xl text-sm"
           >
             {STAFF_RECURRENCE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -363,16 +356,12 @@ export default function StaffBookAppointmentForm({
               </option>
             ))}
           </select>
-          {multiDog && (
-            <p className="mt-1 text-xs text-gray-500">
-              Repeat schedules are only available for single-dog bookings.
-            </p>
-          )}
-          {date && recurrence !== "none" && !multiDog && (
+          {date && recurrence !== "none" && (
             <p className="mt-2 text-sm text-gray-600">
               Will book <span className="font-semibold text-brand">{plannedDates.length}</span>{" "}
               appointment{plannedDates.length === 1 ? "" : "s"} through the next 3 months
-              {time ? ` at the same time` : ""}.
+              {time ? ` at the same time` : ""}
+              {multiDog ? ` (${formatDurationLabel(durationMinutes)} per visit)` : ""}.
             </p>
           )}
         </div>
@@ -491,9 +480,11 @@ export default function StaffBookAppointmentForm({
         >
           {busy
             ? "Booking…"
-            : recurrence !== "none" && plannedDates.length > 1 && !multiDog
+            : recurrence !== "none" && plannedDates.length > 1
               ? `Book ${plannedDates.length} appointments`
-              : "Confirm appointment"}
+              : prefill
+                ? "Confirm rebook"
+                : "Confirm appointment"}
         </button>
       </form>
     </div>

@@ -28,6 +28,7 @@ export default function AdminAppShell({
       onSelect={onSelect}
       onLogout={onLogout}
       storageKey="mds-admin-sidebar-collapsed"
+      showDialer
     >
       {children}
     </StaffAppShell>

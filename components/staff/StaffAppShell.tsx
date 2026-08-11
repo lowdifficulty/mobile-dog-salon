@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import StaffDialerPopup from "@/components/admin/StaffDialerPopup";
 
 export type StaffNavItem = {
   id: string;
@@ -36,6 +37,7 @@ function NavIcon({ id }: { id: string }) {
         </svg>
       );
     case "follow-ups":
+    case "opportunities":
       return (
         <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M9 11l3 3L22 4" />
@@ -100,6 +102,50 @@ function NavIcon({ id }: { id: string }) {
           <path d="m3 7 9 6 9-6" />
         </svg>
       );
+    case "job-interviews":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+          <path d="M2 13h20" />
+        </svg>
+      );
+    case "accounting":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M12 2v20" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+      );
+    case "payments":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M2 10h20" />
+          <path d="M6 15h3" />
+        </svg>
+      );
+    case "licky":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M12 3l1.2 3.6L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.4L12 3z" />
+          <path d="M5 16l.8 2.4L8 19l-2.2.7L5 22l-.8-2.3L2 19l2.2-.6L5 16z" />
+          <path d="M19 15l.8 2.4L22 18l-2.2.7L19 21l-.8-2.3L16 18l2.2-.6L19 15z" />
+        </svg>
+      );
+    case "qa":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+        </svg>
+      );
+    case "logins":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <path d="M10 17l5-5-5-5M15 12H3" />
+        </svg>
+      );
     default:
       return (
         <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -117,6 +163,7 @@ export default function StaffAppShell({
   onSelect,
   onLogout,
   storageKey = "mds-staff-sidebar-collapsed",
+  showDialer = false,
   children,
 }: {
   title: string;
@@ -126,9 +173,11 @@ export default function StaffAppShell({
   onSelect: (id: string) => void;
   onLogout?: () => void;
   storageKey?: string;
+  showDialer?: boolean;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [dialerOpen, setDialerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -258,11 +307,25 @@ export default function StaffAppShell({
             <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">{eyebrow}</p>
             <h1 className="text-base font-bold text-brand leading-tight">{activeLabel}</h1>
           </div>
-          <Link href="/" className="text-sm font-semibold text-gray-500 hover:text-brand">
-            View site
-          </Link>
+          {showDialer && (
+            <button
+              type="button"
+              onClick={() => setDialerOpen((v) => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                dialerOpen
+                  ? "bg-green-600 text-white"
+                  : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+              }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              Dialer
+            </button>
+          )}
         </header>
         <main className="flex-1 min-h-0">{children}</main>
+        {showDialer && dialerOpen && <StaffDialerPopup onClose={() => setDialerOpen(false)} />}
       </div>
     </div>
   );

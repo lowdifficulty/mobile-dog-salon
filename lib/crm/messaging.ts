@@ -10,7 +10,7 @@ import {
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
 import type { CrmContact, CrmInteraction } from "./types";
 
-async function ensureContactForPhone(phone: string): Promise<CrmContact> {
+export async function ensureContactForPhone(phone: string): Promise<CrmContact> {
   const existing = await findContactByPhone(phone);
   if (existing) return existing;
 

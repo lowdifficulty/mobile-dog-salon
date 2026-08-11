@@ -41,7 +41,7 @@ type Tab =
 const NAV: AdminNavItem[] = [
   { id: "crm", label: "Conversations", group: "CRM" },
   { id: "crm-contacts", label: "Contacts", group: "CRM" },
-  { id: "opportunities", label: "Opportunities", group: "CRM" },
+  { id: "opportunities", label: "Appointments", group: "CRM" },
   { id: "sms-bot", label: "SMS Chatbot", group: "CRM" },
   { id: "twilio", label: "Phone & SMS", group: "CRM" },
   { id: "appointments", label: "Appointments", group: "Operations" },

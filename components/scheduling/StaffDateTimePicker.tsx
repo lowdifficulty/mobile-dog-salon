@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   BOOKABLE_GROOMER_IDS,
   bookingBlockStartsForGroomer,
@@ -12,8 +12,9 @@ import {
   WORK_END_HOUR,
 } from "@/lib/scheduling/groomers";
 import { getTodayPacificDate, isSlotTaken, isVanSlotTaken } from "@/lib/scheduling/slots";
+import { useStaffAppointmentsForPicker } from "@/lib/scheduling/use-staff-appointments-cache";
 import { vanForGroomer } from "@/lib/scheduling/vans";
-import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import type { GroomerId } from "@/lib/scheduling/types";
 
 export function buildSlotKey(groomerId: GroomerId, date: string, time: string): string {
   return `${groomerId}|${date}|${time}`;
@@ -60,25 +61,10 @@ export default function StaffDateTimePicker({
   flexibleStartTimes?: boolean;
 }) {
   const minDate = useMemo(() => getTodayPacificDate(), []);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const appointments = useStaffAppointmentsForPicker(groomerId);
 
   const visitDuration =
     visitDurationMinutes ?? bookingDurationMinutesForGroomer(groomerId);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/staff/appointments?groomerId=${groomerId}&filter=upcoming`)
-      .then((res) => (res.ok ? res.json() : { appointments: [] }))
-      .then((data) => {
-        if (!cancelled) setAppointments(data.appointments ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setAppointments([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [groomerId]);
 
   const startTimes = useMemo(() => {
     if (flexibleStartTimes) {

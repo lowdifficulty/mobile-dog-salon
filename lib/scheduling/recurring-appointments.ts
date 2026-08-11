@@ -4,7 +4,10 @@ import { addDays, addMonthsToDate, getShiftHorizonEndDate } from "./slots";
 export type StaffRecurrenceFrequency =
   | "none"
   | "weekly"
+  | "biweekly"
+  | "every-4-weeks"
   | "monthly"
+  | "every-8-weeks"
   | "every-2-months"
   | "every-3-months";
 
@@ -13,10 +16,13 @@ export const STAFF_RECURRENCE_OPTIONS: {
   label: string;
 }[] = [
   { value: "none", label: "One time only" },
-  { value: "weekly", label: "Once a week" },
-  { value: "monthly", label: "Once a month" },
-  { value: "every-2-months", label: "Once every other month" },
-  { value: "every-3-months", label: "Once every 3 months" },
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Biweekly (every 2 weeks)" },
+  { value: "every-4-weeks", label: "Every 4 weeks" },
+  { value: "monthly", label: "Every month" },
+  { value: "every-8-weeks", label: "Every 8 weeks" },
+  { value: "every-2-months", label: "Every 2 months" },
+  { value: "every-3-months", label: "Every 3 months" },
 ];
 
 export function staffRecurrenceLabel(frequency: StaffRecurrenceFrequency): string {
@@ -32,6 +38,30 @@ export function isStaffRecurrenceFrequency(
   return STAFF_RECURRENCE_OPTIONS.some((option) => option.value === value);
 }
 
+function nextRecurringStaffDate(
+  current: string,
+  frequency: StaffRecurrenceFrequency
+): string {
+  switch (frequency) {
+    case "weekly":
+      return addDays(current, 7);
+    case "biweekly":
+      return addDays(current, 14);
+    case "every-4-weeks":
+      return addDays(current, 28);
+    case "monthly":
+      return addMonthsToDate(current, 1);
+    case "every-8-weeks":
+      return addDays(current, 56);
+    case "every-2-months":
+      return addMonthsToDate(current, 2);
+    case "every-3-months":
+      return addMonthsToDate(current, 3);
+    default:
+      return current;
+  }
+}
+
 /** Dates for a recurring staff series through the shift horizon (default 3 months). */
 export function listRecurringStaffDates(
   startDate: string,
@@ -44,15 +74,7 @@ export function listRecurringStaffDates(
   let current = startDate;
 
   while (true) {
-    const next =
-      frequency === "weekly"
-        ? addDays(current, 7)
-        : frequency === "monthly"
-          ? addMonthsToDate(current, 1)
-          : frequency === "every-2-months"
-            ? addMonthsToDate(current, 2)
-            : addMonthsToDate(current, 3);
-
+    const next = nextRecurringStaffDate(current, frequency);
     if (next > maxDate) break;
     dates.push(next);
     current = next;

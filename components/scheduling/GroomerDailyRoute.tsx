@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DailyRoutePlan } from "@/lib/scheduling/daily-route";
 import type { GroomerId } from "@/lib/scheduling/types";
+import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
+import { appointmentToStaffBookPrefill } from "@/lib/scheduling/staff-book-prefill";
+import type { Appointment } from "@/lib/scheduling/types";
 
 function formatMiles(miles: number): string {
   return miles < 10 ? miles.toFixed(1) : Math.round(miles).toString();
@@ -34,7 +37,13 @@ function formatDateLabel(date: string): string {
   });
 }
 
-export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId }) {
+export default function GroomerDailyRoute({
+  groomerId,
+  onRebook,
+}: {
+  groomerId: GroomerId;
+  onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
+}) {
   const [scheduledDates, setScheduledDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [route, setRoute] = useState<DailyRoutePlan | null>(null);
@@ -98,6 +107,22 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
   function handleDateChange(date: string) {
     setSelectedDate(date);
     if (date) void loadRoute(date);
+  }
+
+  async function rebookAppointment(appointmentId: string) {
+    if (!onRebook) return;
+    try {
+      const res = await fetch("/api/groomer/appointments?filter=all", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not load appointment");
+      const appointment = (data.appointments as Appointment[] | undefined)?.find(
+        (item) => item.id === appointmentId
+      );
+      if (!appointment) throw new Error("Appointment not found");
+      onRebook(appointmentToStaffBookPrefill(appointment));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start rebook");
+    }
   }
 
   return (
@@ -230,6 +255,15 @@ export default function GroomerDailyRoute({ groomerId }: { groomerId: GroomerId 
                   <p className="text-sm text-gray-600 mt-0.5">{stop.petSummary}</p>
                 )}
                 <p className="text-sm text-gray-600 mt-1">{stop.fullAddress}</p>
+                {onRebook && (
+                  <button
+                    type="button"
+                    onClick={() => void rebookAppointment(stop.appointmentId)}
+                    className="mt-3 inline-flex items-center rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-dark"
+                  >
+                    Rebook
+                  </button>
+                )}
                 {stop.leg.approximateLocation && (
                   <p className="text-[11px] text-amber-700 mt-1">
                     Approximate location (ZIP centroid) — use Google Maps for exact address.

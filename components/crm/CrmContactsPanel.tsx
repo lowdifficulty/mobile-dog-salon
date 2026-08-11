@@ -2,28 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import type { CrmContactListItem, CrmContactSortField } from "@/lib/crm/types";
 
-type CrmContact = {
-  id: string;
-  phone: string;
-  phoneE164: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  address?: string;
-  city?: string;
-  zipCode?: string;
-  pets: { petName: string; petSize?: string; petBreed?: string }[];
-  status: "lead" | "customer" | "inactive";
-  tags: string[];
-  source: string;
-  unreadCount: number;
-  botEnabled: boolean;
-  lastInteractionAt?: string;
-  updatedAt: string;
-  groomerName?: string;
-};
+type CrmContact = CrmContactListItem;
 
 type Stats = {
   total: number;
@@ -65,6 +46,12 @@ function formatWhen(iso?: string): string {
   }
 }
 
+function zoneLabel(zone: 1 | 2 | null): string {
+  if (zone === 1) return "Zone 1 · OC";
+  if (zone === 2) return "Zone 2 · LA";
+  return "Unknown zone";
+}
+
 function displayName(c: CrmContact): string {
   return (
     c.fullName?.trim() ||
@@ -72,6 +59,15 @@ function displayName(c: CrmContact): string {
     formatPhoneDisplay(c.phone)
   );
 }
+
+const SORT_OPTIONS: { value: CrmContactSortField; label: string }[] = [
+  { value: "lastInteraction", label: "Last activity" },
+  { value: "areaCode", label: "Area code" },
+  { value: "address", label: "Address" },
+  { value: "booked", label: "Appointment booked" },
+  { value: "lastAppointment", label: "Last appointment" },
+  { value: "zone", label: "Service zone" },
+];
 
 export default function CrmContactsPanel({
   onOpenConversation,
@@ -84,6 +80,8 @@ export default function CrmContactsPanel({
   const [detail, setDetail] = useState<ContactDetail | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "lead" | "customer" | "inactive">("all");
+  const [sort, setSort] = useState<CrmContactSortField>("lastInteraction");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +94,8 @@ export default function CrmContactsPanel({
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (status !== "all") params.set("status", status);
+      params.set("sort", sort);
+      params.set("order", sortOrder);
       const res = await fetch(`/api/admin/crm/contacts?${params.toString()}`);
       if (!res.ok) throw new Error("Could not load contacts");
       const data = await res.json();
@@ -106,7 +106,7 @@ export default function CrmContactsPanel({
     } finally {
       setLoading(false);
     }
-  }, [q, status]);
+  }, [q, status, sort, sortOrder]);
 
   const loadDetail = useCallback(async (id: string) => {
     if (!id) {
@@ -212,6 +212,25 @@ export default function CrmContactsPanel({
           <option value="lead">Leads</option>
           <option value="inactive">Inactive</option>
         </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as CrmContactSortField)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              Sort: {opt.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setSortOrder((o) => (o === "asc" ? "desc" : "asc"))}
+          className="px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 hover:bg-gray-50"
+          title={sortOrder === "asc" ? "Ascending" : "Descending"}
+        >
+          {sortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
+        </button>
         <button
           type="button"
           onClick={() => void syncCustomers()}
@@ -266,6 +285,19 @@ export default function CrmContactsPanel({
                       Last activity {formatWhen(c.lastInteractionAt)}
                     </div>
                   )}
+                  <div className="text-[11px] text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
+                    {c.areaCode && <span>Area {c.areaCode}</span>}
+                    <span>{zoneLabel(c.serviceZone)}</span>
+                    {c.hasBookedAppointment ? (
+                      c.lastAppointmentAt ? (
+                        <span>Last appt {formatWhen(c.lastAppointmentAt)}</span>
+                      ) : (
+                        <span>Booked</span>
+                      )
+                    ) : (
+                      <span>Never booked</span>
+                    )}
+                  </div>
                 </button>
               );
             })}

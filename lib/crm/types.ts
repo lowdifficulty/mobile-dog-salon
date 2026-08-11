@@ -75,6 +75,24 @@ export interface CrmContact {
   updatedAt: string;
 }
 
+/** Sort metadata attached to contacts in list responses. */
+export type CrmContactSortField =
+  | "lastInteraction"
+  | "areaCode"
+  | "address"
+  | "booked"
+  | "lastAppointment"
+  | "zone";
+
+export type CrmContactSortMeta = {
+  areaCode: string | null;
+  hasBookedAppointment: boolean;
+  lastAppointmentAt: string | null;
+  serviceZone: 1 | 2 | null;
+};
+
+export type CrmContactListItem = CrmContact & CrmContactSortMeta;
+
 export interface CrmInteraction {
   id: string;
   contactId: string;
@@ -87,6 +105,11 @@ export interface CrmInteraction {
   callStatus?: CrmCallStatus;
   twilioSid?: string;
   durationSeconds?: number;
+  recordingSid?: string;
+  recordingUrl?: string;
+  recordingChannels?: string;
+  transcript?: string;
+  transcriptionSid?: string;
   actor: CrmInteractionActor;
   staffUserId?: string;
   staffName?: string;

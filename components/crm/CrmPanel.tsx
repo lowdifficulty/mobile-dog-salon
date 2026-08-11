@@ -49,6 +49,11 @@ type CrmInteraction = {
   summary?: string;
   messageStatus?: string;
   callStatus?: string;
+  recordingSid?: string;
+  recordingUrl?: string;
+  recordingChannels?: string;
+  transcript?: string;
+  transcriptionSid?: string;
   actor: string;
   staffName?: string;
   durationSeconds?: number;
@@ -486,6 +491,11 @@ export default function CrmPanel() {
                 {smsThread.map((ix) => {
                   const mine = ix.direction === "outbound" || ix.direction === "internal";
                   const suppressed = Boolean(ix.metadata?.suppressed);
+                  const isCall = ix.channel === "call";
+                  const callSummary =
+                    ix.summary ||
+                    (ix.callStatus ? `Call ${ix.callStatus}` : "Call");
+                  const callTranscript = ix.transcript || (isCall ? ix.body : undefined);
                   return (
                     <div
                       key={ix.id}
@@ -495,7 +505,7 @@ export default function CrmPanel() {
                         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
                           ix.channel === "note"
                             ? "bg-amber-50 border border-amber-100 text-amber-950"
-                            : ix.channel === "call"
+                            : isCall
                               ? "bg-white border border-gray-200 text-gray-800"
                               : mine
                                 ? suppressed
@@ -507,7 +517,7 @@ export default function CrmPanel() {
                         <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
                           {ix.channel === "note"
                             ? "Note"
-                            : ix.channel === "call"
+                            : isCall
                               ? ix.direction === "inbound"
                                 ? "Inbound call"
                                 : "Outbound call"
@@ -520,8 +530,41 @@ export default function CrmPanel() {
                                   : "Customer"}
                           {" · "}
                           {formatWhen(ix.createdAt)}
+                          {isCall && ix.durationSeconds
+                            ? ` · ${ix.durationSeconds}s`
+                            : ""}
+                          {isCall && ix.recordingChannels === "dual" ? " · dual recording" : ""}
                         </div>
-                        <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                        {isCall ? (
+                          <div className="space-y-2">
+                            <div>{callSummary}</div>
+                            {ix.recordingSid && (
+                              <audio
+                                controls
+                                preload="none"
+                                className="w-full max-w-sm h-9"
+                                src={`/api/admin/crm/recordings/${ix.recordingSid}`}
+                              />
+                            )}
+                            {callTranscript && (
+                              <div>
+                                <div className="text-[10px] uppercase tracking-wide opacity-60 mb-1">
+                                  Transcript
+                                </div>
+                                <div className="whitespace-pre-wrap text-sm bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
+                                  {callTranscript}
+                                </div>
+                              </div>
+                            )}
+                            {!ix.recordingSid && !callTranscript && ix.callStatus === "completed" && (
+                              <div className="text-xs text-gray-500">
+                                Recording and transcript will appear when ready.
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                        )}
                       </div>
                     </div>
                   );

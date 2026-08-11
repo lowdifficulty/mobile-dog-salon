@@ -64,7 +64,7 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const user = await requireAdmin();
     const body = (await request.json().catch(() => ({}))) as { action?: string };
 
     const client = await getTwilioClient();
@@ -103,6 +103,7 @@ export async function POST(request: Request) {
       }
       const { crmPublicBaseUrl } = await import("@/lib/crm/public-url");
       const { startOutboundBridgeCall } = await import("@/lib/notifications/twilio-voice");
+      const { ensureContactForPhone, recordOutboundCall } = await import("@/lib/crm/messaging");
       const base = await crmPublicBaseUrl(request);
       const result = await startOutboundBridgeCall({
         customerPhone: to,
@@ -110,6 +111,18 @@ export async function POST(request: Request) {
         twimlUrl: `${base}/api/twilio/voice/bridge`,
         statusCallbackUrl: `${base}/api/twilio/voice/status`,
       });
+
+      const contact = await ensureContactForPhone(to);
+      await recordOutboundCall({
+        contact,
+        staffUserId: user.email || user.name,
+        staffName: user.name,
+        twilioSid: result.sid,
+        summary: result.ok
+          ? "Outbound dialer call started"
+          : `Outbound call failed: ${result.error}`,
+      });
+
       if (!result.ok) {
         return NextResponse.json(
           { ok: false, error: result.error || "Call failed", status },

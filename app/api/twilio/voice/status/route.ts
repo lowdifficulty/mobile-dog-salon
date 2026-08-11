@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { findCallInteractionBySid } from "@/lib/crm/call-recordings";
 import { readCrmData, updateInteraction } from "@/lib/crm/store";
 import { mapTwilioCallStatus } from "@/lib/notifications/twilio-voice";
 
@@ -6,6 +7,8 @@ import { mapTwilioCallStatus } from "@/lib/notifications/twilio-voice";
 export async function POST(request: Request) {
   const formData = await request.formData();
   const callSid = formData.get("CallSid")?.toString();
+  const parentCallSid = formData.get("ParentCallSid")?.toString() || null;
+  const dialCallSid = formData.get("DialCallSid")?.toString() || null;
   const callStatus = formData.get("CallStatus")?.toString() || "";
   const durationRaw = formData.get("CallDuration")?.toString();
   const durationSeconds = durationRaw ? Number(durationRaw) : undefined;
@@ -13,15 +16,23 @@ export async function POST(request: Request) {
   if (callSid) {
     try {
       const data = await readCrmData();
-      const existing = data.interactions.find((i) => i.twilioSid === callSid);
+      const existing = findCallInteractionBySid(data.interactions, callSid, parentCallSid);
       if (existing) {
-        await updateInteraction(existing.id, {
+        const patch: Parameters<typeof updateInteraction>[1] = {
           callStatus: mapTwilioCallStatus(callStatus),
           durationSeconds: Number.isFinite(durationSeconds)
             ? durationSeconds
             : existing.durationSeconds,
           summary: `Call ${callStatus}${durationSeconds ? ` (${durationSeconds}s)` : ""}`,
-        });
+        };
+        if (dialCallSid) {
+          patch.metadata = {
+            ...existing.metadata,
+            dialCallSid,
+            parentCallSid: parentCallSid || existing.metadata?.parentCallSid || null,
+          };
+        }
+        await updateInteraction(existing.id, patch);
       }
     } catch (err) {
       console.error("Voice status CRM update failed:", err);

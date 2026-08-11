@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import StaffAppShell, { type StaffNavItem } from "@/components/staff/StaffAppShell";
@@ -8,6 +8,11 @@ import GroomerShiftsTab from "./GroomerShiftsTab";
 import GroomerAppointmentsPanel from "./GroomerAppointmentsPanel";
 import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
+import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
+import {
+  invalidateStaffAppointmentsCache,
+  prefetchStaffAppointments,
+} from "@/lib/scheduling/use-staff-appointments-cache";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
@@ -35,7 +40,23 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const [tab, setTab] = useState<Tab>("crm");
   const [appointmentRefreshKey, setAppointmentRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [bookPrefill, setBookPrefill] = useState<StaffBookAppointmentPrefill | undefined>();
+  const [bookFormKey, setBookFormKey] = useState(0);
   const groomerId = user.groomerId;
+
+  function openRebook(prefill: StaffBookAppointmentPrefill) {
+    setBookPrefill(prefill);
+    setBookFormKey((key) => key + 1);
+    setTab("book");
+  }
+
+  useEffect(() => {
+    if (!groomerId) return;
+    void prefetchStaffAppointments(groomerId, {
+      apiUrl: "/api/groomer/appointments",
+      query: "filter=all",
+    });
+  }, [groomerId]);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -85,26 +106,45 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         eyebrow={user.name}
         items={nav}
         activeId={tab}
-        onSelect={(id) => setTab(id as Tab)}
+        onSelect={(id) => {
+          if (id === "book" && groomerId) {
+            void prefetchStaffAppointments(groomerId, {
+              apiUrl: "/api/groomer/appointments",
+              query: "filter=all",
+            });
+          }
+          setTab(id as Tab);
+        }}
         onLogout={logout}
         storageKey="mds-groomer-sidebar-collapsed"
       >
         <div className={padded ? "p-4 md:p-6" : ""} data-groomer-shell="ghl-v1">
           <DashboardErrorBoundary>
             {tab === "crm" && <CrmPanel />}
-            {tab === "route" && <GroomerDailyRoute groomerId={groomerId} />}
+            {tab === "route" && (
+              <GroomerDailyRoute groomerId={groomerId} onRebook={openRebook} />
+            )}
             {tab === "clients" && <GroomerActiveClientsPanel groomerId={groomerId} />}
             {tab === "appointments" && (
               <GroomerAppointmentsPanel
                 groomerId={groomerId}
                 refreshKey={appointmentRefreshKey}
+                onRebook={openRebook}
               />
             )}
             {tab === "book" && (
               <StaffBookAppointmentForm
+                key={bookFormKey}
                 defaultGroomerId={groomerId}
                 defaultOpen
+                prefill={bookPrefill}
                 onBooked={() => {
+                  setBookPrefill(undefined);
+                  invalidateStaffAppointmentsCache(groomerId);
+                  void prefetchStaffAppointments(groomerId, {
+                    apiUrl: "/api/groomer/appointments",
+                    query: "filter=all",
+                  });
                   setAppointmentRefreshKey((key) => key + 1);
                   setCalendarRefreshKey((key) => key + 1);
                   setTab("appointments");

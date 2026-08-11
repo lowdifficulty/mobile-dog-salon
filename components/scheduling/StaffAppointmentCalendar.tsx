@@ -16,7 +16,10 @@ import {
   groomerAppointmentLegendLabel,
 } from "@/lib/scheduling/groomer-crm-colors";
 import { parseSlotFromIso, getTodayPacificDate } from "@/lib/scheduling/slots";
+import { setStaffAppointmentsCache } from "@/lib/scheduling/use-staff-appointments-cache";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
+import { appointmentToStaffBookPrefill } from "@/lib/scheduling/staff-book-prefill";
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
 import { activeVansOnDate, vanLabel, type VanId } from "@/lib/scheduling/vans";
 
@@ -149,10 +152,12 @@ export default function StaffAppointmentCalendar({
   mode,
   groomerId,
   refreshKey = 0,
+  onRebook,
 }: {
   mode: "groomer" | "admin";
   groomerId?: GroomerId;
   refreshKey?: number;
+  onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
 }) {
   const today = getTodayPacificDate();
   const seesTeam = groomerId ? groomerSeesTeamAppointments(groomerId) : true;
@@ -216,7 +221,11 @@ export default function StaffAppointmentCalendar({
         const availData = await availRes.json();
         if (!apRes.ok) throw new Error(apData.error ?? "Could not load appointments.");
         if (!availRes.ok) throw new Error(availData.error ?? "Could not load availability.");
-        setAppointments(apData.appointments ?? []);
+        const loadedAppointments = apData.appointments ?? [];
+        setAppointments(loadedAppointments);
+        if (groomerId) {
+          setStaffAppointmentsCache(groomerId, loadedAppointments);
+        }
         setOpenSlotKeys(availData.openSlotKeys ?? []);
         setAdminOpenSlots([]);
         setSlotOccupancy([]);
@@ -468,6 +477,15 @@ export default function StaffAppointmentCalendar({
                                 <strong>Notes:</strong> {ap.notes}
                               </p>
                             ) : null}
+                            {mode === "groomer" && onRebook && isOwn && (
+                              <button
+                                type="button"
+                                onClick={() => onRebook(appointmentToStaffBookPrefill(ap))}
+                                className="mt-2 inline-flex items-center rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand-dark"
+                              >
+                                Rebook
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

@@ -3,7 +3,7 @@
  */
 
 import { spawn, execSync } from "node:child_process";
-import { existsSync, openSync, writeFileSync } from "node:fs";
+import { existsSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const isWin = process.platform === "win32";
@@ -24,34 +24,70 @@ export function getNextBin() {
 }
 
 export function killPort(port) {
+  const pids = new Set();
+
+  // Prefer the pid we recorded when we started the local server.
+  try {
+    const pidPath = join(process.cwd(), ".local-server.pid");
+    if (existsSync(pidPath)) {
+      const recorded = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10);
+      if (recorded > 0) pids.add(recorded);
+    }
+  } catch {
+    // ignore
+  }
+
   try {
     if (isWin) {
       const out = execSync(`netstat -ano | findstr :${port}`, {
         encoding: "utf8",
         shell: true,
       });
-      const pids = new Set();
       for (const line of out.split("\n")) {
         if (!line.includes("LISTENING")) continue;
         const parts = line.trim().split(/\s+/);
         const pid = Number.parseInt(parts[parts.length - 1], 10);
         if (pid > 0) pids.add(pid);
       }
-      for (const pid of pids) {
-        try {
-          execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore", shell: true });
-        } catch {
-          // already exited
-        }
-      }
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
-        shell: true,
-        stdio: "ignore",
-      });
+      try {
+        const out = execSync(
+          `lsof -tiTCP:${port} -sTCP:LISTEN 2>/dev/null || lsof -ti:${port} 2>/dev/null || true`,
+          { encoding: "utf8", shell: true }
+        );
+        for (const part of out.split(/\s+/)) {
+          const pid = Number.parseInt(part, 10);
+          if (pid > 0) pids.add(pid);
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        const out = execSync(`ss -ltnp 'sport = :${port}' 2>/dev/null || true`, {
+          encoding: "utf8",
+          shell: true,
+        });
+        for (const match of out.matchAll(/pid=(\d+)/g)) {
+          pids.add(Number.parseInt(match[1], 10));
+        }
+      } catch {
+        // ignore
+      }
     }
   } catch {
-    // port was free
+    // port was free / lookup failed
+  }
+
+  for (const pid of pids) {
+    try {
+      if (isWin) {
+        execSync(`taskkill /PID ${pid} /F`, { stdio: "ignore", shell: true });
+      } else {
+        process.kill(pid, "SIGKILL");
+      }
+    } catch {
+      // already exited
+    }
   }
 }
 

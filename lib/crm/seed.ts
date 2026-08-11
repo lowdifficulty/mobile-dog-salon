@@ -13,8 +13,6 @@ import {
   writeCrmData,
 } from "./store";
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
-import { bookingConfirmationSmsBody } from "@/lib/notifications/booking-confirmation";
-import { reminderSmsBody } from "@/lib/notifications/reminders";
 import type {
   CrmContact,
   CrmContactSource,
@@ -224,7 +222,7 @@ function appointmentSystemEvents(
   contact: CrmContact,
   appt: Appointment
 ): CrmInteraction[] {
-  const events: CrmInteraction[] = [
+  return [
     {
       id: randomUUID(),
       contactId: contact.id,
@@ -242,51 +240,6 @@ function appointmentSystemEvents(
       },
     },
   ];
-
-  if (appt.smsOptIn) {
-    events.push({
-      id: randomUUID(),
-      contactId: contact.id,
-      phone: contact.phone,
-      channel: "sms",
-      direction: "outbound",
-      body: bookingConfirmationSmsBody(appt),
-      summary: "Booking confirmation SMS",
-      messageStatus: "sent",
-      actor: "system",
-      createdAt: appt.createdAt,
-      metadata: { appointmentId: appt.id, kind: "booking_confirmation" },
-    });
-  }
-
-  const reminderFields: { key: keyof Appointment; label: string; kind: "24h" | "1h" }[] = [
-    { key: "reminder24hSmsSentAt", label: "24h reminder SMS", kind: "24h" },
-    { key: "reminder1hSmsSentAt", label: "1h reminder SMS", kind: "1h" },
-    { key: "reminder2hSmsSentAt", label: "1h reminder SMS", kind: "1h" },
-  ];
-  const loggedReminderKeys = new Set<string>();
-  for (const field of reminderFields) {
-    const sentAt = appt[field.key];
-    if (typeof sentAt !== "string" || !sentAt) continue;
-    const dedupeKey = `${appt.id}:${field.kind}`;
-    if (loggedReminderKeys.has(dedupeKey)) continue;
-    loggedReminderKeys.add(dedupeKey);
-    events.push({
-        id: randomUUID(),
-        contactId: contact.id,
-        phone: contact.phone,
-        channel: "sms",
-        direction: "outbound",
-        body: reminderSmsBody(appt, field.kind),
-        summary: field.label,
-        messageStatus: "sent",
-        actor: "system",
-        createdAt: sentAt,
-        metadata: { appointmentId: appt.id, kind: field.key },
-      });
-  }
-
-  return events;
 }
 
 export function buildCrmFromSources(input: {
@@ -471,13 +424,21 @@ export async function refreshCrmContactsPreservingLiveInteractions(): Promise<Cr
 
   const preservedSystemSmsKeys = new Set(
     existing.interactions
-      .filter((i) => systemSmsKey(i) && i.body && !isSyntheticPlaceholder(i))
+      .filter(
+        (i) =>
+          systemSmsKey(i) &&
+          i.twilioSid?.trim() &&
+          i.body &&
+          !isSyntheticPlaceholder(i)
+      )
       .map((i) => systemSmsKey(i)!)
   );
 
   const liveInteractions = existing.interactions.filter((i) => {
     const key = systemSmsKey(i);
-    if (key && i.body && !isSyntheticPlaceholder(i)) return true;
+    if (key) {
+      return Boolean(i.twilioSid?.trim() && i.body && !isSyntheticPlaceholder(i));
+    }
     return liveChannels.has(i.channel) && i.actor !== "system";
   });
 

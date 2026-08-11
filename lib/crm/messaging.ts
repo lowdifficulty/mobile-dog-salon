@@ -123,7 +123,7 @@ async function findSystemSmsInteraction(
   );
 }
 
-/** Log an automated outbound SMS (booking confirmation, reminders) in CRM. */
+/** Log an automated outbound SMS in CRM after Twilio confirms send. */
 export async function recordSystemOutboundSms(options: {
   appointment: Appointment;
   body: string;
@@ -132,6 +132,8 @@ export async function recordSystemOutboundSms(options: {
   createdAt?: string;
   metadata?: Record<string, string | number | boolean | null>;
 }): Promise<void> {
+  if (!options.twilioSid?.trim()) return;
+
   const contact = await ensureContactFromAppointment(options.appointment);
   const kind = String(options.metadata?.kind ?? "");
   const appointmentId = options.appointment.id;
@@ -163,37 +165,6 @@ export async function recordSystemOutboundSms(options: {
     createdAt: options.createdAt ?? new Date().toISOString(),
     metadata: options.metadata,
   });
-}
-
-/** Ensure booking confirmation SMS appears in Conversations (idempotent backfill). */
-export async function ensureBookingConfirmationInCrm(
-  appointment: Appointment
-): Promise<void> {
-  if (!appointment.smsOptIn || !appointment.phone.trim()) return;
-  if (appointment.status !== "confirmed") return;
-
-  const { bookingConfirmationSmsBody } = await import(
-    "@/lib/notifications/booking-confirmation"
-  );
-
-  await recordSystemOutboundSms({
-    appointment,
-    body: bookingConfirmationSmsBody(appointment),
-    summary: "Booking confirmation SMS",
-    createdAt: appointment.createdAt,
-    metadata: { appointmentId: appointment.id, kind: "booking_confirmation" },
-  });
-}
-
-export async function ensureContactVerificationSmsInCrm(
-  contact: CrmContact,
-  appointments: Appointment[]
-): Promise<void> {
-  const phone = crmPhoneDigits(contact.phone);
-  for (const appt of appointments) {
-    if (crmPhoneDigits(appt.phone) !== phone) continue;
-    await ensureBookingConfirmationInCrm(appt);
-  }
 }
 
 export async function ensureContactForPhone(phone: string): Promise<CrmContact> {

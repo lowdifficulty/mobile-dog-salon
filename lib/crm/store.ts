@@ -6,6 +6,7 @@ import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/persistence";
 import type { CrmContact, CrmData, CrmInteraction, SmsBotSession } from "./types";
 import { crmPhoneDigits } from "./phone";
+import { isConversationVisibleInteraction } from "./conversation-filter";
 
 const FILE_PATH = path.join(process.cwd(), "data", "crm.json");
 const REDIS_KEY = "mds:crm";
@@ -219,7 +220,7 @@ export async function listInteractionsForContact(
 ): Promise<CrmInteraction[]> {
   const data = await readCrmData();
   return data.interactions
-    .filter((i) => i.contactId === contactId)
+    .filter((i) => i.contactId === contactId && isConversationVisibleInteraction(i))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .slice(-limit);
 }
@@ -227,6 +228,7 @@ export async function listInteractionsForContact(
 export async function listRecentInteractions(limit = 100): Promise<CrmInteraction[]> {
   const data = await readCrmData();
   return [...data.interactions]
+    .filter(isConversationVisibleInteraction)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
 }

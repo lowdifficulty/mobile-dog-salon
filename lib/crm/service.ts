@@ -368,14 +368,6 @@ export async function getCrmContactDetail(
       a.phone.replace(/\D/g, "").endsWith(contact.phone)
   );
 
-  try {
-    const { ensureContactVerificationSmsInCrm } = await import("./messaging");
-    await ensureContactVerificationSmsInCrm(contact, mine);
-  } catch (err) {
-    console.error("CRM verification SMS backfill failed:", err);
-  }
-
-  invalidateCrmReadCache();
   const interactions = await listInteractionsForContact(contactId);
 
   const mapped = mine.map((a) => ({

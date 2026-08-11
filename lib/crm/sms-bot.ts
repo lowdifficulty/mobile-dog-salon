@@ -9,8 +9,6 @@ import type { CrmContact } from "./types";
 import { recordBotSms } from "./messaging";
 import {
   findContactById,
-  appendInteraction,
-  newInteractionId,
   listInteractionsForContact,
 } from "./store";
 import {
@@ -277,21 +275,6 @@ export async function handleInboundSmsWithBot(options: {
     options.forceSend || phoneAllowedForSmsBot(options.contact.phone, config);
 
   if (!allowed) {
-    if (options.record !== false) {
-      await appendInteraction({
-        id: newInteractionId(),
-        contactId: options.contact.id,
-        phone: options.contact.phone,
-        channel: "sms",
-        direction: "outbound",
-        body,
-        summary: "SMS bot draft (test mode — not sent)",
-        messageStatus: "queued",
-        actor: "bot",
-        createdAt: new Date().toISOString(),
-        metadata: { suppressed: true, mode: config.mode },
-      });
-    }
     return { replied: false, body, suppressed: true, mode: config.mode };
   }
 

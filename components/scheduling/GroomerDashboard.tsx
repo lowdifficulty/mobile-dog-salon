@@ -16,9 +16,11 @@ import {
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
 import StaffTransferPrompt from "@/components/staff/StaffTransferPrompt";
 import GroomerActiveClientsPanel from "./GroomerActiveClientsPanel";
+import GroomerAccountingPanel from "./GroomerAccountingPanel";
 import LeadsPanel from "@/components/leads/LeadsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
+import { groomerHasAccounting } from "@/lib/analytics/groomer-accounting-shared";
 import type { SessionUser } from "@/lib/scheduling/types";
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
@@ -33,7 +35,8 @@ type Tab =
   | "team-calendar"
   | "availability"
   | "clients"
-  | "follow-ups";
+  | "follow-ups"
+  | "accounting";
 
 export default function GroomerDashboard({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -94,6 +97,9 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     { id: "route", label: "Route", group: "Schedule" },
     { id: "book", label: "Book", group: "Schedule" },
     { id: "team-calendar", label: "Team Availability", group: "Schedule" },
+    ...(groomerHasAccounting(groomerId)
+      ? [{ id: "accounting" as const, label: "Accounting", group: "Business" }]
+      : []),
   ];
 
   const padded = tab !== "crm";
@@ -167,6 +173,9 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
                 hideJobApplicants
                 allowDelete={false}
               />
+            )}
+            {tab === "accounting" && groomerHasAccounting(groomerId) && (
+              <GroomerAccountingPanel groomerId={groomerId} />
             )}
           </DashboardErrorBoundary>
         </div>

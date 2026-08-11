@@ -89,13 +89,6 @@ export async function runBookingFollowUp(
   }
 
   try {
-    const { ensureBookingConfirmationInCrm } = await import("@/lib/crm/messaging");
-    await ensureBookingConfirmationInCrm(appointment);
-  } catch (err) {
-    console.error("CRM confirmation SMS log failed:", err);
-  }
-
-  try {
     const { scheduleAppointmentReminders } = await import("@/lib/notifications/schedule-reminders");
     const scheduled = await scheduleAppointmentReminders(appointment);
     if (scheduled.scheduled.length) {

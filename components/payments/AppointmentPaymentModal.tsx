@@ -33,7 +33,6 @@ export default function AppointmentPaymentModal({
   const quotedServiceDollars = useMemo(() => getAppointmentBookedPrice(appointment), [appointment]);
 
   const [cardholderName, setCardholderName] = useState("");
-  const [postalCode, setPostalCode] = useState("");
   const [serviceAmount, setServiceAmount] = useState("");
   const [tip, setTip] = useState("");
   const [payCard, setPayCard] = useState<PaymentCardInstance | null>(null);
@@ -44,7 +43,6 @@ export default function AppointmentPaymentModal({
 
   useEffect(() => {
     setCardholderName("");
-    setPostalCode("");
   }, [appointment.id]);
 
   useEffect(() => {
@@ -101,16 +99,11 @@ export default function AppointmentPaymentModal({
       setError("Enter the name on the card.");
       return;
     }
-    if (!postalCode.trim() || !/^\d{5}(-\d{4})?$/.test(postalCode.trim())) {
-      setError("Enter a valid billing ZIP code.");
-      return;
-    }
 
     setBusy(true);
     try {
       const tokenResult = await payCard.tokenize({
         cardholderName: cardholderName.trim(),
-        postalCode: postalCode.trim(),
       });
       if (tokenResult.status !== "OK" || !tokenResult.token) {
         setError(tokenResult.errors?.[0]?.message ?? "Could not read card.");
@@ -125,7 +118,6 @@ export default function AppointmentPaymentModal({
           appointmentId: appointment.id,
           sourceId: tokenResult.token,
           cardholderName: cardholderName.trim(),
-          postalCode: postalCode.trim(),
           serviceDollars,
           tipDollars: tipDollars,
         }),
@@ -242,28 +234,13 @@ export default function AppointmentPaymentModal({
 
           <div>
             <p className="block text-sm font-medium text-gray-700 mb-1.5">
-              Card number · Expiration · CVV
+              Card number · Expiration · CVV · ZIP
             </p>
             <p className="text-xs text-gray-500 mb-2">
               Enter card details in the secure form below (PCI-compliant — numbers never touch our
               servers).
             </p>
             <PaymentCardField onReady={handlePayCardReady} disabled={busy} />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Billing ZIP code
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
-              autoComplete="off"
-              className="w-full max-w-[10rem] px-4 py-3 border border-gray-200 rounded-xl"
-              required
-            />
           </div>
 
           <p className="text-xs text-gray-500">

@@ -196,6 +196,14 @@ export default function TwilioSettingsPanel() {
         </div>
       )}
 
+      {!config.staffCallbackNumber.trim() && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+          Set <strong>Staff click-to-call phone</strong> to your cell (e.g. +19493863351), then click{" "}
+          <strong>Save settings</strong>. Outbound calls and the dialer need this — the business
+          line cannot call itself.
+        </div>
+      )}
+
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
         {(
           [

@@ -38,7 +38,7 @@ export async function startOutboundBridgeCall(options: {
     return {
       ok: false,
       error:
-        "Staff callback number required (pass staffPhone or set TWILIO_STAFF_CALLBACK_NUMBER)",
+        "Staff callback number required — enter your cell in the dialer, or save Staff click-to-call phone under Admin → Phone & SMS.",
     };
   }
   if (!customerPhone) {

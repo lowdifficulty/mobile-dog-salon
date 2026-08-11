@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import {
+  STAFF_CALLBACK_HELP,
+  useStaffCallbackPhone,
+} from "@/lib/twilio/use-staff-callback-phone";
 
 type Platform = {
   configured: boolean;
@@ -126,7 +130,7 @@ export default function CrmPanel() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [note, setNote] = useState("");
-  const [staffPhone, setStaffPhone] = useState("");
+  const { staffPhone, setStaffPhone, configuredInSettings } = useStaffCallbackPhone();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -189,15 +193,6 @@ export default function CrmPanel() {
     const id = window.setInterval(tick, 4000);
     return () => window.clearInterval(id);
   }, [selectedId, loadDetail, loadContacts]);
-
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("mds-crm-staff-phone");
-      if (saved) setStaffPhone(saved);
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   useEffect(() => {
     if (threadRef.current) {
@@ -268,15 +263,20 @@ export default function CrmPanel() {
 
   async function startCall() {
     if (!selectedId) return;
+    const staff = staffPhone.trim();
+    if (!staff && !configuredInSettings) {
+      setError(STAFF_CALLBACK_HELP);
+      return;
+    }
     setBusy("call");
     setError(null);
     setBanner(null);
     try {
-      if (staffPhone.trim()) sessionStorage.setItem("mds-crm-staff-phone", staffPhone.trim());
+      if (staff) setStaffPhone(staff);
       const res = await fetch(`/api/admin/crm/contacts/${selectedId}/calls`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ staffPhone: staffPhone.trim() || undefined }),
+        body: JSON.stringify({ staffPhone: staff || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Call failed");

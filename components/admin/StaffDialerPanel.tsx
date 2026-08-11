@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import {
+  STAFF_CALLBACK_HELP,
+  useStaffCallbackPhone,
+} from "@/lib/twilio/use-staff-callback-phone";
 
 export default function StaffDialerPanel() {
   const [toPhone, setToPhone] = useState("");
-  const [staffPhone, setStaffPhone] = useState("");
+  const { staffPhone, setStaffPhone, configuredInSettings } = useStaffCallbackPhone();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem("mds-crm-staff-phone");
-      if (saved) setStaffPhone(saved);
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   async function dial() {
     const to = toPhone.trim();
@@ -25,11 +20,15 @@ export default function StaffDialerPanel() {
       setError("Enter the number to call");
       return;
     }
+    if (!staff && !configuredInSettings) {
+      setError(STAFF_CALLBACK_HELP);
+      return;
+    }
     setBusy(true);
     setMessage(null);
     setError(null);
     try {
-      if (staff) sessionStorage.setItem("mds-crm-staff-phone", staff);
+      if (staff) setStaffPhone(staff);
       const res = await fetch("/api/admin/twilio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,6 +82,12 @@ export default function StaffDialerPanel() {
         />
       </label>
 
+      {!staffPhone.trim() && !configuredInSettings && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2 text-xs">
+          {STAFF_CALLBACK_HELP}
+        </div>
+      )}
+
       <label className="block">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           Your cell (click-to-call)
@@ -90,7 +95,7 @@ export default function StaffDialerPanel() {
         <input
           value={staffPhone}
           onChange={(e) => setStaffPhone(e.target.value)}
-          placeholder="Your phone — not the business line"
+          placeholder="+19493863351 — not the business line"
           className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
         />
       </label>

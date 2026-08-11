@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { loadSquareWebSdk } from "@/lib/payments/load-square-sdk";
 import type { PaymentCardBillingDetails, PaymentCardInstance } from "./StripeCardField";
 
 type SquareCardInstance = {
@@ -63,60 +64,65 @@ export default function SquareCardField({
 
   useEffect(() => {
     let card: SquareCardInstance | null = null;
-    let script: HTMLScriptElement | null = null;
+    let cancelled = false;
 
     async function init() {
       try {
         const configRes = await fetch("/api/payments/config");
         const config = await configRes.json();
         if (!config.configured) {
-          setError("Square payments are not configured on this site yet.");
-          onReadyRef.current(null);
-          setLoading(false);
-          return;
-        }
-
-        const scriptUrl =
-          config.environment === "production"
-            ? "https://web.squarecdn.com/v1/square.js"
-            : "https://sandbox.web.squarecdn.com/v1/square.js";
-
-        script = document.createElement("script");
-        script.src = scriptUrl;
-        script.async = true;
-        script.onload = async () => {
-          try {
-            if (!window.Square) throw new Error("Square SDK failed to load");
-            const payments = await window.Square.payments(config.applicationId, config.locationId);
-            card = await payments.card();
-            await card.attach(`#${containerId.current}`);
-            onReadyRef.current(wrapSquareCard(card));
-            setLoading(false);
-          } catch (err) {
-            console.error(err);
-            setError("Could not load card form.");
+          if (!cancelled) {
+            setError("Square payments are not configured on this site yet.");
             onReadyRef.current(null);
             setLoading(false);
           }
-        };
-        script.onerror = () => {
-          setError("Could not load Square payment form.");
+          return;
+        }
+
+        if (!config.applicationId || !config.locationId) {
+          if (!cancelled) {
+            setError("Square location is not configured. Set SQUARE_LOCATION_ID in Vercel.");
+            onReadyRef.current(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const environment = config.environment === "production" ? "production" : "sandbox";
+        await loadSquareWebSdk(environment);
+        if (cancelled || !window.Square) return;
+
+        const payments = await window.Square.payments(config.applicationId, config.locationId);
+        card = await payments.card();
+        await card.attach(`#${containerId.current}`);
+        if (cancelled) {
+          if (card.destroy) await card.destroy().catch(() => undefined);
+          return;
+        }
+
+        onReadyRef.current(wrapSquareCard(card));
+        setLoading(false);
+      } catch (err) {
+        console.error("Square card form init failed:", err);
+        if (!cancelled) {
+          const message =
+            err instanceof Error && err.message.includes("script")
+              ? "Could not load Square payment form. Check content security policy or ad blockers."
+              : err instanceof Error
+                ? err.message
+                : "Could not load card form.";
+          setError(message);
           onReadyRef.current(null);
           setLoading(false);
-        };
-        document.body.appendChild(script);
-      } catch {
-        setError("Could not load payment configuration.");
-        onReadyRef.current(null);
-        setLoading(false);
+        }
       }
     }
 
-    init();
+    void init();
 
     return () => {
+      cancelled = true;
       if (card?.destroy) card.destroy().catch(() => undefined);
-      if (script?.parentNode) script.parentNode.removeChild(script);
       onReadyRef.current(null);
     };
   }, []);

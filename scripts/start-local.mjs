@@ -1,13 +1,13 @@
 /**
- * Clean local production server on http://localhost:3000
+ * Clean local production server on configured LOCAL_PORT
  * Usage: npm run local | npm run 67 | 67 (after scripts/install-67.ps1)
  */
 
 import { spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { killPort, localProcessEnv, startNextServerDetached } from "./local-server.mjs";
+import { getLocalPort, killPort, localProcessEnv, startNextServerDetached } from "./local-server.mjs";
 
-const PORT = "3000";
+const PORT = String(getLocalPort());
 const isWin = process.platform === "win32";
 const localUrl = `http://localhost:${PORT}`;
 

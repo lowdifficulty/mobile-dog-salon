@@ -8,9 +8,21 @@ import { join } from "node:path";
 
 const isWin = process.platform === "win32";
 
+const DEFAULT_LOCAL_PORT = 3000;
+
+export function getLocalPort() {
+  const raw = process.env.LOCAL_PORT;
+  if (raw != null && String(raw).trim() !== "") {
+    const n = Number.parseInt(String(raw), 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return DEFAULT_LOCAL_PORT;
+}
+
 /** Strip Vercel flags from .env.local so local file stores are used for QA snapshots. */
-export function localProcessEnv(port = 3000) {
-  const env = { ...process.env, PORT: String(port), LOCALHOST_PROD_DATA: "1" };
+export function localProcessEnv(port) {
+  const resolved = port ?? getLocalPort();
+  const env = { ...process.env, PORT: String(resolved), LOCAL_PORT: String(resolved), LOCALHOST_PROD_DATA: "1" };
   for (const key of Object.keys(env)) {
     if (key === "VERCEL" || key.startsWith("VERCEL_")) {
       delete env[key];
@@ -58,7 +70,8 @@ export function killPort(port) {
 /**
  * Spawn `next start` detached via node (reliable on Windows; npm detached often dies).
  */
-export function startNextServerDetached(port = 3000) {
+export function startNextServerDetached(port) {
+  const resolved = port ?? getLocalPort();
   const nextBin = getNextBin();
   if (!existsSync(nextBin)) {
     throw new Error("Next.js not found. Run: npm install");
@@ -66,15 +79,16 @@ export function startNextServerDetached(port = 3000) {
 
   const logPath = join(process.cwd(), ".local-server.log");
   const pidPath = join(process.cwd(), ".local-server.pid");
+  const portPath = join(process.cwd(), ".local-server.port");
   const logFd = openSync(logPath, "a");
 
   const stamp = new Date().toISOString();
-  writeFileSync(logPath, `\n--- ${stamp} starting next on port ${port} ---\n`, { flag: "a" });
+  writeFileSync(logPath, `\n--- ${stamp} starting next on port ${resolved} ---\n`, { flag: "a" });
 
-  const child = spawn(process.execPath, [nextBin, "start", "-p", String(port)], {
+  const child = spawn(process.execPath, [nextBin, "start", "-p", String(resolved)], {
     detached: true,
     stdio: ["ignore", logFd, logFd],
-    env: localProcessEnv(port),
+    env: localProcessEnv(resolved),
     cwd: process.cwd(),
     windowsHide: true,
   });

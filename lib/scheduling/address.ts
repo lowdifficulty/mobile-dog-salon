@@ -13,6 +13,10 @@ export function formatAppointmentAddress({
   return zip ? `${address}, ${city}, ${zip}` : `${address}, ${city}`;
 }
 
+export function googleMapsSearchUrl(fullAddress: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress.trim())}`;
+}
+
 export function isValidZipCode(zipCode: string): boolean {
   return /^\d{5}(-\d{4})?$/.test(zipCode.trim());
 }

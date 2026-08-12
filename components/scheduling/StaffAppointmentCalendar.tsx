@@ -12,9 +12,12 @@ import {
 } from "@/lib/scheduling/groomers";
 import {
   groomerAppointmentCardClass,
+  groomerAppointmentLeftBorderClass,
   groomerAppointmentLegendDotClass,
   groomerAppointmentLegendLabel,
 } from "@/lib/scheduling/groomer-crm-colors";
+import AppointmentAddressActions from "@/components/scheduling/AppointmentAddressActions";
+import AppointmentPhoneActions from "@/components/scheduling/AppointmentPhoneActions";
 import { parseSlotFromIso, getTodayPacificDate } from "@/lib/scheduling/slots";
 import { setStaffAppointmentsCache } from "@/lib/scheduling/use-staff-appointments-cache";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
@@ -458,7 +461,9 @@ export default function StaffAppointmentCalendar({
                           onClick={() =>
                             setSelectedAppointmentId(isExpanded ? null : ap.id)
                           }
-                          className={`w-full text-left rounded-lg border px-2.5 py-1.5 transition-colors border-l-[3px] shadow-sm ${groomerAppointmentCardClass(
+                          className={`w-full text-left rounded-lg border px-2.5 py-1.5 transition-colors border-l-4 shadow-sm ${groomerAppointmentLeftBorderClass(
+                            ap.groomerId
+                          )} ${groomerAppointmentCardClass(
                             ap.groomerId,
                             {
                               isOwn: mode === "admin" ? false : isOwn,
@@ -491,11 +496,14 @@ export default function StaffAppointmentCalendar({
                               <strong>Pet:</strong> {formatPetNames(getAppointmentPets(ap))}
                             </p>
                             <p>
-                              <strong>Client:</strong> {ap.firstName} {ap.lastName} · {ap.phone}
+                              <strong>Client:</strong> {ap.firstName} {ap.lastName}
                             </p>
-                            <p>
-                              <strong>Address:</strong> {formatAppointmentAddress(ap)}
-                            </p>
+                            <div>
+                              <AppointmentPhoneActions phone={ap.phone} />
+                            </div>
+                            <div>
+                              <AppointmentAddressActions address={formatAppointmentAddress(ap)} />
+                            </div>
                             {ap.notes ? (
                               <p>
                                 <strong>Notes:</strong> {ap.notes}

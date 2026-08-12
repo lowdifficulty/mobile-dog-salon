@@ -17,9 +17,12 @@ import {
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
 import {
   groomerAppointmentCardClass,
+  groomerAppointmentLeftBorderClass,
   groomerAppointmentLegendDotClass,
   groomerAppointmentLegendLabel,
 } from "@/lib/scheduling/groomer-crm-colors";
+import AppointmentAddressActions from "@/components/scheduling/AppointmentAddressActions";
+import AppointmentPhoneActions from "@/components/scheduling/AppointmentPhoneActions";
 import LeadDetailsEditor, {
   leadToFormValues,
   type LeadDetailsFormValues,
@@ -294,6 +297,8 @@ export default function AppointmentList({
                 aria-hidden
               />
               {groomerAppointmentLegendLabel(id)}
+              {id === "melanie" && " (green)"}
+              {id === "jessica" && " (blue)"}
             </span>
           ))}
         </p>
@@ -315,6 +320,9 @@ export default function AppointmentList({
           cancelled: ap.status === "cancelled",
           colorByGroomer: useGroomerColors,
         });
+        const leftBorderClass = useGroomerColors
+          ? groomerAppointmentLeftBorderClass(ap.groomerId)
+          : "border-l-gray-300";
 
         const canManage =
           canStaffManageAppointment(ap, filter) &&
@@ -324,7 +332,7 @@ export default function AppointmentList({
         return (
           <div
             key={ap.id}
-            className={`rounded-lg border border-l-[3px] px-3 py-2 shadow-sm ${cardAccentClass}`}
+            className={`rounded-lg border border-l-4 px-3 py-2.5 shadow-sm ${leftBorderClass} ${cardAccentClass}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
               <div className="min-w-0 flex-1">
@@ -351,18 +359,46 @@ export default function AppointmentList({
                 <p className="text-sm text-gray-800 leading-snug mt-0.5">
                   <span className="font-medium">{appointmentTitle}</span>
                   {(ap.petName?.trim() || ap.petBreed) && (
-                    <span className="text-gray-500">
+                    <span className="text-gray-600">
                       {" "}
                       · {ap.petName?.trim()}
                       {ap.petBreed ? ` (${ap.petBreed})` : ""}
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-gray-500 truncate mt-0.5">
-                  {ap.firstName} {ap.lastName} · {ap.phone} · {formatAppointmentAddress(ap)}
-                </p>
+                <dl className="mt-1.5 space-y-1 text-xs text-gray-700">
+                  <div>
+                    <dt className="sr-only">Client</dt>
+                    <dd>
+                      <span className="font-semibold text-gray-800">Client:</span>{" "}
+                      {ap.firstName} {ap.lastName}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="sr-only">Phone</dt>
+                    <dd>
+                      <AppointmentPhoneActions phone={ap.phone} />
+                    </dd>
+                  </div>
+                  {ap.service?.trim() && (
+                    <div>
+                      <dt className="sr-only">Service</dt>
+                      <dd>
+                        <span className="font-semibold text-gray-800">Service:</span> {ap.service}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="sr-only">Address</dt>
+                    <dd>
+                      <AppointmentAddressActions address={formatAppointmentAddress(ap)} />
+                    </dd>
+                  </div>
+                </dl>
                 {ap.notes && (
-                  <p className="text-xs text-gray-400 truncate mt-0.5">Notes: {ap.notes}</p>
+                  <p className="text-xs text-gray-600 mt-1.5 whitespace-pre-wrap break-words">
+                    <span className="font-semibold text-gray-800">Notes:</span> {ap.notes}
+                  </p>
                 )}
               </div>
             </div>

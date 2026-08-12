@@ -23,7 +23,7 @@ export default function StaffAppointmentsPanel({
   allowDelete = false,
   showRecentFilter = false,
   refreshKey = 0,
-  colorByGroomer = false,
+  colorByGroomer,
 }: {
   apiUrl: string;
   currentGroomerId?: GroomerId;
@@ -63,7 +63,7 @@ export default function StaffAppointmentsPanel({
         currentGroomerId={currentGroomerId}
         allowOverrideAvailability={allowOverrideAvailability}
         allowDelete={allowDelete}
-        colorByGroomer={colorByGroomer}
+        {...(colorByGroomer !== undefined ? { colorByGroomer } : {})}
       />
     </div>
   );

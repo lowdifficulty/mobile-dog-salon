@@ -3,7 +3,6 @@ import {
   isBookingBlockEnabled,
   slotsCoveredByBooking,
 } from "./availability";
-import { isGroomerFullyBooked } from "./capacity";
 import {
   availabilityBlockMinutesForGroomer,
   bookingBlockStartsForGroomer,
@@ -35,10 +34,6 @@ export function effectiveAvailabilityTimes(
   times: string[],
   appointments: Appointment[]
 ): string[] {
-  if (isGroomerFullyBooked(groomerId, date, appointments)) {
-    return [];
-  }
-
   let result = times;
   for (const ap of appointments) {
     if (ap.groomerId !== groomerId || ap.status === "cancelled") continue;

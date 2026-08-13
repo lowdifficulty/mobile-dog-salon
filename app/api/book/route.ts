@@ -14,7 +14,6 @@ import {
 } from "@/lib/scheduling/slots";
 import { hasMinimumAvailabilityForBooking } from "@/lib/scheduling/availability";
 import { isAllowedBookingBlockStart, groomerAcceptsBookings, bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
-import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
 import {
   consumeSlotHold,
@@ -148,12 +147,6 @@ async function handleBookPost(request: Request) {
     );
     if (!dayAvail || !hasMinimumAvailabilityForBooking(dayAvail.times, time, visitDuration)) {
       return NextResponse.json({ error: "Groomer is not available at that time" }, { status: 409 });
-    }
-    if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
-      return NextResponse.json(
-        { error: "Groomer is fully booked on that day (4 appointments max)" },
-        { status: 409 }
-      );
     }
   }
 

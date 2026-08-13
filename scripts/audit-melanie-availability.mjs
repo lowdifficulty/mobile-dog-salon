@@ -6,7 +6,6 @@
 import { readFileSync } from "fs";
 import { getCustomerAvailableSlotsForDate } from "../lib/scheduling/customer-availability.ts";
 import { listSelfBookingStarts, listBookingBlockStarts } from "../lib/scheduling/availability.ts";
-import { isGroomerFullyBooked } from "../lib/scheduling/capacity.ts";
 import { effectiveAvailabilityTimes } from "../lib/scheduling/effective-availability.ts";
 import { isSlotTaken, isVanSlotTaken } from "../lib/scheduling/slots.ts";
 import { bookingDurationMinutesForGroomer } from "../lib/scheduling/groomers.ts";
@@ -39,7 +38,6 @@ for (const day of melDays) {
     day.times,
     data.appointments
   );
-  const fb = isGroomerFullyBooked("melanie", day.date, data.appointments);
   const dur = bookingDurationMinutesForGroomer("melanie");
   const taken = (t) =>
     isSlotTaken("melanie", day.date, t, dur, data.appointments) ||
@@ -57,7 +55,6 @@ for (const day of melDays) {
   const effStarts = listSelfBookingStarts(eff, "melanie", taken);
   const blocks = listBookingBlockStarts(day.times, "melanie");
   console.log("MISSING", day.date, {
-    fullyBooked: fb,
     blocks: blocks.length,
     rawStarts: rawStarts.length,
     effStarts: effStarts.length,

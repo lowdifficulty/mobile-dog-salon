@@ -15,7 +15,6 @@ import {
   TIME_SLOT_OPTIONS,
   WORK_END_HOUR,
 } from "@/lib/scheduling/groomers";
-import { isGroomerFullyBooked } from "@/lib/scheduling/capacity";
 import {
   isBookableDate,
   isSlotTaken,
@@ -256,13 +255,6 @@ export async function createAppointment(
       return {
         ok: false,
         error: "Groomer is not available at that time",
-        status: 409,
-      };
-    }
-    if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
-      return {
-        ok: false,
-        error: "Groomer is fully booked on that day (4 appointments max)",
         status: 409,
       };
     }
@@ -530,10 +522,6 @@ export async function createRecurringAppointments(
         skipped.push({ date, reason: "Groomer not available at that time" });
         continue;
       }
-      if (isGroomerFullyBooked(groomerId, date, data.appointments)) {
-        skipped.push({ date, reason: "Groomer fully booked that day" });
-        continue;
-      }
     }
 
     const conflict = slotConflictReason(
@@ -723,20 +711,6 @@ export async function rescheduleAppointment(
         status: 409,
       };
     }
-    if (
-      isGroomerFullyBooked(
-        groomerId,
-        date,
-        data.appointments,
-        appointment.id
-      )
-    ) {
-      return {
-        ok: false,
-        error: "Groomer is fully booked on that day (4 appointments max)",
-        status: 409,
-      };
-    }
   }
 
   const visitDuration = bookingDurationMinutesForGroomer(groomerId);
@@ -847,14 +821,6 @@ export async function transferAppointmentToGroomer(
       date,
       times: setBookingBlockEnabled([], time, true, toBlockMinutes),
     });
-  }
-
-  if (isGroomerFullyBooked(toGroomerId, date, data.appointments, appointment.id)) {
-    return {
-      ok: false,
-      error: "Groomer is fully booked on that day (4 appointments max)",
-      status: 409,
-    };
   }
 
   const visitDuration = bookingDurationMinutesForGroomer(toGroomerId);

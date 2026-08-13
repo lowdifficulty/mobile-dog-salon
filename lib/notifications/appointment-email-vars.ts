@@ -9,6 +9,7 @@ import {
   DEFAULT_BOOK_URL,
   DEFAULT_MELANIE_BOOK_URL,
 } from "./email-templates-defaults";
+import { appointmentShortUrl } from "@/lib/scheduling/appointment-short-link";
 import type { EmailTemplateVariable } from "./email-template-types";
 
 function siteBase(): string {
@@ -29,7 +30,9 @@ export function appointmentEmailVariables(
   const petLabel = getAppointmentPetLabel(appointment);
   const petSummary = formatPetsList(getAppointmentPets(appointment));
   const base = siteBase();
-  const manageUrl = `${base}${ROUTES.myAppointment}`;
+  const manageUrl = appointment.shortCode
+    ? appointmentShortUrl(appointment.shortCode, base)
+    : `${base}${ROUTES.myAppointment}`;
   const bookUrl = `${base}${ROUTES.book}`;
   const melanieBookUrl = `${base}/melanie`;
 

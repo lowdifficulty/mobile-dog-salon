@@ -37,6 +37,8 @@ export interface Appointment {
   zipCode: string;
   notes: string;
   createdAt: string;
+  /** Unguessable public SMS/web details link code (`/a/{shortCode}`). */
+  shortCode?: string;
   /** ISO timestamp when 24-hour reminder email was sent */
   reminder24hEmailSentAt?: string;
   /** ISO timestamp when 24-hour reminder SMS was sent */

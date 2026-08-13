@@ -23,6 +23,10 @@ import {
 } from "@/lib/scheduling/slot-holds";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import { isValidCustomerEmail, resolveBookingEmail } from "@/lib/booking/customer-email";
+import {
+  existingAppointmentShortCodes,
+  withAppointmentShortCode,
+} from "@/lib/scheduling/appointment-short-link";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export async function POST(request: Request) {
@@ -189,31 +193,34 @@ async function handleBookPost(request: Request) {
     }
   }
 
-  const appointment: Appointment = {
-    id: randomUUID(),
-    groomerId,
-    van: vanForGroomer(groomerId),
-    startAt: slotToISO(date, time),
-    durationMinutes: visitDuration,
-    status: "confirmed",
-    petName: petName?.trim() ?? "",
-    petBreed: petBreed ?? "",
-    petSize: petSize ?? "",
-    additionalPets: Array.isArray(additionalPets)
-      ? additionalPets.filter((pet) => pet?.petSize)
-      : undefined,
-    service,
-    firstName,
-    lastName,
-    email: bookingEmail,
-    phone: phoneTrimmed,
-    smsOptIn: Boolean(smsOptIn),
-    address: street,
-    city: cityName || "Orange County",
-    zipCode: zipTrimmed,
-    notes: notes ?? "",
-    createdAt: new Date().toISOString(),
-  };
+  const appointment: Appointment = withAppointmentShortCode(
+    {
+      id: randomUUID(),
+      groomerId,
+      van: vanForGroomer(groomerId),
+      startAt: slotToISO(date, time),
+      durationMinutes: visitDuration,
+      status: "confirmed",
+      petName: petName?.trim() ?? "",
+      petBreed: petBreed ?? "",
+      petSize: petSize ?? "",
+      additionalPets: Array.isArray(additionalPets)
+        ? additionalPets.filter((pet) => pet?.petSize)
+        : undefined,
+      service,
+      firstName,
+      lastName,
+      email: bookingEmail,
+      phone: phoneTrimmed,
+      smsOptIn: Boolean(smsOptIn),
+      address: street,
+      city: cityName || "Orange County",
+      zipCode: zipTrimmed,
+      notes: notes ?? "",
+      createdAt: new Date().toISOString(),
+    },
+    existingAppointmentShortCodes(data.appointments)
+  );
 
   data.appointments.push(appointment);
   await writeSchedulingData(data, {

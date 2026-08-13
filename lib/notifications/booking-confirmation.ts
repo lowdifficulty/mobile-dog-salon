@@ -10,9 +10,21 @@ export async function sendCustomerConfirmationEmail(
   return sendCustomerConfirmationWithTemplate(appointment);
 }
 
-export function bookingConfirmationSmsBody(appointment: Appointment): string {
+export async function bookingConfirmationSmsBody(
+  appointment: Appointment
+): Promise<string> {
   const when = formatBookingConfirmationSmsWhen(appointment);
-  return `This is Licky with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed ${when}. Any special instructions for your pup?`;
+  let url = "";
+  try {
+    const { ensureAppointmentShortCode } = await import(
+      "@/lib/scheduling/appointment-short-link"
+    );
+    url = (await ensureAppointmentShortCode(appointment)).url;
+  } catch (err) {
+    console.error("Appointment short link failed:", err);
+  }
+  const details = url ? ` Details: ${url}` : "";
+  return `This is Licky with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed ${when}.${details}`;
 }
 
 export async function sendCustomerConfirmationSms(
@@ -22,7 +34,7 @@ export async function sendCustomerConfirmationSms(
     return false;
   }
 
-  const body = bookingConfirmationSmsBody(appointment);
+  const body = await bookingConfirmationSmsBody(appointment);
 
   const result = await sendSms(appointment.phone, body);
   if (result.ok) {

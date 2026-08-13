@@ -34,6 +34,10 @@ import {
 } from "@/lib/scheduling/recurring-appointments";
 import { vanForGroomer } from "@/lib/scheduling/vans";
 import { resolveBookingEmail } from "@/lib/booking/customer-email";
+import {
+  existingAppointmentShortCodes,
+  withAppointmentShortCode,
+} from "@/lib/scheduling/appointment-short-link";
 import type { Appointment, AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
 
 export type AppointmentActionResult =
@@ -303,32 +307,36 @@ export async function createAppointment(
 
   const emailTrimmed = String(input.email ?? "").trim();
   const bookingEmail = resolveBookingEmail(phoneTrimmed, emailTrimmed);
+  const usedCodes = existingAppointmentShortCodes(data.appointments);
 
-  const appointment: Appointment = {
-    id: randomUUID(),
-    groomerId,
-    van: vanForGroomer(groomerId),
-    startAt: slotToISO(date, time),
-    durationMinutes: visitDuration,
-    status: "confirmed",
-    petName: input.petName?.trim() ?? "",
-    petBreed: input.petBreed ?? "",
-    petSize: input.petSize,
-    additionalPets: Array.isArray(input.additionalPets)
-      ? input.additionalPets.filter((pet) => pet?.petSize)
-      : undefined,
-    service: input.service,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    email: bookingEmail,
-    phone: phoneTrimmed,
-    smsOptIn: Boolean(input.smsOptIn),
-    address: street,
-    city: cityName || "Orange County",
-    zipCode: zipTrimmed,
-    notes: input.notes ?? "",
-    createdAt: new Date().toISOString(),
-  };
+  const appointment = withAppointmentShortCode(
+    {
+      id: randomUUID(),
+      groomerId,
+      van: vanForGroomer(groomerId),
+      startAt: slotToISO(date, time),
+      durationMinutes: visitDuration,
+      status: "confirmed",
+      petName: input.petName?.trim() ?? "",
+      petBreed: input.petBreed ?? "",
+      petSize: input.petSize,
+      additionalPets: Array.isArray(input.additionalPets)
+        ? input.additionalPets.filter((pet) => pet?.petSize)
+        : undefined,
+      service: input.service,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: bookingEmail,
+      phone: phoneTrimmed,
+      smsOptIn: Boolean(input.smsOptIn),
+      address: street,
+      city: cityName || "Orange County",
+      zipCode: zipTrimmed,
+      notes: input.notes ?? "",
+      createdAt: new Date().toISOString(),
+    },
+    usedCodes
+  );
 
   data.appointments.push(appointment);
   await writeSchedulingData(data, {
@@ -506,6 +514,8 @@ export async function createRecurringAppointments(
   const baseNotes = input.notes?.trim() ?? "";
   const notes = baseNotes ? `${baseNotes}\n${recurrenceNote}` : recurrenceNote;
 
+  const usedCodes = existingAppointmentShortCodes(data.appointments);
+
   for (const date of dates) {
     if (!options?.allowSameDay && !isBookableDate(date)) {
       skipped.push({ date, reason: "Same-day booking not allowed" });
@@ -539,13 +549,16 @@ export async function createRecurringAppointments(
       continue;
     }
 
-    const appointment = buildAppointmentRecord(
-      input,
-      groomerId,
-      date,
-      time,
-      notes,
-      visitDuration
+    const appointment = withAppointmentShortCode(
+      buildAppointmentRecord(
+        input,
+        groomerId,
+        date,
+        time,
+        notes,
+        visitDuration
+      ),
+      usedCodes
     );
     data.appointments.push(appointment);
     created.push(appointment);

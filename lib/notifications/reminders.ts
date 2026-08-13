@@ -9,7 +9,10 @@ import type { Appointment } from "@/lib/scheduling/types";
 
 export type ReminderKind = "24h" | "1h";
 
-export function reminderSmsBody(appointment: Appointment, kind: ReminderKind): string {
+export async function reminderSmsBody(
+  appointment: Appointment,
+  kind: ReminderKind
+): Promise<string> {
   const { groomerName, serviceLabel, when } = appointmentSummaryLines(appointment);
   const petLabel = getAppointmentPetLabel(appointment);
   const lead =
@@ -17,13 +20,26 @@ export function reminderSmsBody(appointment: Appointment, kind: ReminderKind): s
       ? `Reminder: ${petLabel}'s grooming is tomorrow.`
       : `Reminder: ${petLabel}'s grooming is in about one hour.`;
 
+  let detailsUrl = "";
+  try {
+    const { ensureAppointmentShortCode } = await import(
+      "@/lib/scheduling/appointment-short-link"
+    );
+    detailsUrl = (await ensureAppointmentShortCode(appointment)).url;
+  } catch (err) {
+    console.error("Appointment short link failed:", err);
+  }
+
   return [
     `Mobile Dog Salon: ${lead}`,
     `${serviceLabel} · ${when.smsWhen}`,
     `Groomer: ${groomerName}`,
     formatAppointmentAddress(appointment),
+    detailsUrl ? `Details: ${detailsUrl}` : "",
     `Reply STOP to opt out. HELP for help.`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export async function sendReminderEmail(
@@ -51,7 +67,7 @@ export async function sendReminderSms(
   if (!appointment.smsOptIn || !appointment.phone.trim()) {
     return false;
   }
-  const body = reminderSmsBody(appointment, kind);
+  const body = await reminderSmsBody(appointment, kind);
   const { sendSms } = await import("./twilio");
   const result = await sendSms(appointment.phone, body);
   if (result.ok) {

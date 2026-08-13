@@ -12,12 +12,20 @@ import { recordInboundSms } from "@/lib/crm/messaging";
 import { handleInboundSmsWithBot } from "@/lib/crm/sms-bot";
 import { findContactByPhone } from "@/lib/crm/store";
 import { hasActiveSmsBotSession } from "@/lib/crm/sms-bot-session";
+import { smsStatusCallbackUrl } from "@/lib/notifications/twilio";
 
 const { name, businessPhoneDisplay, contactEmail } = companyLegal;
 
-function twiml(message?: string): NextResponse {
+async function twiml(message?: string): Promise<NextResponse> {
   const response = new twilio.twiml.MessagingResponse();
-  if (message) response.message(message);
+  if (message) {
+    const statusCallback = await smsStatusCallbackUrl();
+    if (statusCallback) {
+      response.message({ action: statusCallback, statusCallback }, message);
+    } else {
+      response.message(message);
+    }
+  }
   return new NextResponse(response.toString(), {
     headers: { "Content-Type": "text/xml" },
   });

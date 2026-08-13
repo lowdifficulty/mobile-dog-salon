@@ -166,12 +166,33 @@ export async function markContactRead(contactId: string): Promise<void> {
   const data = await readCrmData();
   const idx = data.contacts.findIndex((c) => c.id === contactId);
   if (idx < 0) return;
-  data.contacts[idx] = {
-    ...data.contacts[idx],
-    unreadCount: 0,
-    updatedAt: new Date().toISOString(),
-  };
-  await writeCrmData(data);
+  const now = new Date().toISOString();
+  let changed = false;
+
+  if ((data.contacts[idx].unreadCount ?? 0) !== 0) {
+    data.contacts[idx] = {
+      ...data.contacts[idx],
+      unreadCount: 0,
+      updatedAt: now,
+    };
+    changed = true;
+  }
+
+  for (let i = 0; i < data.interactions.length; i++) {
+    const ix = data.interactions[i];
+    if (ix.contactId !== contactId || ix.channel !== "sms" || ix.direction !== "inbound") {
+      continue;
+    }
+    if (ix.readAt) continue;
+    data.interactions[i] = {
+      ...ix,
+      readAt: now,
+      messageStatus: "read",
+    };
+    changed = true;
+  }
+
+  if (changed) await writeCrmData(data);
 }
 
 export async function setContactBotEnabled(

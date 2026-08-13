@@ -23,8 +23,10 @@ export type CrmMessageStatus =
   | "queued"
   | "sent"
   | "delivered"
+  | "undelivered"
   | "failed"
-  | "received";
+  | "received"
+  | "read";
 
 export type CrmCallStatus =
   | "queued"
@@ -146,6 +148,8 @@ export interface CrmInteraction {
   body?: string;
   summary?: string;
   messageStatus?: CrmMessageStatus;
+  /** Set when staff viewed inbound SMS, or the customer opened a correlated `/a/[code]` link. */
+  readAt?: string;
   callStatus?: CrmCallStatus;
   twilioSid?: string;
   durationSeconds?: number;

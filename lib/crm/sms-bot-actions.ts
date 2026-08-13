@@ -245,7 +245,7 @@ export async function smsBookSlot(
   return {
     ok: true,
     appointmentId: result.appointment.id,
-    message: `You're booked! ${result.appointment.petName || "Your pup"} — ${formatAppointmentWhen(result.appointment.startAt)} with ${groomerName(result.appointment.groomerId)}. Details: ${result.appointment.shortCode ? `${companyLegal.siteUrl}/a/${result.appointment.shortCode}` : `${companyLegal.siteUrl}/my-appointment`}`,
+    message: `You're booked! ${result.appointment.petName || "Your pup"} — ${formatAppointmentWhen(result.appointment.startAt)} with ${groomerName(result.appointment.groomerId)}.`,
   };
 }
 

@@ -58,6 +58,7 @@ type CrmInteraction = {
   body?: string;
   summary?: string;
   messageStatus?: string;
+  readAt?: string;
   callStatus?: string;
   recordingSid?: string;
   recordingUrl?: string;
@@ -91,14 +92,6 @@ type ContactDetail = CrmContact & {
   }[];
 };
 
-type Stats = {
-  total: number;
-  leads: number;
-  customers: number;
-  inactive: number;
-  unread: number;
-};
-
 function formatWhen(iso?: string): string {
   if (!iso) return "—";
   try {
@@ -119,6 +112,75 @@ function initials(name?: string, phone?: string): string {
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
   return (phone || "?").slice(-2);
+}
+
+function SmsReceiptMarks({
+  direction,
+  status,
+  readAt,
+  inverted,
+}: {
+  direction: string;
+  status?: string;
+  readAt?: string;
+  inverted: boolean;
+}) {
+  const failed = status === "failed" || status === "undelivered";
+  const isRead = status === "read" || Boolean(readAt);
+  const delivered = status === "delivered" || isRead;
+  const sent = status === "sent" || status === "queued" || delivered || failed;
+
+  let label = "";
+  if (direction === "outbound") {
+    if (failed) label = "Not delivered";
+    else if (isRead) label = "Read";
+    else if (status === "delivered") label = "Delivered";
+    else if (status === "queued") label = "Sending";
+    else if (sent) label = "Sent";
+  } else if (direction === "inbound" && isRead) {
+    label = "Seen";
+  }
+  if (!label) return null;
+
+  const tone = failed
+    ? inverted
+      ? "text-red-100"
+      : "text-red-600"
+    : isRead && direction === "outbound"
+      ? inverted
+        ? "text-sky-100"
+        : "text-sky-700"
+      : inverted
+        ? "text-white/80"
+        : "text-gray-500";
+
+  return (
+    <div className={`mt-1 flex items-center gap-1 text-[10px] leading-none ${tone} ${direction === "outbound" ? "justify-end" : ""}`}>
+      {direction === "outbound" && !failed && (
+        <svg width="14" height="10" viewBox="0 0 14 10" aria-hidden className="shrink-0">
+          <path
+            d="M1.2 5.2 3.4 7.5 7.8 1.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {delivered ? (
+            <path
+              d="M5.6 5.2 7.8 7.5 12.4 1.6"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ) : null}
+        </svg>
+      )}
+      <span>{label}</span>
+    </div>
+  );
 }
 
 function formatDaysSince(days: number | null | undefined): string {
@@ -149,7 +211,6 @@ export default function CrmPanel() {
   const isLargeScreen = useMediaQuery("(min-width: 1024px)");
   const deepLinkContactId = useRef<string | null>(null);
   const [contacts, setContacts] = useState<CrmContact[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [selectedId, setSelectedId] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -213,7 +274,6 @@ export default function CrmPanel() {
       if (!res.ok) throw new Error("Could not load CRM contacts");
       const data = await res.json();
       setContacts(data.contacts ?? []);
-      setStats(data.stats ?? null);
       setPlatform(data.platform ?? null);
       if (!selectedId && data.contacts?.[0]?.id && isLargeScreen) {
         setSelectedId(data.contacts[0].id);
@@ -392,15 +452,8 @@ export default function CrmPanel() {
 
   return (
     <div className="h-[calc(100dvh-3.5rem)] flex flex-col min-h-0">
-      {(banner || error || platform) && (
+      {(banner || error || platform?.crmStorage === "file") && (
         <div className="px-4 py-2 border-b border-gray-200 bg-white flex flex-wrap gap-3 items-center text-xs">
-          {platform && (
-            <span className="text-gray-500">
-              Twilio {platform.configured ? "ready" : "needs setup"} · SMS bot{" "}
-              {platform.smsBotEnabled ? `on (${platform.smsBotMode || "test"})` : "off"}
-              {platform.crmStorage === "file" ? " · CRM: local file (inbound SMS only on production Redis)" : platform.crmStorage === "redis" ? " · CRM: live" : null}
-            </span>
-          )}
           {platform?.crmStorage === "file" && (
             <span className="text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
               Inbound texts are stored on production only. Paste KV credentials into{" "}
@@ -412,19 +465,6 @@ export default function CrmPanel() {
               .
             </span>
           )}
-          {stats && (
-            <span className="text-gray-500">
-              {stats.total} contacts · {stats.unread} unread
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => void refreshFromSources()}
-            disabled={busy === "refresh"}
-            className="ml-auto font-semibold text-brand hover:underline disabled:opacity-50"
-          >
-            Sync customers
-          </button>
           {banner && <span className="text-green-700 font-medium">{banner}</span>}
           {error && <span className="text-red-700 font-medium">{error}</span>}
         </div>
@@ -434,12 +474,23 @@ export default function CrmPanel() {
         {/* Conversations list */}
         <section className={`${paneClass(showListPane)} border-r border-gray-200 bg-white`}>
           <div className="p-3 border-b border-gray-100 space-y-2">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search conversations…"
-              className="w-full rounded-lg border border-gray-200 bg-[#f8fafc] px-3 py-2 text-sm"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search conversations…"
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-[#f8fafc] px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => void refreshFromSources()}
+                disabled={busy === "refresh"}
+                title="Sync customers from bookings"
+                className="shrink-0 text-xs font-semibold text-brand px-1.5 py-2 hover:underline disabled:opacity-50"
+              >
+                {busy === "refresh" ? "Syncing…" : "Sync"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-1">
               {VIEW_TABS.map((tab) => (
                 <button
@@ -677,7 +728,17 @@ export default function CrmPanel() {
                             )}
                           </div>
                         ) : (
-                          <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                          <>
+                            <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                            {ix.channel === "sms" && !suppressed && (
+                              <SmsReceiptMarks
+                                direction={ix.direction}
+                                status={ix.messageStatus}
+                                readAt={ix.readAt}
+                                inverted={mine && ix.channel === "sms"}
+                              />
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

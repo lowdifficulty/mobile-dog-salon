@@ -265,7 +265,7 @@ export async function recordBotSms(options: {
     direction: "outbound",
     body: options.body,
     summary: "SMS bot reply",
-    messageStatus: options.twilioSid ? "sent" : "sent",
+    messageStatus: options.twilioSid ? "sent" : "queued",
     twilioSid: options.twilioSid,
     actor: "bot",
     createdAt: now,

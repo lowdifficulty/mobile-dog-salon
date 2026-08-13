@@ -8,6 +8,7 @@ import { ROUTES } from "@/lib/routes";
 import { formatAppointmentAddress, googleMapsSearchUrl } from "@/lib/scheduling/address";
 import { findAppointmentByShortCode } from "@/lib/scheduling/appointment-short-link";
 import { GROOMERS } from "@/lib/scheduling/groomers";
+import { AppointmentShortLinkOpened } from "@/components/scheduling/AppointmentShortLinkOpened";
 import type { Appointment } from "@/lib/scheduling/types";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,7 @@ export default async function AppointmentShortLinkPage({ params }: PageProps) {
 
   return (
     <main className="max-w-xl mx-auto px-4 py-10">
+      <AppointmentShortLinkOpened code={code} />
       <p className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">
         Mobile Dog Salon
       </p>

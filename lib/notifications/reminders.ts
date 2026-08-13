@@ -20,22 +20,11 @@ export async function reminderSmsBody(
       ? `Reminder: ${petLabel}'s grooming is tomorrow.`
       : `Reminder: ${petLabel}'s grooming is in about one hour.`;
 
-  let detailsUrl = "";
-  try {
-    const { ensureAppointmentShortCode } = await import(
-      "@/lib/scheduling/appointment-short-link"
-    );
-    detailsUrl = (await ensureAppointmentShortCode(appointment)).url;
-  } catch (err) {
-    console.error("Appointment short link failed:", err);
-  }
-
   return [
     `Mobile Dog Salon: ${lead}`,
     `${serviceLabel} · ${when.smsWhen}`,
     `Groomer: ${groomerName}`,
     formatAppointmentAddress(appointment),
-    detailsUrl ? `Details: ${detailsUrl}` : "",
     `Reply STOP to opt out. HELP for help.`,
   ]
     .filter(Boolean)

@@ -24,6 +24,17 @@ export type SendSmsResult = {
   error?: string;
 };
 
+/** Public Twilio SMS status callback URL, or undefined when the base is localhost. */
+export async function smsStatusCallbackUrl(): Promise<string | undefined> {
+  const { resolveTwilioWebhookBase } = await import("./twilio-runtime-config");
+  const { companyLegal } = await import("@/lib/company-legal");
+  const base =
+    (await resolveTwilioWebhookBase())?.replace(/\/$/, "") ||
+    companyLegal.siteUrl.replace(/\/$/, "");
+  if (!base || /localhost|127\.0\.0\.1/i.test(base)) return undefined;
+  return `${base}/api/twilio/sms/status`;
+}
+
 export async function sendSms(
   to: string,
   body: string,
@@ -56,7 +67,13 @@ export async function sendSms(
   }
 
   try {
-    const message = await client.messages.create({ from, to: toE164, body });
+    const statusCallback = await smsStatusCallbackUrl();
+    const message = await client.messages.create({
+      from,
+      to: toE164,
+      body,
+      ...(statusCallback ? { statusCallback } : {}),
+    });
     return { ok: true, sid: message.sid, to: toE164 };
   } catch (err) {
     const error = err instanceof Error ? err.message : "SMS send failed";

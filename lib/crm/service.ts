@@ -368,8 +368,6 @@ export async function getCrmContactDetail(
       a.phone.replace(/\D/g, "").endsWith(contact.phone)
   );
 
-  const interactions = await listInteractionsForContact(contactId);
-
   const mapped = mine.map((a) => ({
     id: a.id,
     startAt: a.startAt,
@@ -381,6 +379,7 @@ export async function getCrmContactDetail(
 
   await markContactRead(contactId);
   const refreshed = (await findContactById(contactId)) ?? contact;
+  const interactions = await listInteractionsForContact(contactId);
 
   return {
     ...refreshed,

@@ -42,6 +42,29 @@ export async function listClientAppointments(
     });
 }
 
+export async function listAppointmentsByPhone(phone: string): Promise<Appointment[]> {
+  const digits = normalizePhone(phone);
+  if (digits.length < 10) return [];
+  const { appointments } = await readSchedulingData();
+  return appointments.filter((ap) => {
+    const apDigits = normalizePhone(ap.phone);
+    return (
+      apDigits.length >= 10 &&
+      (apDigits === digits || apDigits.endsWith(digits) || digits.endsWith(apDigits))
+    );
+  });
+}
+
+export async function getAppointmentByPhone(
+  phone: string,
+  appointmentId: string
+): Promise<Appointment | null> {
+  const appointment = (await listAppointmentsByPhone(phone)).find(
+    (ap) => ap.id === appointmentId
+  );
+  return appointment ?? null;
+}
+
 export async function getClientAppointment(
   client: ClientAccount,
   appointmentId: string

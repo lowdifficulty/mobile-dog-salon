@@ -15,7 +15,7 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "list_upcoming_appointments",
       description:
-        "List the client's upcoming confirmed appointments with ids, times, groomers, and pets. Logged-in clients only.",
+        "List the client's upcoming confirmed appointments with ids, times, groomers, and pets. Works for logged-in clients and callers identified by phone.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -39,7 +39,7 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
           groomer_id: {
             type: "string",
-            enum: ["melanie", "diamond"],
+            enum: ["melanie", "diamond", "jessica"],
             description: "Optional filter to one groomer",
           },
         },
@@ -67,7 +67,7 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
           groomer_id: {
             type: "string",
-            enum: ["melanie", "diamond"],
+            enum: ["melanie", "diamond", "jessica"],
           },
           date: {
             type: "string",

@@ -6,6 +6,8 @@ import {
 } from "@/lib/scheduling/appointment-actions";
 import {
   getClientAppointment,
+  getAppointmentByPhone,
+  listAppointmentsByPhone,
   listClientAppointments,
   mergeAppointmentIds,
 } from "@/lib/client/appointments";
@@ -100,6 +102,56 @@ async function lickyReserveSlot(
   return null;
 }
 
+function lickyGroomerFilter(raw: string | undefined): GroomerId | undefined {
+  const id = raw?.trim().toLowerCase();
+  if (id === "melanie" || id === "diamond" || id === "jessica") return id;
+  return undefined;
+}
+
+function ctxPhone(ctx: LickyActionContext): string {
+  return (ctx.callerPhone || ctx.guest?.phone || ctx.account?.phone || "").trim();
+}
+
+async function upcomingAppointmentsForCtx(ctx: LickyActionContext) {
+  const now = Date.now();
+  const byId = new Map<string, Awaited<ReturnType<typeof listAppointmentsByPhone>>[number]>();
+  if (ctx.loggedIn && ctx.account) {
+    for (const ap of await listClientAppointments(ctx.account)) {
+      if (ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now) {
+        byId.set(ap.id, ap);
+      }
+    }
+  }
+  const phone = ctxPhone(ctx);
+  if (phone) {
+    for (const ap of await listAppointmentsByPhone(phone)) {
+      if (ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now) {
+        byId.set(ap.id, ap);
+      }
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.startAt.localeCompare(b.startAt));
+}
+
+async function appointmentForCtx(
+  ctx: LickyActionContext,
+  appointmentId: string
+) {
+  if (ctx.loggedIn && ctx.account) {
+    const owned = await getClientAppointment(ctx.account, appointmentId);
+    if (owned) return owned;
+  }
+  const phone = ctxPhone(ctx);
+  if (!phone) return null;
+  return getAppointmentByPhone(phone, appointmentId);
+}
+
+function lickyActor(ctx: LickyActionContext): string {
+  if (ctx.account?.email) return `licky:client:${ctx.account.email}`;
+  const phone = ctxPhone(ctx).replace(/\D/g, "");
+  return phone ? `licky:phone:${phone}` : "licky:guest";
+}
+
 const MAX_SLOTS_IN_REPLY = 24;
 
 function formatApptLine(ap: {
@@ -122,17 +174,12 @@ function formatApptLine(ap: {
 }
 
 export async function lickyListUpcoming(ctx: LickyActionContext): Promise<string> {
-  if (!ctx.loggedIn || !ctx.account) {
-    return "Log in at /client/login to see your appointments.";
-  }
-  const appointments = await listClientAppointments(ctx.account);
-  const now = Date.now();
-  const upcoming = appointments.filter(
-    (ap) => ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now
-  );
-
+  const upcoming = await upcomingAppointmentsForCtx(ctx);
   if (!upcoming.length) {
-    return "No upcoming confirmed appointments on this account.";
+    if (!ctx.loggedIn && !ctxPhone(ctx)) {
+      return "Log in at /client/login to see your appointments, or call from the number on the booking.";
+    }
+    return "No upcoming confirmed appointments on this number.";
   }
 
   return upcoming.map(formatApptLine).join("\n");
@@ -145,13 +192,9 @@ export async function lickyBuildAvailabilityResponse(params: {
   offset?: number;
   holdOwnerId?: string;
 }): Promise<LickyStructuredResponse> {
-  const groomerFilter = params.groomer_id?.trim().toLowerCase();
-  if (
-    groomerFilter &&
-    groomerFilter !== "melanie" &&
-    groomerFilter !== "diamond"
-  ) {
-    return structuredFromText("Groomer must be Melanie or Diamond.");
+  const groomerFilter = lickyGroomerFilter(params.groomer_id);
+  if (params.groomer_id?.trim() && !groomerFilter) {
+    return structuredFromText("Groomer must be Melanie, Diamond, or Jessica.");
   }
 
   const data = await getLickyAvailabilitySlots({
@@ -318,16 +361,13 @@ export async function lickyFindSlot(
     date?: string;
   }
 ): Promise<{ text: string; slots: Awaited<ReturnType<typeof getLickyAvailabilitySlots>>["slots"]; service: string; fromFallback: boolean }> {
-  const groomerFilter = params.groomer_id?.trim().toLowerCase();
+  const groomerFilter = lickyGroomerFilter(params.groomer_id);
   const service = params.service?.trim() || "full-groom";
 
   const data = await getLickyAvailabilitySlots({
     service,
     days: 14,
-    groomerId:
-      groomerFilter === "melanie" || groomerFilter === "diamond"
-        ? groomerFilter
-        : undefined,
+    groomerId: groomerFilter,
     holdOwnerId: ctx.holdOwnerId,
   });
 
@@ -342,10 +382,7 @@ export async function lickyFindSlot(
 
   const matched = rankSlotsForPreference(data.slots, {
     preference: params.preference,
-    groomerId:
-      groomerFilter === "melanie" || groomerFilter === "diamond"
-        ? groomerFilter
-        : undefined,
+    groomerId: groomerFilter,
     date: params.date,
     limit: 5,
   });
@@ -502,20 +539,16 @@ export async function lickyCheckAvailability(
     groomer_id?: string;
   }
 ): Promise<string> {
-  const groomerFilter = params.groomer_id?.trim().toLowerCase();
-  if (
-    groomerFilter &&
-    groomerFilter !== "melanie" &&
-    groomerFilter !== "diamond"
-  ) {
-    return "Groomer id must be 'melanie' or 'diamond'.";
+  const groomerFilter = lickyGroomerFilter(params.groomer_id);
+  if (params.groomer_id?.trim() && !groomerFilter) {
+    return "Groomer id must be 'melanie', 'diamond', or 'jessica'.";
   }
 
   const { slots, days, service, groomerId, source, persistenceMode } =
     await getLickyAvailabilitySlots({
       service: params.service,
       days: params.days,
-      groomerId: groomerFilter || undefined,
+      groomerId: groomerFilter,
       holdOwnerId: _ctx.holdOwnerId,
     });
 
@@ -575,17 +608,17 @@ export async function lickyCancelAppointment(
   ctx: LickyActionContext,
   params: { appointment_id: string; confirmed?: boolean }
 ): Promise<string> {
-  if (!ctx.loggedIn || !ctx.account) {
-    return "Log in at /client/login to cancel an appointment.";
-  }
   const appointmentId = params.appointment_id?.trim();
   if (!appointmentId) {
     return "appointment_id is required.";
   }
 
-  const appointment = await getClientAppointment(ctx.account, appointmentId);
+  const appointment = await appointmentForCtx(ctx, appointmentId);
   if (!appointment) {
-    return "I couldn't find that appointment on your account. Use list_upcoming_appointments to see valid ids.";
+    if (!ctx.loggedIn && !ctxPhone(ctx)) {
+      return "Log in at /client/login to cancel an appointment.";
+    }
+    return "I couldn't find that appointment on this number. Use list_upcoming_appointments to see valid ids.";
   }
 
   if (appointment.status === "cancelled") {
@@ -596,10 +629,7 @@ export async function lickyCancelAppointment(
     return `Ready to cancel: ${formatApptLine(appointment)}. Ask the client to confirm, then call again with confirmed=true.`;
   }
 
-  const result = await cancelAppointment(
-    appointmentId,
-    `licky:client:${ctx.account.email}`
-  );
+  const result = await cancelAppointment(appointmentId, lickyActor(ctx));
 
   if (!result.ok) {
     return `Could not cancel: ${result.error}`;
@@ -612,9 +642,6 @@ export async function lickyRescheduleAppointment(
   ctx: LickyActionContext,
   params: { appointment_id: string; slot_key: string; confirmed?: boolean }
 ): Promise<string> {
-  if (!ctx.loggedIn || !ctx.account) {
-    return "Log in at /client/login to reschedule.";
-  }
   const appointmentId = params.appointment_id?.trim();
   const slotKey = params.slot_key?.trim();
 
@@ -622,20 +649,19 @@ export async function lickyRescheduleAppointment(
     return "appointment_id and slot_key are required. Use check_availability to get slot_key values.";
   }
 
-  const appointment = await getClientAppointment(ctx.account, appointmentId);
+  const appointment = await appointmentForCtx(ctx, appointmentId);
   if (!appointment) {
-    return "I couldn't find that appointment on your account.";
+    if (!ctx.loggedIn && !ctxPhone(ctx)) {
+      return "Log in at /client/login to reschedule.";
+    }
+    return "I couldn't find that appointment on this number.";
   }
 
   if (!params.confirmed) {
     return `Ready to reschedule ${appointmentId} to slot ${slotKey}. Confirm with the client, then call again with confirmed=true.`;
   }
 
-  const result = await rescheduleAppointment(
-    appointmentId,
-    slotKey,
-    `licky:client:${ctx.account.email}`
-  );
+  const result = await rescheduleAppointment(appointmentId, slotKey, lickyActor(ctx));
 
   if (!result.ok) {
     return `Could not reschedule: ${result.error}`;

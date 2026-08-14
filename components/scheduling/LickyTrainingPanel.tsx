@@ -107,8 +107,9 @@ export default function LickyTrainingPanel() {
         <div>
           <h2 className="font-bold text-brand text-lg">Custom Licky training text</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Add company background, how Licky should behave, tone, policies, and anything else he
-            should know. This is included in every chat and in JSON/Markdown exports.
+            Licky is on for the website chat widget. Inbound Voice AI stays off until
+            <code>VOICE_AI_ENABLED=1</code>. Add company background, tone, and policies here.
+            Set <code>LICKY_ENABLED=0</code> to hide the widget.
           </p>
         </div>
 

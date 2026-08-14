@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/scheduling/auth";
 import { twilioStatus, getTwilioClient } from "@/lib/notifications/twilio-client";
+import { isLickyEnabled, isVoiceAiEnabled } from "@/lib/client/licky-enabled";
 import {
   configureTwilioPhoneWebhooks,
   expectedTwilioWebhookUrls,
@@ -25,6 +26,10 @@ export async function GET() {
     const webhooks = client ? await inspectTwilioPhoneWebhooks(client) : null;
     return NextResponse.json({
       status,
+      voiceAi: {
+        enabled: isVoiceAiEnabled(),
+        lickyEnabled: isLickyEnabled(),
+      },
       config: {
         accountSid: runtime.accountSid || "",
         fromNumber: runtime.fromNumber || process.env.TWILIO_FROM_NUMBER || "",

@@ -37,6 +37,11 @@ type WebhookStatus = {
   expectedVoiceUrl: string;
 };
 
+type VoiceAiStatus = {
+  enabled: boolean;
+  lickyEnabled: boolean;
+};
+
 export default function TwilioSettingsPanel() {
   const [status, setStatus] = useState<Status | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
@@ -47,6 +52,7 @@ export default function TwilioSettingsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [webhooks, setWebhooks] = useState<WebhookStatus | null>(null);
+  const [voiceAi, setVoiceAi] = useState<VoiceAiStatus | null>(null);
   const [configuring, setConfiguring] = useState(false);
 
   const load = useCallback(async () => {
@@ -59,6 +65,7 @@ export default function TwilioSettingsPanel() {
       setStatus(data.status);
       setConfig(data.config);
       setWebhooks(data.webhooks ?? null);
+      setVoiceAi(data.voiceAi ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Load failed");
     } finally {
@@ -172,6 +179,14 @@ export default function TwilioSettingsPanel() {
           [
             "Browser dialer",
             status?.hasBrowserCalling ? "Ready (Voice SDK)" : "Needs API key",
+          ],
+          [
+            "Voice AI (Licky)",
+            voiceAi?.enabled
+              ? "On — answers inbound calls"
+              : voiceAi?.lickyEnabled === false
+                ? "Off (Licky disabled)"
+                : "Off — calls forward to staff",
           ],
         ].map(([label, value]) => (
           <div key={label} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
@@ -298,6 +313,18 @@ export default function TwilioSettingsPanel() {
         ) : (
           <p className="text-xs text-gray-500">Save From number, then use Connect SMS bot webhooks.</p>
         )}
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2 text-sm">
+        <h3 className="font-semibold text-brand">Inbound Voice AI (Licky)</h3>
+        <p className="text-gray-600 text-xs">
+          {voiceAi?.enabled
+            ? "Licky answers inbound calls on the business number. There is no live transfer. Set VOICE_AI_ENABLED=0 to restore staff forwarding."
+            : "Voice AI is off. Inbound calls forward to the staff number above (or play the voicemail prompt if none is set)."}
+        </p>
+        <p className="text-gray-600 text-xs font-mono break-all">
+          Voice webhook stays {webhooks?.expectedVoiceUrl || "https://mobiledog-salon.com/api/twilio/voice"}
+        </p>
       </div>
 
       <div className="text-xs text-gray-500 space-y-1">

@@ -12,6 +12,7 @@ export default function Footer() {
   const companyNav = hideBookingUi
     ? NAV_COMPANY.filter((item) => item.href !== ROUTES.book)
     : NAV_COMPANY;
+  const footerCompanyNav = companyNav.filter((item) => item.href !== ROUTES.groomerLogin);
   const { openBooking } = useBooking();
 
   return (
@@ -68,7 +69,7 @@ export default function Footer() {
           <div>
             <h3 className="font-bold text-sm uppercase tracking-wide mb-4 text-white/60">Company</h3>
             <ul className="space-y-2">
-              {companyNav.map((item) => (
+              {footerCompanyNav.map((item) => (
                 <li key={item.href}>
                   <Link href={item.href} className="text-sm text-white/80 hover:text-accent transition-colors">
                     {item.label}
@@ -96,6 +97,8 @@ export default function Footer() {
           </Link>
           <p className="text-xs text-white/50">
             Copyright {new Date().getFullYear()} © Mobile Dog Salon.{" "}
+            <Link href={ROUTES.groomerLogin} className="hover:text-accent">Staff Login</Link>
+            {" · "}
             <Link href={ROUTES.privacy} className="hover:text-accent">Privacy Policy</Link>
             {" · "}
             <Link href={ROUTES.terms} className="hover:text-accent">Terms &amp; Conditions</Link>

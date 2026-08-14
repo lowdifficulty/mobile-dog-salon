@@ -3,7 +3,7 @@ import "server-only";
 import type { LickyGuestState } from "@/lib/client/licky-guest-types";
 import type { LickyActionContext } from "@/lib/client/licky-context";
 import { getClientServiceAddress } from "@/lib/client/licky-address";
-import { listClientAppointments } from "@/lib/client/appointments";
+import { listAppointmentsByPhone, listClientAppointments } from "@/lib/client/appointments";
 import { getClientSession } from "@/lib/payments/auth";
 import { findClientById } from "@/lib/payments/store";
 import type { ClientAccount } from "@/lib/payments/types";
@@ -47,14 +47,23 @@ export async function resolveLickyContext(): Promise<{
 }
 
 export async function buildLickyContextLines(ctx: LickyActionContext): Promise<string> {
+  const callerPhone = (ctx.callerPhone || ctx.guest?.phone || "").trim();
+
   if (!ctx.loggedIn || !ctx.account) {
     const lines = [
-      "Visitor is not logged in.",
+      callerPhone
+        ? `Visitor is calling or chatting from ${callerPhone}. Identify upcoming visits with list_upcoming_appointments.`
+        : "Visitor is not logged in.",
       "Answer any questions about Mobile Dog Salon using knowledge and tools.",
       "Book conversationally: find_slot or check_availability → collect address/phone with save_* tools → book_appointment when they confirm.",
       "Use get_booking_status to see what's already known from this chat.",
-      "For cancel/reschedule or saved account history, suggest /client/login.",
+      callerPhone
+        ? "Cancel and reschedule are allowed using this phone number after they confirm."
+        : "For cancel/reschedule without a phone on file, suggest /client/login.",
     ];
+    if (ctx.guest?.firstName) {
+      lines.push(`Guest name: ${ctx.guest.firstName} ${ctx.guest.lastName || ""}`.trim());
+    }
     if (ctx.guest?.serviceAddress) {
       lines.push(
         `Guest address: ${ctx.guest.serviceAddress.address}, ${ctx.guest.serviceAddress.city} ${ctx.guest.serviceAddress.zipCode}`
@@ -64,6 +73,23 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
       lines.push(
         `Waiting to finish booking slot ${ctx.guest.pendingLickyBooking.slotKey} (${ctx.guest.pendingLickyBooking.service}).`
       );
+    }
+    if (callerPhone) {
+      const now = Date.now();
+      const upcoming = (await listAppointmentsByPhone(callerPhone).catch(() => [])).filter(
+        (ap) => ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now
+      );
+      if (upcoming.length) {
+        lines.push("Upcoming appointments on this number (use appointment id for cancel/reschedule):");
+        for (const ap of upcoming.slice(0, 5)) {
+          const when = new Date(ap.startAt).toLocaleString("en-US", {
+            timeZone: "America/Los_Angeles",
+          });
+          lines.push(
+            `- id=${ap.id} | ${when} | ${getServiceLabel(ap.service)} | pet: ${ap.petName || "pet"} | groomer: ${groomerClientDisplayName(ap.groomerId as GroomerId)} (${ap.groomerId})`
+          );
+        }
+      }
     }
     return lines.join("\n");
   }

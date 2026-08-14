@@ -125,7 +125,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         storageKey="mds-groomer-sidebar-collapsed"
         showDialer
       >
-        <div className={padded ? "p-4 md:p-6" : ""} data-groomer-shell="ghl-v1">
+        <div className={padded ? "p-4 md:p-6" : "h-full min-h-0 overflow-hidden"} data-groomer-shell="ghl-v1">
           <DashboardErrorBoundary>
             {tab === "crm" && <CrmPanel />}
             {tab === "route" && (

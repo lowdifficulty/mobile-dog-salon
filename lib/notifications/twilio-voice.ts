@@ -8,6 +8,7 @@ import {
 import { normalizePhoneE164 } from "./twilio";
 import { resolveTwilioVoiceForward } from "./twilio-runtime-config";
 import { crmPublicBaseUrl } from "@/lib/crm/public-url";
+import { isVoiceAiEnabled } from "@/lib/client/licky-enabled";
 
 export type StartOutboundCallResult = {
   ok: boolean;
@@ -174,7 +175,13 @@ async function resolveInboundForwardTarget(
 
 export async function buildInboundVoiceTwiml(options?: {
   forwardTo?: string;
+  from?: string;
 }): Promise<string> {
+  if (isVoiceAiEnabled()) {
+    const { buildLickyVoiceGreetingTwiml } = await import("@/lib/client/licky-voice");
+    return buildLickyVoiceGreetingTwiml(options?.from);
+  }
+
   const forwardTo = await resolveInboundForwardTarget(options);
   const recordingCallback = await voiceRecordingCallbackUrl();
   const transcriptionCallback = await voiceTranscriptionCallbackUrl();

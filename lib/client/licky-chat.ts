@@ -36,7 +36,7 @@ BOOKING (conversational):
 - When ready and they confirm, call book_appointment with the slot_key and any details you have.
 - Booking blocks are ~3-hour arrival windows. Same-day is not available online.
 - Guests need address + name + phone. Logged-in clients use account info.
-- For cancel/reschedule, logged-in clients only — use list_upcoming_appointments first, confirm before confirmed=true.
+- For cancel/reschedule, use list_upcoming_appointments first (works for logged-in clients and callers identified by phone). Confirm before confirmed=true.
 
 Show slot buttons when check_availability or find_slot returns times — the UI displays buttons automatically.
 
@@ -78,7 +78,9 @@ async function createFallbackReply(
   if (/availability|open slot|when can|what times|schedule|book|appointment|an appt/.test(last)) {
     const groomer = last.includes("melanie")
       ? "melanie"
-      : last.includes("diamond") || last.includes("sarah")
+      : last.includes("jessica") || last.includes("chris")
+        ? "jessica"
+        : last.includes("diamond") || last.includes("sarah")
         ? "diamond"
         : undefined;
     const service = last.includes("bath") ? "bath-brush" : "full-groom";

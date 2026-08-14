@@ -157,11 +157,11 @@ export default function TwilioSettingsPanel() {
   }
 
   if (loading || !config) {
-    return <div className="p-6 text-sm text-gray-500">Loading Twilio settings…</div>;
+    return <div className="text-sm text-gray-500">Loading Twilio settings…</div>;
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-5">
       <div>
         <h2 className="text-xl font-bold text-brand">Twilio / Messaging</h2>
         <p className="text-sm text-gray-600 mt-1">

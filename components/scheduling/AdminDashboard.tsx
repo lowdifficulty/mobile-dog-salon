@@ -67,7 +67,7 @@ export default function AdminDashboard() {
     setTab("crm");
   }
 
-  const padded = tab !== "crm" && tab !== "twilio";
+  const padded = tab !== "crm";
 
   return (
     <AdminAppShell
@@ -78,7 +78,7 @@ export default function AdminDashboard() {
       onLogout={logout}
       lockViewport={tab === "crm"}
     >
-      <div className={tab === "crm" ? "h-full min-h-0 overflow-hidden" : padded ? "p-4 md:p-6" : ""}>
+      <div className={padded ? "p-4 md:p-6" : "h-full min-h-0 overflow-hidden"}>
         {tab === "crm" && <CrmPanel />}
         {tab === "opportunities" && (
           <OpportunitiesPanel onOpenConversation={openCrmConversation} />

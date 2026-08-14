@@ -65,7 +65,6 @@ body {
   .bg-book-spa {
     position: relative;
     isolation: isolate;
-    overflow: hidden;
     background-color: #2d8fd4;
     background-image:
       radial-gradient(ellipse 90% 55% at 50% -5%, rgba(255, 255, 255, 0.32) 0%, transparent 58%),

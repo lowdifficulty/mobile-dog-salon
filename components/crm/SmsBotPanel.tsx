@@ -97,11 +97,11 @@ export default function SmsBotPanel() {
   }
 
   if (loading || !config) {
-    return <div className="p-6 text-sm text-gray-500">Loading SMS bot…</div>;
+    return <div className="text-sm text-gray-500">Loading SMS bot…</div>;
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl space-y-5">
+    <div className="max-w-4xl space-y-5">
       <div>
         <h2 className="text-xl font-bold text-brand">SMS Chatbot</h2>
         <p className="text-sm text-gray-600 mt-1">

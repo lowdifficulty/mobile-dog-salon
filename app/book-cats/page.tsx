@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function BookCatsPage() {
   return (
-    <div className="min-h-[100dvh] bg-book-spa flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-book-spa flex items-safe-center justify-center p-4">
       <BookPageBackButton />
       <BookingFormCard>
         <CatBookingFlowForm />

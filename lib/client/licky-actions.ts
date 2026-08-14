@@ -42,6 +42,7 @@ import { isLocalhostDevWithoutProductionData } from "@/lib/dev/is-localhost-requ
 import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { createSlotHold, SLOT_HOLD_TTL_SECONDS } from "@/lib/scheduling/slot-holds";
 import type { LickyActionContext } from "@/lib/client/licky-context";
+import { applyLickyIdentifiedContact } from "@/lib/client/licky-identify";
 import {
   clearPendingBooking,
   getNameFromCtx,
@@ -51,7 +52,6 @@ import {
   getServiceAddressFromCtx,
   hasValidContact,
   parseContactMessage,
-  saveContactToCtx,
   savePendingBookingToCtx,
   saveServiceAddressToCtx,
 } from "@/lib/client/licky-guest-helpers";
@@ -112,25 +112,27 @@ function ctxPhone(ctx: LickyActionContext): string {
   return (ctx.callerPhone || ctx.guest?.phone || ctx.account?.phone || "").trim();
 }
 
-async function upcomingAppointmentsForCtx(ctx: LickyActionContext) {
-  const now = Date.now();
+async function confirmedAppointmentsForCtx(ctx: LickyActionContext) {
   const byId = new Map<string, Awaited<ReturnType<typeof listAppointmentsByPhone>>[number]>();
   if (ctx.loggedIn && ctx.account) {
     for (const ap of await listClientAppointments(ctx.account)) {
-      if (ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now) {
-        byId.set(ap.id, ap);
-      }
+      if (ap.status === "confirmed") byId.set(ap.id, ap);
     }
   }
   const phone = ctxPhone(ctx);
   if (phone) {
     for (const ap of await listAppointmentsByPhone(phone)) {
-      if (ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now) {
-        byId.set(ap.id, ap);
-      }
+      if (ap.status === "confirmed") byId.set(ap.id, ap);
     }
   }
   return [...byId.values()].sort((a, b) => a.startAt.localeCompare(b.startAt));
+}
+
+async function upcomingAppointmentsForCtx(ctx: LickyActionContext) {
+  const now = Date.now();
+  return (await confirmedAppointmentsForCtx(ctx)).filter(
+    (ap) => new Date(ap.startAt).getTime() >= now
+  );
 }
 
 async function appointmentForCtx(
@@ -174,15 +176,32 @@ function formatApptLine(ap: {
 }
 
 export async function lickyListUpcoming(ctx: LickyActionContext): Promise<string> {
-  const upcoming = await upcomingAppointmentsForCtx(ctx);
-  if (!upcoming.length) {
+  const all = await confirmedAppointmentsForCtx(ctx);
+  const now = Date.now();
+  const upcoming = all.filter((ap) => new Date(ap.startAt).getTime() >= now);
+  const past = all
+    .filter((ap) => new Date(ap.startAt).getTime() < now)
+    .sort((a, b) => b.startAt.localeCompare(a.startAt));
+
+  if (!all.length) {
     if (!ctx.loggedIn && !ctxPhone(ctx)) {
-      return "Log in at /client/login to see your appointments, or call from the number on the booking.";
+      return "No phone on file yet. Ask for their name and number, or they can log in at /client/login.";
     }
-    return "No upcoming confirmed appointments on this number.";
+    return "No confirmed appointments (upcoming or past) on this number.";
   }
 
-  return upcoming.map(formatApptLine).join("\n");
+  const lines: string[] = [];
+  if (upcoming.length) {
+    lines.push("Upcoming confirmed:");
+    lines.push(...upcoming.map(formatApptLine));
+  } else {
+    lines.push("No upcoming confirmed appointments.");
+  }
+  if (past.length) {
+    lines.push("Past confirmed:");
+    lines.push(...past.slice(0, 8).map(formatApptLine));
+  }
+  return lines.join("\n");
 }
 
 export async function lickyBuildAvailabilityResponse(params: {
@@ -249,8 +268,8 @@ export async function lickyBookAppointment(
             phone: params.phone?.trim() || "",
           }
         : null;
-    if (contactFromParams?.phone) {
-      await saveContactToCtx(ctx, contactFromParams);
+    if (contactFromParams?.phone && contactFromParams.phone.replace(/\D/g, "").length >= 10) {
+      await applyLickyIdentifiedContact(ctx, contactFromParams);
     }
     if (params.pet_size?.trim()) {
       await ctx.saveGuest?.({
@@ -425,7 +444,7 @@ export async function lickySaveGuestContact(
   const lastName = params.last_name?.trim() || ctx.guest?.lastName || "";
 
   if (phone.replace(/\D/g, "").length >= 10) {
-    await saveContactToCtx(ctx, {
+    await applyLickyIdentifiedContact(ctx, {
       firstName: firstName || "Guest",
       lastName,
       phone,
@@ -508,7 +527,7 @@ export async function lickyCompletePendingBooking(
     if (!contact) {
       return structuredFromText("Need your name and a 10-digit mobile number.");
     }
-    await saveContactToCtx(ctx, contact);
+    await applyLickyIdentifiedContact(ctx, contact);
     return lickyBookAppointment(
       ctx,
       {
@@ -629,7 +648,9 @@ export async function lickyCancelAppointment(
     return `Ready to cancel: ${formatApptLine(appointment)}. Ask the client to confirm, then call again with confirmed=true.`;
   }
 
-  const result = await cancelAppointment(appointmentId, lickyActor(ctx));
+  const result = await cancelAppointment(appointmentId, lickyActor(ctx), {
+    cancelledVia: "licky_chat",
+  });
 
   if (!result.ok) {
     return `Could not cancel: ${result.error}`;

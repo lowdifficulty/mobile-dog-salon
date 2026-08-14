@@ -60,7 +60,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (removed.appointmentId) {
       const result = await cancelAppointment(
         removed.appointmentId,
-        "staff:lead-delete"
+        "staff:lead-delete",
+        { cancelledVia: "staff" }
       );
       if (!result.ok && result.status !== 404 && result.status !== 409) {
         return NextResponse.json({ error: result.error }, { status: result.status });

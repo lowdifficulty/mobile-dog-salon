@@ -1,6 +1,6 @@
 import "server-only";
 
-import { normalizePhone } from "@/lib/leads/normalize";
+import { phoneLast10, phonesMatch } from "@/lib/leads/normalize";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { Appointment } from "@/lib/scheduling/types";
 import type { ClientAccount } from "@/lib/payments/types";
@@ -10,8 +10,7 @@ export function clientOwnsAppointment(
   appointment: Appointment
 ): boolean {
   if (client.appointmentIds?.includes(appointment.id)) return true;
-  const phone = normalizePhone(client.phone);
-  if (phone.length >= 10 && normalizePhone(appointment.phone) === phone) {
+  if (phonesMatch(client.phone, appointment.phone)) {
     return true;
   }
   const email = client.email.trim().toLowerCase();
@@ -43,16 +42,10 @@ export async function listClientAppointments(
 }
 
 export async function listAppointmentsByPhone(phone: string): Promise<Appointment[]> {
-  const digits = normalizePhone(phone);
+  const digits = phoneLast10(phone);
   if (digits.length < 10) return [];
   const { appointments } = await readSchedulingData();
-  return appointments.filter((ap) => {
-    const apDigits = normalizePhone(ap.phone);
-    return (
-      apDigits.length >= 10 &&
-      (apDigits === digits || apDigits.endsWith(digits) || digits.endsWith(apDigits))
-    );
-  });
+  return appointments.filter((ap) => phonesMatch(ap.phone, digits));
 }
 
 export async function getAppointmentByPhone(

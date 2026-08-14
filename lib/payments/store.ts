@@ -3,13 +3,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { isVercelServerless } from "@/lib/scheduling/persistence";
+import { normalizePhone, phonesMatch } from "@/lib/leads/normalize";
 import type { ClientAccount, ClientsData } from "./types";
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("1")) return digits.slice(1);
-  return digits;
-}
 
 const FILE_PATH = path.join(process.cwd(), "data", "clients.json");
 const TMP_PATH = path.join("/tmp", "mds-clients.json");
@@ -76,7 +71,7 @@ export async function findClientByPhone(phone: string): Promise<ClientAccount | 
   const data = await readClientsData();
   const normalized = normalizePhone(phone);
   if (normalized.length < 10) return null;
-  return data.clients.find((c) => normalizePhone(c.phone) === normalized) ?? null;
+  return data.clients.find((c) => phonesMatch(c.phone, normalized)) ?? null;
 }
 
 export async function findClientByIdentifier(

@@ -23,7 +23,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     const actor = `public:phone:${formatPhoneDisplay(phone)}`;
 
     if (action === "cancel") {
-      const result = await cancelAppointment(id, actor);
+      const result = await cancelAppointment(id, actor, {
+        cancelledVia: "my_appointment",
+      });
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });
       }

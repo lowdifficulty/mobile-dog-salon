@@ -24,6 +24,10 @@ import {
 } from "./contact-zones";
 import { parseContactAddress } from "./parse-address";
 import type { GroomerId } from "@/lib/scheduling/types";
+import {
+  cancelMethodLabel,
+  resolveCancelMethod,
+} from "@/lib/scheduling/cancel-method";
 import type {
   CrmContact,
   CrmContactDetail,
@@ -42,6 +46,9 @@ type LinkedAppointment = {
   startAt: string;
   groomerId: string;
   status: string;
+  cancelledVia?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
 };
 
 export type CrmListFilter = {
@@ -98,6 +105,9 @@ function enrichContactWithSortMeta(
   const now = Date.now();
 
   const confirmedLinked = linked.filter((a) => a.status === "confirmed");
+  const cancelledLinked = linked
+    .filter((a) => a.status === "cancelled")
+    .sort((a, b) => b.startAt.localeCompare(a.startAt));
   const pastAppointments = confirmedLinked
     .filter((a) => new Date(a.startAt).getTime() < now)
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
@@ -108,6 +118,12 @@ function enrichContactWithSortMeta(
   const lastPastAppointmentAt = pastAppointments[0]?.startAt ?? null;
   const lastAppointmentAt = lastPastAppointmentAt;
   const hasUpcomingAppointment = upcomingAppointments.length > 0;
+  const hasCancelledAppointment =
+    cancelledLinked.length > 0 && !hasUpcomingAppointment;
+  const cancelledAppointmentAt = cancelledLinked[0]?.startAt ?? null;
+  const cancelledMethodLabel = hasCancelledAppointment
+    ? cancelMethodLabel(resolveCancelMethod(cancelledLinked[0]))
+    : null;
   const daysSinceLastAppointment = lastPastAppointmentAt
     ? Math.floor((now - new Date(lastPastAppointmentAt).getTime()) / DAY_MS)
     : null;
@@ -120,15 +136,24 @@ function enrichContactWithSortMeta(
   const primaryGroomerId = resolvePrimaryGroomerId(contact, linked);
 
   const parsed = parseContactAddress(contact);
+  const tags = overlayAppointmentStatusTags(
+    contact.tags,
+    hasUpcomingAppointment,
+    hasCancelledAppointment
+  );
 
   return {
     ...contact,
+    tags,
     areaCode: extractAreaCode(contact.phone),
     hasBookedAppointment,
     lastAppointmentAt,
     lastPastAppointmentAt,
     daysSinceLastAppointment,
     hasUpcomingAppointment,
+    hasCancelledAppointment,
+    cancelledAppointmentAt,
+    cancelledMethodLabel,
     isFollowUp,
     primaryGroomerId,
     serviceZone: getContactServiceZone({
@@ -140,6 +165,17 @@ function enrichContactWithSortMeta(
     parsedCity: parsed.city || contact.city || "",
     parsedZip: parsed.zipCode || normalizeZipField(contact.zipCode),
   };
+}
+
+function overlayAppointmentStatusTags(
+  tags: string[],
+  hasUpcomingAppointment: boolean,
+  hasCancelledAppointment: boolean
+): string[] {
+  const next = tags.filter((t) => t !== "upcoming" && t !== "cancelled");
+  if (hasUpcomingAppointment) next.push("upcoming");
+  else if (hasCancelledAppointment) next.push("cancelled");
+  return [...new Set(next)].sort();
 }
 
 function normalizeZipField(raw?: string): string {
@@ -368,21 +404,30 @@ export async function getCrmContactDetail(
       a.phone.replace(/\D/g, "").endsWith(contact.phone)
   );
 
-  const mapped = mine.map((a) => ({
-    id: a.id,
-    startAt: a.startAt,
-    status: a.status,
-    service: a.service,
-    petName: a.petName,
-    groomerId: a.groomerId,
-  }));
+  const mapped = mine.map((a) => {
+    const cancelledVia = resolveCancelMethod(a);
+    return {
+      id: a.id,
+      startAt: a.startAt,
+      status: a.status,
+      service: a.service,
+      petName: a.petName,
+      groomerId: a.groomerId,
+      cancelledAt: a.cancelledAt ?? null,
+      cancelledBy: a.cancelledBy ?? null,
+      cancelledVia,
+      cancelledMethodLabel:
+        a.status === "cancelled" ? cancelMethodLabel(cancelledVia) : null,
+    };
+  });
 
   await markContactRead(contactId);
   const refreshed = (await findContactById(contactId)) ?? contact;
   const interactions = await listInteractionsForContact(contactId);
+  const enriched = enrichContactWithSortMeta(refreshed, appointments);
 
   return {
-    ...refreshed,
+    ...enriched,
     fullName: displayNameFromContact(refreshed),
     interactions,
     upcomingAppointments: mapped
@@ -390,6 +435,9 @@ export async function getCrmContactDetail(
       .sort((a, b) => a.startAt.localeCompare(b.startAt)),
     pastAppointments: mapped
       .filter((a) => new Date(a.startAt).getTime() < now)
+      .sort((a, b) => b.startAt.localeCompare(a.startAt)),
+    cancelledAppointments: mapped
+      .filter((a) => a.status === "cancelled")
       .sort((a, b) => b.startAt.localeCompare(a.startAt)),
   };
 }

@@ -5,6 +5,7 @@ import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/persistence";
 import type { CrmContact, CrmData, CrmInteraction, SmsBotSession } from "./types";
+import { phonesMatch } from "@/lib/leads/normalize";
 import { crmPhoneDigits } from "./phone";
 import { isConversationVisibleInteraction } from "./conversation-filter";
 
@@ -99,7 +100,7 @@ export async function findContactByPhone(phone: string): Promise<CrmContact | nu
   const digits = crmPhoneDigits(phone);
   if (digits.length < 10) return null;
   const data = await readCrmData();
-  return data.contacts.find((c) => c.phone === digits) ?? null;
+  return data.contacts.find((c) => phonesMatch(c.phone, digits)) ?? null;
 }
 
 export async function findContactById(id: string): Promise<CrmContact | null> {

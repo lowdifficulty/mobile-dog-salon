@@ -8,6 +8,7 @@ import {
 import { lickyCompletePendingBooking } from "@/lib/client/licky-actions";
 import { syncConversationToCtx } from "@/lib/client/licky-conversation";
 import { handleLickyClientAction, type LickyClientAction } from "@/lib/client/licky-ui-handler";
+import { handleLickyIdentifyGate } from "@/lib/client/licky-identify";
 import {
   buildLickyContextLines,
   resolveLickyContext,
@@ -43,9 +44,18 @@ export async function POST(request: Request) {
     }
 
     ctx.conversationMessages = messages;
-    await syncConversationToCtx(ctx, messages);
-
     const lastUserMessage = messages[messages.length - 1]?.content ?? "";
+
+    const identify = await handleLickyIdentifyGate(ctx, lastUserMessage);
+    await syncConversationToCtx(ctx, messages);
+    if (identify.kind === "reply") {
+      return NextResponse.json({
+        reply: identify.reply,
+        buttons: [],
+        ...lickyChatStatus(),
+      });
+    }
+
     const pendingBooking = await lickyCompletePendingBooking(
       ctx,
       lastUserMessage,

@@ -180,7 +180,9 @@ export async function smsCancelUpcoming(
     return { ok: false, error: "I couldn't find that upcoming appointment on your number." };
   }
 
-  const result = await cancelAppointment(appointmentId, smsBotActor(contact));
+  const result = await cancelAppointment(appointmentId, smsBotActor(contact), {
+    cancelledVia: "sms_bot",
+  });
   if (!result.ok) {
     return { ok: false, error: result.error };
   }

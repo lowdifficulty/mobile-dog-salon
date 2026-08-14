@@ -38,6 +38,10 @@ import {
   withAppointmentShortCode,
 } from "@/lib/scheduling/appointment-short-link";
 import type { Appointment, AvailabilityDay, GroomerId } from "@/lib/scheduling/types";
+import {
+  inferCancelMethod,
+  type AppointmentCancelMethod,
+} from "@/lib/scheduling/cancel-method";
 
 export type AppointmentActionResult =
   | { ok: true; appointment: Appointment }
@@ -569,7 +573,7 @@ export async function createRecurringAppointments(
 export async function cancelAppointment(
   appointmentId: string,
   actor: string,
-  options?: { groomerId?: GroomerId }
+  options?: { groomerId?: GroomerId; cancelledVia?: AppointmentCancelMethod }
 ): Promise<AppointmentActionResult> {
   const data = await readSchedulingData();
   const appointment = findAppointment(
@@ -587,6 +591,9 @@ export async function cancelAppointment(
 
   const { date, time } = parseSlotFromIso(appointment.startAt);
   appointment.status = "cancelled";
+  appointment.cancelledAt = new Date().toISOString();
+  appointment.cancelledBy = actor;
+  appointment.cancelledVia = options?.cancelledVia ?? inferCancelMethod(actor);
   releaseGroomerShiftWithoutAppointment(data, appointment.groomerId, date, time, {
     ignoreAppointmentId: appointment.id,
   });
@@ -597,6 +604,15 @@ export async function cancelAppointment(
     actor,
     groomerId: appointment.groomerId,
   });
+
+  try {
+    const { recordAppointmentCancelledNote } = await import(
+      "@/lib/crm/cancellation-note"
+    );
+    await recordAppointmentCancelledNote(appointment);
+  } catch {
+    /* CRM note is best-effort — cancellation already saved */
+  }
 
   return { ok: true, appointment };
 }

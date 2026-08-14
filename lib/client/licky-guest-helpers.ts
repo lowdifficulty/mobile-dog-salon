@@ -9,6 +9,7 @@ import {
 import type { LickyActionContext } from "@/lib/client/licky-context";
 import { listClientAppointments } from "@/lib/client/appointments";
 import { updateClient } from "@/lib/payments/store";
+import { normalizePhone, phoneLast10 } from "@/lib/leads/normalize";
 
 export function getPendingLickyBooking(ctx: LickyActionContext) {
   return ctx.account?.pendingLickyBooking ?? ctx.guest?.pendingLickyBooking;
@@ -72,7 +73,12 @@ export function hasValidContact(ctx: LickyActionContext): boolean {
 }
 
 export function getPhoneFromCtx(ctx: LickyActionContext): string {
-  return ctx.account?.phone?.trim() || ctx.guest?.phone?.trim() || "";
+  return (
+    ctx.account?.phone?.trim() ||
+    ctx.callerPhone?.trim() ||
+    ctx.guest?.phone?.trim() ||
+    ""
+  );
 }
 
 export function getNameFromCtx(ctx: LickyActionContext): {
@@ -102,30 +108,52 @@ export function getPetFromCtx(ctx: LickyActionContext): {
   };
 }
 
+const PHONE_IN_TEXT =
+  /(?:\+?1[\s.-]*)?(?:\(?\d{3}\)?[\s.-]*)\d{3}[\s.-]*\d{4}/;
+
+const NAME_PREFIX =
+  /^(hi|hello|hey|yes|ok|okay|sure|my name is|name is|i am|i'm|im|this is|it's|its|name|phone|number|cell|mobile)[:\s,]+/i;
+
+const NAME_JUNK = /^(and|or|my|the|a|phone|number|is|it|please)$/i;
+
+export function extractPhoneFromMessage(message: string): string | null {
+  const match = message.match(PHONE_IN_TEXT);
+  if (match) {
+    const digits = phoneLast10(match[0]);
+    if (digits.length === 10) return digits;
+  }
+  const all = phoneLast10(message);
+  return all.length === 10 ? all : null;
+}
+
 export function parseContactMessage(message: string): {
   firstName: string;
   lastName: string;
   phone: string;
 } | null {
   const trimmed = message.trim();
-  const digits = trimmed.replace(/\D/g, "");
-  const phone =
-    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-  if (phone.length < 10) return null;
+  const phone = extractPhoneFromMessage(trimmed);
+  if (!phone) return null;
 
-  const withoutPhone = trimmed
-    .replace(/\+?1?\s*\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/, "")
-    .replace(/\d{3}[\s.-]?\d{3}[\s.-]?\d{4}/, "")
+  let withoutPhone = trimmed
+    .replace(PHONE_IN_TEXT, " ")
+    .replace(/[+,()#]/g, " ")
+    .replace(/[-–—.:]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
-  const parts = withoutPhone.split(/\s+/).filter(Boolean);
+  while (NAME_PREFIX.test(withoutPhone)) {
+    withoutPhone = withoutPhone.replace(NAME_PREFIX, "").trim();
+  }
+
+  const parts = withoutPhone.split(/\s+/).filter((p) => p && !NAME_JUNK.test(p));
   const firstName = parts[0] || "Guest";
   const lastName = parts.slice(1).join(" ");
 
   return {
     firstName,
     lastName,
-    phone: phone.slice(0, 10),
+    phone,
   };
 }
 
@@ -134,9 +162,10 @@ export async function saveContactToCtx(
   contact: { firstName: string; lastName: string; phone: string }
 ): Promise<void> {
   if (ctx.account) return;
+  const phone = normalizePhone(contact.phone);
   await ctx.saveGuest?.({
     firstName: contact.firstName,
     lastName: contact.lastName,
-    phone: contact.phone,
+    phone,
   });
 }

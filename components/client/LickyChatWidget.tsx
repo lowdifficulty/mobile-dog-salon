@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LICKY_AVATAR, LICKY_WELCOME_MESSAGE } from "@/lib/client/portal";
+import LickyAvatar from "@/components/client/LickyAvatar";
+import { LICKY_IDENTIFY_MESSAGE, LICKY_WELCOME_MESSAGE } from "@/lib/client/portal";
 
 export interface LickyButton {
   label: string;
@@ -54,6 +55,11 @@ export default function LickyChatWidget({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open, welcomeStep, busy]);
+
+  useEffect(() => {
+    if (!open || welcomeStep || messages.length > 0) return;
+    setMessages([{ role: "assistant", content: LICKY_IDENTIFY_MESSAGE }]);
+  }, [open, welcomeStep, messages.length]);
 
   function pushAssistant(data: ChatApiResponse, fallback = "Woof! Try again.") {
     setMessages((prev) => [
@@ -169,11 +175,7 @@ export default function LickyChatWidget({
       {open && (
         <div className="fixed bottom-24 right-4 z-50 w-[min(100vw-2rem,380px)] rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col overflow-hidden max-h-[min(70vh,520px)]">
           <div className="flex items-center gap-3 px-4 py-3 bg-brand text-white">
-            <img
-              src={LICKY_AVATAR}
-              alt="Licky"
-              className="w-10 h-10 rounded-full border-2 border-white/40 object-cover bg-amber-100"
-            />
+            <LickyAvatar size={40} className="border-2 border-white/40" />
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm">Licky</p>
               <p className="text-xs text-white/80">Your grooming buddy</p>
@@ -192,7 +194,7 @@ export default function LickyChatWidget({
             {welcomeStep ? (
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <img src={LICKY_AVATAR} alt="" className="w-8 h-8 rounded-full shrink-0" />
+                  <LickyAvatar size={32} />
                   <div className="rounded-2xl rounded-tl-sm bg-white border border-gray-100 px-3 py-2 text-sm text-gray-800">
                     {LICKY_WELCOME_MESSAGE}
                   </div>
@@ -207,11 +209,6 @@ export default function LickyChatWidget({
               </div>
             ) : (
               <>
-                {messages.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Ask Licky anything — grooming tips, pricing, open times, and more.
-                  </p>
-                )}
                 {messages.map((msg, i) => (
                   <div
                     key={i}
@@ -220,9 +217,7 @@ export default function LickyChatWidget({
                     <div
                       className={`flex gap-2 max-w-full ${msg.role === "user" ? "justify-end" : ""}`}
                     >
-                      {msg.role === "assistant" && (
-                        <img src={LICKY_AVATAR} alt="" className="w-8 h-8 rounded-full shrink-0" />
-                      )}
+                      {msg.role === "assistant" && <LickyAvatar size={32} />}
                       <div
                         className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
                           msg.role === "user"
@@ -285,13 +280,10 @@ export default function LickyChatWidget({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-brand text-white shadow-lg pl-2 pr-4 py-2 hover:bg-brand-dark transition-colors"
+        aria-label="Chat with Licky"
       >
-        <img
-          src={LICKY_AVATAR}
-          alt="Chat with Licky"
-          className="w-10 h-10 rounded-full border-2 border-white/30 object-cover bg-amber-100"
-        />
-        <span className="text-sm font-semibold">Chat with Licky</span>
+        <LickyAvatar size={40} alt="Chat with Licky" />
+        <span className="text-sm font-semibold text-white">Chat with Licky</span>
       </button>
     </>
   );

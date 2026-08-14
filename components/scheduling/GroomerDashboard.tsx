@@ -124,6 +124,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
         onLogout={logout}
         storageKey="mds-groomer-sidebar-collapsed"
         showDialer
+        lockViewport={tab === "crm"}
       >
         <div className={padded ? "p-4 md:p-6" : "h-full min-h-0 overflow-hidden"} data-groomer-shell="ghl-v1">
           <DashboardErrorBoundary>

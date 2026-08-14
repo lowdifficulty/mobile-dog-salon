@@ -76,6 +76,7 @@ export default function AdminDashboard() {
       activeId={tab}
       onSelect={(id) => setTab(id as Tab)}
       onLogout={logout}
+      lockViewport={tab === "crm"}
     >
       <div className={tab === "crm" ? "h-full min-h-0 overflow-hidden" : padded ? "p-4 md:p-6" : ""}>
         {tab === "crm" && <CrmPanel />}

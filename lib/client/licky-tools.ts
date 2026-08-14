@@ -15,7 +15,7 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "list_upcoming_appointments",
       description:
-        "List the client's upcoming confirmed appointments with ids, times, groomers, and pets. Works for logged-in clients and callers identified by phone.",
+        "List the client's confirmed appointments (upcoming and past) with ids, times, groomers, and pets. Works for logged-in clients and anyone identified by phone — punctuation in the number does not matter.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
@@ -136,7 +136,7 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "save_guest_contact",
       description:
-        "Save guest name, phone, and pet details for booking when they are not logged in.",
+        "Save guest name, phone, and pet details. Looks up appointments and updates the matching client/CRM name when the phone is already on file.",
       parameters: {
         type: "object",
         properties: {

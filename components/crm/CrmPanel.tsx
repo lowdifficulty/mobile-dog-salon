@@ -48,6 +48,9 @@ type CrmContact = {
   daysSinceLastAppointment?: number | null;
   isFollowUp?: boolean;
   hasUpcomingAppointment?: boolean;
+  hasCancelledAppointment?: boolean;
+  cancelledAppointmentAt?: string | null;
+  cancelledMethodLabel?: string | null;
   lastPastAppointmentAt?: string | null;
 };
 
@@ -90,6 +93,18 @@ type ContactDetail = CrmContact & {
     petName: string;
     groomerId: string;
   }[];
+  cancelledAppointments: {
+    id: string;
+    startAt: string;
+    status: string;
+    service: string;
+    petName: string;
+    groomerId: string;
+    cancelledAt?: string | null;
+    cancelledBy?: string | null;
+    cancelledVia?: string | null;
+    cancelledMethodLabel?: string | null;
+  }[];
 };
 
 function formatWhen(iso?: string): string {
@@ -105,6 +120,30 @@ function formatWhen(iso?: string): string {
   } catch {
     return iso;
   }
+}
+
+function CancelledStatusNote({ method }: { method?: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1 min-w-0">
+      <span className="text-[10px] font-bold bg-gray-200 text-gray-700 rounded-full px-1.5 shrink-0">
+        Cancelled
+      </span>
+      {method ? (
+        <span className="text-[10px] text-gray-500 truncate">{method}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function isCancelledSystemNote(ix: {
+  channel: string;
+  body?: string;
+  summary?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+}): boolean {
+  if (ix.channel !== "system") return false;
+  if (ix.metadata?.appointmentStatus === "cancelled") return true;
+  return `${ix.body || ""} ${ix.summary || ""}`.toLowerCase().includes("cancelled");
 }
 
 function initials(name?: string, phone?: string): string {
@@ -349,13 +388,62 @@ export default function CrmPanel() {
   );
 
   const smsThread = useMemo(() => {
-    return (detail?.interactions || []).filter(
+    const items = (detail?.interactions || []).filter(
       (ix) =>
         ix.channel === "sms" ||
         ix.channel === "call" ||
         ix.channel === "note" ||
         (ix.channel === "system" && ix.body)
     );
+    if (!detail?.hasCancelledAppointment) return items;
+
+    const cancelled = detail.cancelledAppointments || [];
+    const covered = new Set(
+      items
+        .filter(isCancelledSystemNote)
+        .map((ix) => String(ix.metadata?.appointmentId || ""))
+        .filter(Boolean)
+    );
+    const extras: CrmInteraction[] = cancelled
+      .filter((a) => !covered.has(a.id))
+      .map((a) => {
+        const method = a.cancelledMethodLabel || "Unknown";
+        return {
+          id: `cancelled-${a.id}`,
+          channel: "system" as const,
+          direction: "internal" as const,
+          body: `Cancelled · ${formatWhen(a.startAt)}${a.petName ? ` · ${a.petName}` : ""}${
+            a.service ? ` · ${a.service}` : ""
+          }\nVia ${method}`,
+          summary: `Cancelled via ${method}`,
+          actor: "system",
+          createdAt: a.cancelledAt || a.startAt,
+          metadata: {
+            appointmentId: a.id,
+            appointmentStatus: "cancelled",
+            cancelledVia: a.cancelledVia ?? "unknown",
+          },
+        };
+      });
+    if (extras.length === 0 && items.some(isCancelledSystemNote)) return items;
+    if (extras.length === 0) {
+      const method = detail.cancelledMethodLabel || "Unknown";
+      extras.push({
+        id: "cancelled-status",
+        channel: "system",
+        direction: "internal",
+        body: `Cancelled${
+          detail.cancelledAppointmentAt
+            ? ` · ${formatWhen(detail.cancelledAppointmentAt)}`
+            : ""
+        }\nVia ${method}`,
+        summary: `Cancelled via ${method}`,
+        actor: "system",
+        createdAt: detail.cancelledAppointmentAt || new Date().toISOString(),
+        metadata: { appointmentStatus: "cancelled" },
+      });
+    }
+    return [...items, ...extras].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [detail]);
 
   async function refreshFromSources() {
@@ -587,6 +675,9 @@ export default function CrmPanel() {
                       <span className="text-[10px] uppercase font-bold text-gray-400">
                         {c.status}
                       </span>
+                      {c.hasCancelledAppointment && (
+                        <CancelledStatusNote method={c.cancelledMethodLabel} />
+                      )}
                       {c.isFollowUp && view !== "followUps" && (
                         <span className="text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full px-1.5">
                           Follow up
@@ -625,13 +716,37 @@ export default function CrmPanel() {
                     ←
                   </button>
                   <div className="min-w-0">
-                    <div className="font-bold text-brand truncate">
-                      {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="font-bold text-brand truncate">
+                        {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+                      </div>
+                      {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
+                        <CancelledStatusNote
+                          method={
+                            detail?.cancelledMethodLabel || selected.cancelledMethodLabel
+                          }
+                        />
+                      )}
                     </div>
                     <div className="text-xs text-gray-500 truncate">
                       {formatPhoneDisplay(selected.phone)}
                       {selected.email ? ` · ${selected.email}` : ""}
                     </div>
+                    {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
+                      <div className="text-[11px] font-semibold text-gray-600 mt-0.5">
+                        Cancelled
+                        {(detail?.cancelledMethodLabel || selected.cancelledMethodLabel)
+                          ? ` via ${detail?.cancelledMethodLabel || selected.cancelledMethodLabel}`
+                          : ""}
+                        {(detail?.cancelledAppointmentAt || selected.cancelledAppointmentAt)
+                          ? ` · ${formatWhen(
+                              detail?.cancelledAppointmentAt ||
+                                selected.cancelledAppointmentAt ||
+                                undefined
+                            )}`
+                          : ""}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -657,6 +772,8 @@ export default function CrmPanel() {
                   const mine = ix.direction === "outbound" || ix.direction === "internal";
                   const suppressed = Boolean(ix.metadata?.suppressed);
                   const isCall = ix.channel === "call";
+                  const isSystem = ix.channel === "system";
+                  const cancelledNote = isCancelledSystemNote(ix);
                   const callSummary =
                     ix.summary ||
                     (ix.callStatus ? `Call ${ix.callStatus}` : "Call");
@@ -664,11 +781,17 @@ export default function CrmPanel() {
                   return (
                     <div
                       key={ix.id}
-                      className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                      className={`flex ${
+                        isSystem ? "justify-center" : mine ? "justify-end" : "justify-start"
+                      }`}
                     >
                       <div
                         className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
-                          ix.channel === "note"
+                          isSystem
+                            ? cancelledNote
+                              ? "bg-gray-100 border border-gray-200 text-gray-800"
+                              : "bg-gray-50 border border-gray-100 text-gray-700"
+                            : ix.channel === "note"
                             ? "bg-amber-50 border border-amber-100 text-amber-950"
                             : isCall
                               ? "bg-white border border-gray-200 text-gray-800"
@@ -680,7 +803,11 @@ export default function CrmPanel() {
                         }`}
                       >
                         <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
-                          {ix.channel === "note"
+                          {isSystem
+                            ? cancelledNote
+                              ? "Cancelled"
+                              : "Status"
+                            : ix.channel === "note"
                             ? "Note"
                             : isCall
                               ? ix.direction === "inbound"
@@ -906,6 +1033,22 @@ function ContactDetailsContent({
         </div>
       )}
 
+      {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          <div className="flex items-center gap-2">
+            <CancelledStatusNote
+              method={detail?.cancelledMethodLabel || selected.cancelledMethodLabel}
+            />
+          </div>
+          {(detail?.cancelledAppointments || []).slice(0, 3).map((a) => (
+            <div key={a.id} className="text-xs text-gray-600 mt-1">
+              {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
+              {a.cancelledMethodLabel ? ` · ${a.cancelledMethodLabel}` : ""}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div>
         {(detail?.pets || selected.pets).length === 0 && (
           <div className="text-sm text-gray-400">No pets on file</div>
@@ -928,6 +1071,22 @@ function ContactDetailsContent({
           <div className="text-sm text-gray-400">None</div>
         )}
       </div>
+
+      {(detail?.cancelledAppointments || []).length > 0 && (
+        <div>
+          <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
+            Cancelled
+          </div>
+          {(detail?.cancelledAppointments || []).slice(0, 5).map((a) => (
+            <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">
+              {formatWhen(a.startAt)} · {a.petName || "Pet"} · {a.service}
+              <div className="text-[11px] text-gray-500 mt-0.5">
+                Via {a.cancelledMethodLabel || "Unknown"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm">
         <input

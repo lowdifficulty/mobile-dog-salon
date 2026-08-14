@@ -4,7 +4,7 @@ import {
   type Lead,
   type LeadFunnelStep,
 } from "./types";
-import { completedVisitsInRange } from "@/lib/analytics/visits";
+import { completedVisitsInRange, appointmentCountsInRange } from "@/lib/analytics/visits";
 import type { FinancialAnalytics } from "@/lib/analytics/financials";
 import { computeFinancialAnalytics } from "@/lib/analytics/financials";
 import type { VanUtilizationAnalytics } from "@/lib/analytics/van-utilization";
@@ -46,6 +46,9 @@ export interface FunnelAnalyticsResult {
   scheduledPercent: number;
   completedCount: number;
   completedPercent: number;
+  appointmentsBooked: number;
+  appointmentsCancelled: number;
+  appointmentsCompleted: number;
   financials: FinancialAnalytics;
   vanUtilization: VanUtilizationAnalytics;
 }
@@ -177,6 +180,7 @@ export function computeFunnelAnalytics(
   ).length;
   const completedVisits = completedVisitsInRange(appointments, range, customDate);
   const completedCount = completedVisits.length;
+  const appointmentCounts = appointmentCountsInRange(appointments, range, customDate);
 
   const financials = computeFinancialAnalytics(
     filtered,
@@ -204,6 +208,9 @@ export function computeFunnelAnalytics(
     scheduledPercent: percentOf(scheduledCount, totalLeads),
     completedCount,
     completedPercent: percentOf(completedCount, totalLeads),
+    appointmentsBooked: appointmentCounts.booked,
+    appointmentsCancelled: appointmentCounts.cancelled,
+    appointmentsCompleted: appointmentCounts.completed,
     financials,
     vanUtilization,
   };

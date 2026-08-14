@@ -1,6 +1,7 @@
 import type { VanId } from "./vans";
+import type { AppointmentCancelMethod } from "./cancel-method";
 
-export type { VanId };
+export type { VanId, AppointmentCancelMethod };
 
 export type GroomerId = "melanie" | "diamond" | "jessica";
 
@@ -37,6 +38,12 @@ export interface Appointment {
   zipCode: string;
   notes: string;
   createdAt: string;
+  /** ISO timestamp when the visit was cancelled. */
+  cancelledAt?: string;
+  /** Actor string that cancelled the visit (email, sms-bot:phone, licky:…). */
+  cancelledBy?: string;
+  /** How the visit was cancelled. */
+  cancelledVia?: AppointmentCancelMethod;
   /** Unguessable public SMS/web details link code (`/a/{shortCode}`). */
   shortCode?: string;
   /** ISO timestamp when 24-hour reminder email was sent */

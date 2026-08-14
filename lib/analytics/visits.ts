@@ -67,6 +67,24 @@ export function isCompletedVisitForAnalytics(
   return appointmentEnded(appointment, now);
 }
 
+export function appointmentCountsInRange(
+  appointments: Appointment[],
+  range: AnalyticsRange,
+  customDate?: string,
+  now = Date.now()
+): { booked: number; cancelled: number; completed: number } {
+  const inRange = appointments.filter((ap) =>
+    appointmentInVisitRange(ap.startAt, range, customDate, now)
+  );
+  return {
+    booked: inRange.length,
+    cancelled: inRange.filter((ap) => ap.status === "cancelled").length,
+    completed: inRange.filter((ap) =>
+      isCompletedVisitForAnalytics(ap, range, customDate, now)
+    ).length,
+  };
+}
+
 export function completedVisitsInRange(
   appointments: Appointment[],
   range: AnalyticsRange,

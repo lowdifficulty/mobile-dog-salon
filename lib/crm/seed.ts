@@ -5,6 +5,10 @@ import { readSchedulingData } from "@/lib/scheduling/store";
 import { readClientsData } from "@/lib/payments/store";
 import type { Lead } from "@/lib/leads/types";
 import type { Appointment } from "@/lib/scheduling/types";
+import {
+  cancelMethodLabel,
+  resolveCancelMethod,
+} from "@/lib/scheduling/cancel-method";
 import type { ClientAccount } from "@/lib/payments/types";
 import {
   CRM_DATA_VERSION,
@@ -222,6 +226,9 @@ function appointmentSystemEvents(
   contact: CrmContact,
   appt: Appointment
 ): CrmInteraction[] {
+  const cancelled = appt.status === "cancelled";
+  const pet = appt.petName || "their pet";
+  const methodLabel = cancelled ? cancelMethodLabel(resolveCancelMethod(appt)) : null;
   return [
     {
       id: randomUUID(),
@@ -229,14 +236,20 @@ function appointmentSystemEvents(
       phone: contact.phone,
       channel: "system",
       direction: "internal",
-      summary: `Appointment ${appt.status}: ${appt.petName || "pet"} — ${appt.service}`,
-      body: `${appt.firstName} ${appt.lastName} booked ${appt.service} for ${appt.petName || "their pet"} on ${appt.startAt}.`,
+      summary: cancelled
+        ? `Cancelled via ${methodLabel}: ${appt.petName || "pet"} — ${appt.service}`
+        : `Appointment ${appt.status}: ${appt.petName || "pet"} — ${appt.service}`,
+      body: cancelled
+        ? `Cancelled — ${appt.service} for ${pet} on ${appt.startAt}.\nVia ${methodLabel}`
+        : `${appt.firstName} ${appt.lastName} booked ${appt.service} for ${pet} on ${appt.startAt}.`,
       actor: "system",
-      createdAt: appt.createdAt,
+      createdAt: appt.cancelledAt || appt.createdAt,
       metadata: {
         appointmentId: appt.id,
         groomerId: appt.groomerId,
         startAt: appt.startAt,
+        appointmentStatus: appt.status,
+        cancelledVia: cancelled ? resolveCancelMethod(appt) : null,
       },
     },
   ];
@@ -315,6 +328,8 @@ export function buildCrmFromSources(input: {
     const hasPast = relatedAppts.some(
       (a) => a.status === "confirmed" && new Date(a.startAt).getTime() < nowMs
     );
+    const hasCancelledNoUpcoming =
+      !hasUpcoming && relatedAppts.some((a) => a.status === "cancelled");
 
     const primaryLead = (leadsByPhone.get(contact.phone) ?? []).sort((a, b) =>
       b.updatedAt.localeCompare(a.updatedAt)
@@ -325,7 +340,9 @@ export function buildCrmFromSources(input: {
       contact.status = "customer";
     }
 
-    if (hasUpcoming && !contact.tags.includes("upcoming")) contact.tags.push("upcoming");
+    contact.tags = contact.tags.filter((t) => t !== "upcoming" && t !== "cancelled");
+    if (hasUpcoming) contact.tags.push("upcoming");
+    else if (hasCancelledNoUpcoming) contact.tags.push("cancelled");
     if (hasPast && !contact.tags.includes("past-client")) contact.tags.push("past-client");
 
     for (const lead of leadsByPhone.get(contact.phone) ?? []) {

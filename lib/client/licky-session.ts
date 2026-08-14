@@ -10,7 +10,7 @@ import type { ClientAccount } from "@/lib/payments/types";
 import { getServiceLabel } from "@/lib/pricing";
 import { groomerClientDisplayName } from "@/lib/scheduling/groomers";
 import { getOrCreateHoldOwnerId } from "@/lib/scheduling/hold-owner";
-import type { GroomerId } from "@/lib/scheduling/types";
+import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 
 export async function resolveLickyContext(): Promise<{
   ctx: LickyActionContext;
@@ -32,18 +32,52 @@ export async function resolveLickyContext(): Promise<{
   };
 
   const holdOwnerId = await getOrCreateHoldOwnerId();
+  const callerPhone = (account?.phone || guest.phone || "").trim() || undefined;
 
   if (account) {
     return {
       loggedIn: true,
-      ctx: { account, guest, saveGuest, loggedIn: true, holdOwnerId },
+      ctx: { account, guest, saveGuest, loggedIn: true, holdOwnerId, callerPhone },
     };
   }
 
   return {
     loggedIn: false,
-    ctx: { guest, saveGuest, loggedIn: false, holdOwnerId },
+    ctx: { guest, saveGuest, loggedIn: false, holdOwnerId, callerPhone },
   };
+}
+
+function formatApptContextLine(ap: Appointment): string {
+  const when = new Date(ap.startAt).toLocaleString("en-US", {
+    timeZone: "America/Los_Angeles",
+  });
+  return `- id=${ap.id} | ${when} | ${getServiceLabel(ap.service)} | pet: ${ap.petName || "pet"} | groomer: ${groomerClientDisplayName(ap.groomerId as GroomerId)} (${ap.groomerId})`;
+}
+
+function appendAppointmentContext(lines: string[], appointments: Appointment[]): void {
+  const now = Date.now();
+  const confirmed = appointments.filter((ap) => ap.status === "confirmed" && ap.startAt);
+  const upcoming = confirmed
+    .filter((ap) => new Date(ap.startAt).getTime() >= now)
+    .sort((a, b) => a.startAt.localeCompare(b.startAt));
+  const past = confirmed
+    .filter((ap) => new Date(ap.startAt).getTime() < now)
+    .sort((a, b) => b.startAt.localeCompare(a.startAt));
+
+  if (upcoming.length) {
+    lines.push("Upcoming confirmed appointments (use appointment id for cancel/reschedule):");
+    for (const ap of upcoming.slice(0, 5)) {
+      lines.push(formatApptContextLine(ap));
+    }
+  } else {
+    lines.push("No upcoming confirmed appointments on this number.");
+  }
+  if (past.length) {
+    lines.push("Past confirmed appointments:");
+    for (const ap of past.slice(0, 5)) {
+      lines.push(formatApptContextLine(ap));
+    }
+  }
 }
 
 export async function buildLickyContextLines(ctx: LickyActionContext): Promise<string> {
@@ -52,8 +86,10 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
   if (!ctx.loggedIn || !ctx.account) {
     const lines = [
       callerPhone
-        ? `Visitor is calling or chatting from ${callerPhone}. Identify upcoming visits with list_upcoming_appointments.`
-        : "Visitor is not logged in.",
+        ? `Visitor is calling or chatting from ${callerPhone}. Name and phone are already collected — do not ask again. Use list_upcoming_appointments for visits (digit-normalized phone match).`
+        : ctx.guest?.skippedIdentify
+          ? "Visitor skipped the name/phone gate. Help with general questions. Do not block them. Ask for a phone only if they want appointment lookup."
+          : "Visitor is not logged in.",
       "Answer any questions about Mobile Dog Salon using knowledge and tools.",
       "Book conversationally: find_slot or check_availability → collect address/phone with save_* tools → book_appointment when they confirm.",
       "Use get_booking_status to see what's already known from this chat.",
@@ -75,50 +111,23 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
       );
     }
     if (callerPhone) {
-      const now = Date.now();
-      const upcoming = (await listAppointmentsByPhone(callerPhone).catch(() => [])).filter(
-        (ap) => ap.status === "confirmed" && new Date(ap.startAt).getTime() >= now
-      );
-      if (upcoming.length) {
-        lines.push("Upcoming appointments on this number (use appointment id for cancel/reschedule):");
-        for (const ap of upcoming.slice(0, 5)) {
-          const when = new Date(ap.startAt).toLocaleString("en-US", {
-            timeZone: "America/Los_Angeles",
-          });
-          lines.push(
-            `- id=${ap.id} | ${when} | ${getServiceLabel(ap.service)} | pet: ${ap.petName || "pet"} | groomer: ${groomerClientDisplayName(ap.groomerId as GroomerId)} (${ap.groomerId})`
-          );
-        }
-      }
+      const byPhone = await listAppointmentsByPhone(callerPhone).catch(() => []);
+      appendAppointmentContext(lines, byPhone);
     }
     return lines.join("\n");
   }
 
   const account = ctx.account;
   const appointments = await listClientAppointments(account).catch(() => []);
-  const now = Date.now();
-  const upcoming = appointments.filter(
-    (ap) =>
-      ap.status === "confirmed" && ap.startAt && new Date(ap.startAt).getTime() >= now
-  );
 
   const contextLines = [
     `Client: ${account.firstName} ${account.lastName}`,
     `Phone: ${account.phone}`,
+    "Name and phone are on file — do not ask again. Use list_upcoming_appointments for visits.",
     `Discount locked in: ${account.lockedInDiscount ? "yes (50% off grooming)" : "no"}`,
   ];
 
-  if (upcoming.length) {
-    contextLines.push("Upcoming appointments (use appointment id for cancel/reschedule):");
-    for (const ap of upcoming.slice(0, 5)) {
-      const when = new Date(ap.startAt).toLocaleString("en-US", {
-        timeZone: "America/Los_Angeles",
-      });
-      contextLines.push(
-        `- id=${ap.id} | ${when} | ${getServiceLabel(ap.service)} | pet: ${ap.petName || "pet"} | groomer: ${groomerClientDisplayName(ap.groomerId as GroomerId)} (${ap.groomerId})`
-      );
-    }
-  }
+  appendAppointmentContext(contextLines, appointments);
 
   if (account.petProfile?.pets?.length) {
     contextLines.push(

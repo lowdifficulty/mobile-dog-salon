@@ -129,6 +129,10 @@ export type CrmContactSortMeta = {
   lastPastAppointmentAt: string | null;
   daysSinceLastAppointment: number | null;
   hasUpcomingAppointment: boolean;
+  /** Cancelled visit on file and no remaining upcoming confirmed appointment. */
+  hasCancelledAppointment: boolean;
+  cancelledAppointmentAt: string | null;
+  cancelledMethodLabel: string | null;
   isFollowUp: boolean;
   primaryGroomerId: "melanie" | "jessica" | "diamond" | null;
   serviceZone: 1 | 2 | null;
@@ -172,22 +176,22 @@ export interface CrmData {
   version: number;
 }
 
-export interface CrmContactDetail extends CrmContact {
+export type CrmAppointmentSummary = {
+  id: string;
+  startAt: string;
+  status: string;
+  service: string;
+  petName: string;
+  groomerId: string;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
+  cancelledVia?: string | null;
+  cancelledMethodLabel?: string | null;
+};
+
+export interface CrmContactDetail extends CrmContactListItem {
   interactions: CrmInteraction[];
-  upcomingAppointments: {
-    id: string;
-    startAt: string;
-    status: string;
-    service: string;
-    petName: string;
-    groomerId: string;
-  }[];
-  pastAppointments: {
-    id: string;
-    startAt: string;
-    status: string;
-    service: string;
-    petName: string;
-    groomerId: string;
-  }[];
+  upcomingAppointments: CrmAppointmentSummary[];
+  pastAppointments: CrmAppointmentSummary[];
+  cancelledAppointments: CrmAppointmentSummary[];
 }

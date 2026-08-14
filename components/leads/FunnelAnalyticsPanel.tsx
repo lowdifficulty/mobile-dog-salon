@@ -131,6 +131,48 @@ export default function FunnelAnalyticsPanel() {
             </div>
           </div>
 
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">Appointments</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Visit counts for this period from the calendar (Pacific time).
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="site-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Booked
+                </p>
+                <p className="text-3xl font-bold text-brand mt-2">
+                  {data.appointmentsBooked}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Visits scheduled in {data.rangeLabel.toLowerCase()}
+                </p>
+              </div>
+              <div className="site-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Cancelled
+                </p>
+                <p className="text-3xl font-bold text-gray-800 mt-2">
+                  {data.appointmentsCancelled}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cancelled visits in this period
+                </p>
+              </div>
+              <div className="site-card p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Completed
+                </p>
+                <p className="text-3xl font-bold text-brand mt-2">
+                  {data.appointmentsCompleted}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Confirmed visits that already happened
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="site-card p-5 sm:p-6 space-y-5">
             <div>
               <h3 className="font-semibold text-gray-900">Revenue &amp; expenses</h3>

@@ -16,7 +16,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     const groomerOptions = { groomerId: user.groomerId! };
 
     if (action === "cancel") {
-      const result = await cancelAppointment(id, user.email, groomerOptions);
+      const result = await cancelAppointment(id, user.email, {
+        ...groomerOptions,
+        cancelledVia: "staff",
+      });
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });
       }

@@ -83,10 +83,30 @@ async function startRescheduleFlow(
   };
 }
 
+async function statusReply(contact: CrmContact): Promise<SmsBotFlowResult> {
+  const appt = await getPrimaryUpcomingAppointment(contact);
+  if (!appt) {
+    return {
+      reply: `I don't see an upcoming appointment on this number. Book here: ${BOOK_URL}`,
+    };
+  }
+  return {
+    reply: `Yes — you're confirmed: ${describeUpcoming(appt)}. See you then! Reply RESCHEDULE to move it, or CANCEL if you need to change it.`,
+  };
+}
+
 async function startBookFlow(
   contact: CrmContact,
   preference: string
 ): Promise<SmsBotFlowResult> {
+  const upcoming = await getPrimaryUpcomingAppointment(contact);
+  const wantsAnother = /\b(another|new|also|second|rebook|additional)\b/.test(
+    preference.toLowerCase()
+  );
+  if (upcoming && !wantsAnother) {
+    return statusReply(contact);
+  }
+
   const { slots, service } = await smsListBookableSlots(contact, { preference });
 
   if (!slots.length) {
@@ -118,6 +138,17 @@ async function continueSession(
   if (isNegative(body)) {
     await clearSmsBotSession(contact);
     return { reply: "No problem — nothing was changed.", actionTaken: "session_cleared" };
+  }
+
+  const picking = session.flow === "pick_reschedule" || session.flow === "pick_book";
+  const text = body.toLowerCase();
+  if (
+    picking &&
+    !parseNumericChoice(body, session.slots?.length ?? 0) &&
+    (wantsStatus(text) || wantsCancel(text, body) || wantsReschedule(text))
+  ) {
+    await clearSmsBotSession(contact);
+    return null;
   }
 
   if (session.flow === "confirm_cancel") {
@@ -219,8 +250,45 @@ function wantsReschedule(text: string): boolean {
     || /\bchange my (appt|appointment|time)\b/.test(text);
 }
 
+function wantsStatus(text: string): boolean {
+  if (
+    /\b(confirm|confirmation|confirmed|status|what time|what day|when is|when'?s)\b/.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(i thought|i have|do i have|still have|already (have|booked)|my (appt|appointment|visit|booking))\b/.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(tomorrow|today)\b/.test(text) &&
+    /\b(appt|appointment|groom|visit|12:?00|noon)\b/.test(text)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function wantsBook(text: string): boolean {
-  return /\b(book|schedule|rebook|reserve|appointment|appt)\b/.test(text);
+  if (
+    wantsStatus(text) &&
+    !/\b(rebook|another|new (appt|appointment)|book another|schedule another)\b/.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  if (/\b(rebook|reserve)\b/.test(text)) return true;
+  if (/\b(book|schedule)\b/.test(text)) return true;
+  if (/\b(new|another|different)\s+(appt|appointment|visit|booking)\b/.test(text)) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -248,6 +316,10 @@ export async function runSmsBotActionFlow(
 
   if (wantsReschedule(text)) {
     return startRescheduleFlow(contact, body);
+  }
+
+  if (wantsStatus(text)) {
+    return statusReply(contact);
   }
 
   if (wantsBook(text)) {

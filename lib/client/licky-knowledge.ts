@@ -4,10 +4,11 @@ import { PHONE_NUMBER } from "@/lib/constants";
 import { ORANGE_COUNTY_REGIONS } from "@/lib/page-content";
 import {
   formatPrice,
-  getServiceLabel,
+  getDiscountedServicePrice,
+  getListServicePrice,
   GROOMING_SERVICES,
   PET_SIZES,
-  SERVICE_PRICING,
+  buildPublishedPricingFacts,
   type PetSizeTier,
 } from "@/lib/pricing";
 import { GROOMERS, groomerClientDisplayName } from "@/lib/scheduling/groomers";
@@ -44,10 +45,11 @@ export function buildLickyKnowledgeBlock(): string {
   for (const size of PET_SIZES) {
     const tier = size.value as PetSizeTier;
     for (const svc of GROOMING_SERVICES) {
-      const list = SERVICE_PRICING[tier][svc.value];
-      const discounted = list / 2;
+      const discounted = getDiscountedServicePrice(tier, svc.value);
+      const list = getListServicePrice(tier, svc.value);
+      if (discounted == null || list == null) continue;
       priceRows.push(
-        `${size.label} · ${svc.label}: list ${formatPrice(list)}, typical phone/locked discount ${formatPrice(discounted)}`
+        `${size.label} · ${svc.label}: ${formatPrice(discounted)} with 50% off (list ${formatPrice(list)})`
       );
     }
   }
@@ -68,10 +70,12 @@ export function buildLickyKnowledgeBlock(): string {
     LA_COUNTY_SERVICE_AREAS.map((c) => `  · ${c}`).join("\n"),
     "- If a city isn't listed, clients can still book — we confirm coverage when scheduling.",
     "",
-    "DOG GROOMING PRICES (USD, list vs ~50% discount)",
+    "DOG GROOMING PRICES (USD)",
     ...priceRows,
-    "- Cat grooming: Cat Bath ~$220 list / ~$110 discounted; Cat Haircut ~$280 list / ~$140 discounted.",
-    "- Clients with 'discount locked in' on their account keep the ~50% rate on future dog grooming visits.",
+    "- Cat grooming: Cat Bath $110 with 50% off (list $220); Cat Haircut $140 with 50% off (list $280).",
+    "- Clients with 'discount locked in' keep the 50% rate. Do not halve the discounted price again.",
+    "",
+    buildPublishedPricingFacts(),
     "",
     "SERVICES",
     "- full-groom: Full Groom and Haircut (bath, haircut, nails, ears, hygiene)",

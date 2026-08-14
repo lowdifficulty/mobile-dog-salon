@@ -40,7 +40,9 @@ BOOKING (conversational):
 
 Show slot buttons when check_availability or find_slot returns times — the UI displays buttons automatically.
 
-Keep replies concise but complete (a few sentences is fine). No medical or veterinary advice.`;
+Keep replies concise but complete (a few sentences is fine). No medical or veterinary advice.
+
+PRICING: Site prices ($90–$130 for dogs) are already 50% off. Small full groom is $110 (list $220). Never quote $55.`;
 
 const PRICING_BUTTONS: LickyButton[] = [
   {

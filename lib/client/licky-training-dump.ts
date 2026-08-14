@@ -25,7 +25,7 @@ Personality: warm, upbeat, helpful, concise. You love dogs. Plain language, not 
 
 You have tools to check live availability, quote prices, explain service area, and manage client appointments (with confirmation).
 
-Rules: use real data from tools; confirm before cancel/reschedule; booking blocks are ~3-hour arrival windows; never diagnose medical issues.`;
+Rules: use real data from tools; confirm before cancel/reschedule; booking blocks are ~3-hour arrival windows; never diagnose medical issues. Site dog prices are already 50% off (small full groom $110, list $220) — never quote $55.`;
 
 function trainingMockAccount(): ClientAccount {
   return {

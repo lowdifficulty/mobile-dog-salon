@@ -5,6 +5,8 @@ import { readSchedulingData } from "@/lib/scheduling/store";
 import { groomerName } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { formatPhoneDisplay } from "@/lib/leads/normalize";
+import { getAppointmentBookedPrice } from "@/lib/booking/appointment-title";
+import { formatPrice, buildPublishedPricingFacts } from "@/lib/pricing";
 import type { CrmContact } from "./types";
 import { recordBotSms } from "./messaging";
 import {
@@ -43,6 +45,7 @@ async function contactAppointmentContext(contact: CrmContact): Promise<{
     petName: string;
     groomer: string;
     status: string;
+    quotedPrice: number | null;
   };
   recentPast?: {
     startAt: string;
@@ -74,6 +77,7 @@ async function contactAppointmentContext(contact: CrmContact): Promise<{
           petName: upcoming.petName || "your pup",
           groomer: groomerName(upcoming.groomerId as GroomerId),
           status: upcoming.status,
+          quotedPrice: getAppointmentBookedPrice(upcoming),
         }
       : undefined,
     recentPast: recentPast
@@ -140,8 +144,12 @@ function ruleBasedReply(
     return `You can text "cancel my appointment", "reschedule my appointment", or "book" and I'll walk you through it. Or use ${MY_APPT_URL} anytime.`;
   }
 
-  if (/\b(price|cost|how much|rate)\b/.test(text)) {
-    return `Pricing depends on your pup's size and service. See options and book at ${BOOK_URL} — or ask us at ${companyLegal.businessPhoneDisplay}.`;
+  if (/\b(price|cost|how much|rate|discount)\b/.test(text)) {
+    const quoted = ctx.upcoming?.quotedPrice;
+    if (quoted != null) {
+      return `Your 50% discount is already in the booked price: ${formatPrice(quoted)} for this visit (that's half of list). Appointment ${formatWhen(ctx.upcoming!.startAt)} with ${ctx.upcoming!.groomer}.`;
+    }
+    return `Pricing depends on your pup's size and service. Small dog full grooms are $110 with the 50% discount (list $220). See options at ${BOOK_URL} or call ${companyLegal.businessPhoneDisplay}.`;
   }
 
   if (/\b(thanks|thank you|thx)\b/.test(text)) {
@@ -161,6 +169,10 @@ function ruleBasedReply(
   }
 
   return `Thanks for texting ${companyLegal.name}! Reply BOOK to schedule, STATUS for appointment info, HELP for help, or call ${companyLegal.businessPhoneDisplay}.`;
+}
+
+function looksLikeDoubleDiscountedPrice(text: string): boolean {
+  return /\$55\b/.test(text) || /50%\s+discount applies to the \$1[0-3]0/i.test(text);
 }
 
 async function maybeAiPolish(
@@ -183,6 +195,8 @@ async function maybeAiPolish(
 
   const system = [
     config.systemPrompt,
+    buildPublishedPricingFacts(),
+    "Never quote $55 for a small full groom. $110 is already the 50% discounted price (list $220).",
     config.customLogic ? `\nAdditional logic from admin:\n${config.customLogic}` : "",
   ]
     .filter(Boolean)
@@ -210,7 +224,7 @@ async function maybeAiPolish(
       ],
     });
     const text = completion.choices[0]?.message?.content?.trim();
-    if (text && text.length <= 480) return text;
+    if (text && text.length <= 480 && !looksLikeDoubleDiscountedPrice(text)) return text;
   } catch (err) {
     console.error("SMS bot AI polish failed:", err);
   }

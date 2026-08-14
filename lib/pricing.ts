@@ -139,6 +139,32 @@ export function formatPrice(amount: number): string {
   return `$${amount}`;
 }
 
+/**
+ * Canonical prices for AI (Licky + SMS bot).
+ * SERVICE_PRICING values are already the 50% customer rate — never halve them again.
+ */
+export function buildPublishedPricingFacts(): string {
+  const rows: string[] = [];
+  for (const size of PET_SIZES) {
+    for (const svc of GROOMING_SERVICES) {
+      const discounted = getDiscountedServicePrice(size.value, svc.value);
+      const list = getListServicePrice(size.value, svc.value);
+      if (discounted == null || list == null) continue;
+      rows.push(
+        `${size.label} · ${svc.label}: ${formatPrice(discounted)} with 50% off (list ${formatPrice(list)})`
+      );
+    }
+  }
+  return [
+    "PRICING (do not violate):",
+    "- Dog prices on the site ($90–$130) ARE already the 50% discounted prices. List is 2× that.",
+    "- Never apply 50% off to $110/$120/$130. That wrongly quotes $55/$60/$65.",
+    "- Small dog Full Groom and Haircut: $110 with discount (list $220). Never $55.",
+    ...rows,
+    "- Cats: Bath $110 discounted / $220 list; Haircut $140 discounted / $280 list.",
+  ].join("\n");
+}
+
 export function getServiceLabel(service: string): string {
   const cat = CAT_GROOMING_SERVICES.find((s) => s.value === service);
   if (cat) return cat.label;

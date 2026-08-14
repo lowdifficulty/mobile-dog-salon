@@ -25,7 +25,7 @@ export interface SmsBotConfig {
   updatedAt?: string;
 }
 
-export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown.`;
+export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
 
 export function emptySmsBotConfig(): SmsBotConfig {
   return {

@@ -29,7 +29,7 @@ export default function SmsBotPanel() {
     setError(null);
     try {
       const res = await fetch("/api/admin/crm/sms-bot");
-      if (!res.ok) throw new Error("Could not load SMS bot settings");
+      if (!res.ok) throw new Error("Could not load Hattie SMS settings");
       const data = await res.json();
       setConfig(data.config);
       setTestPhonesText((data.config.testPhones || []).join("\n"));
@@ -65,7 +65,7 @@ export default function SmsBotPanel() {
       if (!res.ok) throw new Error(data.error || "Save failed");
       setConfig(data.config);
       setTestPhonesText((data.config.testPhones || []).join("\n"));
-      setMessage("SMS bot logic saved");
+      setMessage("Hattie SMS logic saved");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -97,18 +97,18 @@ export default function SmsBotPanel() {
   }
 
   if (loading || !config) {
-    return <div className="text-sm text-gray-500">Loading SMS bot…</div>;
+    return <div className="text-sm text-gray-500">Loading Hattie SMS…</div>;
   }
 
   return (
     <div className="max-w-4xl space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-brand">SMS Chatbot</h2>
+        <h2 className="text-xl font-bold text-brand">Hattie SMS</h2>
         <p className="text-sm text-gray-600 mt-1">
-          Keep the bot in <strong>test mode</strong> until replies look right. In test mode it
-          only sends to allowlisted phones; other contacts get a CRM draft only. With{" "}
-          <strong>scheduling actions</strong> on, customers can book, cancel, and reschedule over
-          SMS (reply YES to confirm).
+          Hattie texts customers from the business number. Keep her in <strong>test mode</strong>{" "}
+          until replies look right. In test mode she only sends to allowlisted phones; other
+          contacts get a CRM draft only. With <strong>scheduling actions</strong> on, customers
+          can book, cancel, and reschedule over SMS (reply YES to confirm).
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function SmsBotPanel() {
               checked={config.enabled}
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
             />
-            Bot enabled
+            Hattie SMS enabled
           </label>
           <label className="flex items-center gap-2 text-sm font-medium">
             <input

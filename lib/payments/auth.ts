@@ -11,7 +11,7 @@ export interface ClientSessionData {
   client?: ClientSessionUser;
   /** Verified phone for the public My Appointment flow (no account login). */
   myAppointmentPhone?: string;
-  /** Guest Licky chat state when not logged in. */
+  /** Guest Hattie chat state when not logged in. */
   lickyGuest?: LickyGuestState;
   /** Anonymous id for temporary slot holds during booking. */
   slotHoldOwnerId?: string;

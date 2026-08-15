@@ -74,7 +74,7 @@ export default function PostBookingRegistration({
         <div className="flex items-start gap-3">
           <img
             src={LICKY_AVATAR}
-            alt="Licky the Chihuahua"
+            alt="Hattie the Chihuahua"
             className="w-14 h-14 rounded-full border-2 border-brand/20 object-cover bg-amber-50"
           />
           <div>

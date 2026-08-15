@@ -151,7 +151,7 @@ function buildCreateInput(
     address: contact.address!.trim(),
     city: contact.city?.trim(),
     zipCode: contact.zipCode!.trim(),
-    notes: "Booked via SMS bot.",
+    notes: "Booked via Hattie SMS.",
   };
 }
 

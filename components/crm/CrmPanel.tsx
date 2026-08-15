@@ -1095,7 +1095,7 @@ function ContactDetailsContent({
           onChange={(e) => onToggleBot(e.target.checked)}
           disabled={busy === "bot"}
         />
-        SMS bot for this contact
+        Hattie SMS for this contact
       </label>
 
       <div className="flex flex-wrap gap-1">

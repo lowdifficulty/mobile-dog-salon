@@ -11,6 +11,6 @@ export interface LickyActionContext {
   /** Full conversation for this request — used for booking extraction. */
   conversationMessages?: ChatMessage[];
   request?: Request;
-  /** Caller ID digits/E.164 when Licky is on a phone call (or SMS-like identity). */
+  /** Caller ID digits/E.164 when Hattie is on a phone call (or SMS-like identity). */
   callerPhone?: string;
 }

@@ -24,7 +24,7 @@ import {
 
 export type { ChatMessage } from "@/lib/client/licky-types";
 
-const LICKY_SYSTEM_PROMPT = `You are Licky, the friendly Chihuahua mascot for Mobile Dog Salon (Orange County + parts of LA County). Brand colors are navy and pink — you are warm, not a rigid script bot.
+const LICKY_SYSTEM_PROMPT = `You are Hattie, the friendly Chihuahua mascot for Mobile Dog Salon (Orange County + parts of LA County). Brand colors are navy and pink — you are warm, not a rigid script bot.
 
 You are a knowledgeable, warm assistant. Answer questions about the company, grooming, pricing, service area, policies, and pets using your knowledge and tools. Be helpful and conversational.
 
@@ -133,8 +133,8 @@ async function createFallbackReply(
     const name = context.match(/Client: (\S+)/)?.[1];
     return structuredFromText(
       name
-        ? `Hi ${name}! I'm Licky — ask me anything about grooming or booking.`
-        : "Hi! I'm Licky — ask me about grooming, pricing, open times, or booking a visit."
+        ? `Hi ${name}! I'm Hattie — ask me anything about grooming or booking.`
+        : "Hi! I'm Hattie — ask me about grooming, pricing, open times, or booking a visit."
     );
   }
 

@@ -95,7 +95,7 @@ async function lickyReserveSlot(
       holdId: hold.holdId,
     });
   } catch (err) {
-    console.error("Licky pending booking save failed:", err);
+    console.error("Hattie pending booking save failed:", err);
     return structuredFromText("Couldn't save your pick — try again in a moment.");
   }
 
@@ -149,9 +149,9 @@ async function appointmentForCtx(
 }
 
 function lickyActor(ctx: LickyActionContext): string {
-  if (ctx.account?.email) return `licky:client:${ctx.account.email}`;
+  if (ctx.account?.email) return `hattie:client:${ctx.account.email}`;
   const phone = ctxPhone(ctx).replace(/\D/g, "");
-  return phone ? `licky:phone:${phone}` : "licky:guest";
+  return phone ? `hattie:phone:${phone}` : "hattie:guest";
 }
 
 const MAX_SLOTS_IN_REPLY = 24;
@@ -321,13 +321,13 @@ export async function lickyBookAppointment(
     city,
     zipCode,
     notes: ctx.account?.lockedInDiscount
-      ? "50% discount locked in. Booked via Licky chat."
-      : "Booked via Licky chat.",
+      ? "50% discount locked in. Booked via Hattie chat."
+      : "Booked via Hattie chat.",
   };
 
   const actor = ctx.account
-    ? `licky:${ctx.account.email}`
-    : `licky:guest:${phone || "visitor"}`;
+    ? `hattie:${ctx.account.email}`
+    : `hattie:guest:${phone || "visitor"}`;
 
   const result = await createAppointment(
     input,
@@ -354,7 +354,7 @@ export async function lickyBookAppointment(
     const { runBookingFollowUp } = await import("@/lib/scheduling/booking-follow-up");
     await runBookingFollowUp(result.appointment, "booking");
   } catch (err) {
-    console.error("Licky booking follow-up failed:", err);
+    console.error("Hattie booking follow-up failed:", err);
   }
 
   const when = new Date(result.appointment.startAt).toLocaleString("en-US", {

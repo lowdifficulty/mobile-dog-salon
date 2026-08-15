@@ -7,8 +7,8 @@ export type AppointmentCancelMethod =
   | "unknown";
 
 export const CANCEL_METHOD_LABELS: Record<AppointmentCancelMethod, string> = {
-  sms_bot: "Customer SMS / SMS bot",
-  licky_chat: "Licky chat",
+  sms_bot: "Customer SMS / Hattie SMS",
+  licky_chat: "Hattie chat",
   my_appointment: "My Appointment / website",
   staff: "Staff / groomer calendar",
   admin: "Admin",
@@ -26,7 +26,7 @@ export function inferCancelMethod(actor?: string | null): AppointmentCancelMetho
   const a = actor.trim().toLowerCase();
   if (!a) return "unknown";
   if (a.startsWith("sms-bot")) return "sms_bot";
-  if (a.startsWith("licky:")) return "licky_chat";
+  if (a.startsWith("licky:") || a.startsWith("hattie:")) return "licky_chat";
   if (a.startsWith("public:") || a.startsWith("client:")) return "my_appointment";
   if (a.startsWith("staff:")) return "staff";
   if (a.startsWith("admin:") || a === "admin") return "admin";

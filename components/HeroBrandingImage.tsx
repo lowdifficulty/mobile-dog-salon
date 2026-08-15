@@ -23,7 +23,7 @@ export default function HeroBrandingImage({
   const image = (
     <Image
       src={BRANDING_AD}
-      alt="Licky the Chihuahua and Hattie the Chocolate Lab — Good Dogs Take Baths"
+      alt="Hattie the Chihuahua and a Chocolate Lab — Good Dogs Take Baths"
       fill
       priority
       fetchPriority="high"

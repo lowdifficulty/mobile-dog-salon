@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (!isLickyEnabled()) {
     return NextResponse.json(
       {
-        error: "Licky is temporarily unavailable",
+        error: "Hattie is temporarily unavailable",
         reply: "Our chat assistant is taking a nap. Book at /book or call (949) 755-8994.",
         ...lickyChatStatus(),
       },
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ...response, ...lickyChatStatus() });
   } catch (err) {
-    console.error("Licky chat error:", err);
+    console.error("Hattie chat error:", err);
     return NextResponse.json(
       {
         error: "Chat failed",

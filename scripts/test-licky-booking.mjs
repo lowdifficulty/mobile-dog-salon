@@ -1,5 +1,5 @@
 /**
- * Smoke test Licky guest booking via /api/client/chat (book_slot action).
+ * Smoke test Hattie guest booking via /api/client/chat (book_slot action).
  * Usage: BASE_URL=http://localhost:3000 node scripts/test-licky-booking.mjs
  */
 
@@ -36,7 +36,7 @@ async function chat(body, cookie = "") {
 }
 
 async function main() {
-  console.log(`Licky booking test @ ${BASE}`);
+  console.log(`Hattie booking test @ ${BASE}`);
 
   let cookie = "";
 
@@ -110,7 +110,7 @@ async function main() {
     process.exit(1);
   }
   console.log("OK   booking reply:", contact.json.reply.slice(0, 100));
-  console.log("\nLicky booking flow passed.");
+  console.log("\nHattie booking flow passed.");
 }
 
 main().catch((err) => {

@@ -13,10 +13,10 @@ export function clientToSessionUser(account: ClientAccount): ClientSessionUser {
 }
 
 export const LICKY_WELCOME_MESSAGE =
-  "Hi, I'm Licky! Your grooming buddy. Ask me anything — pricing, open times, service area, or let's book a visit together.";
+  "Hi, I'm Hattie! Your grooming buddy. Ask me anything — pricing, open times, service area, or let's book a visit together.";
 
 export const LICKY_IDENTIFY_MESSAGE =
-  "Hi, this is Licky, please provide your name and phone number.";
+  "Hi, this is Hattie, please provide your name and phone number.";
 
-/** Original Licky Chihuahua photo — used as the chat avatar inside a pink circle. */
+/** Hattie Chihuahua photo — used as the chat avatar inside a pink circle. */
 export const LICKY_AVATAR = "/images/booking/dog-small.png";

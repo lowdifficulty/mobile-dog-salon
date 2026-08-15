@@ -79,7 +79,7 @@ export async function writeLickyConfig(customTrainingText: string): Promise<Lick
   } else if (!isVercelServerless()) {
     await writeToLocalFile(config);
   } else {
-    throw new Error("Licky config cannot be saved without Redis on production");
+    throw new Error("Hattie config cannot be saved without Redis on production");
   }
 
   return config;

@@ -1,4 +1,4 @@
-/** Guest Licky chat state stored in the client session cookie. */
+/** Guest Hattie chat state stored in the client session cookie. */
 export interface LickyGuestState {
   pendingLickyBooking?: {
     slotKey: string;

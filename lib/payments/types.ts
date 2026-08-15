@@ -22,7 +22,7 @@ export interface ClientAccount {
     pets: ClientPetProfile[];
     notes?: string;
   };
-  /** Show Licky welcome once after first registration login. */
+  /** Show Hattie welcome once after first registration login. */
   pendingLickyWelcome?: boolean;
   /** Home address for mobile grooming visits. */
   serviceAddress?: {

@@ -40,7 +40,7 @@ export interface Appointment {
   createdAt: string;
   /** ISO timestamp when the visit was cancelled. */
   cancelledAt?: string;
-  /** Actor string that cancelled the visit (email, sms-bot:phone, licky:…). */
+  /** Actor string that cancelled the visit (email, sms-bot:phone, licky:…, hattie:…). */
   cancelledBy?: string;
   /** How the visit was cancelled. */
   cancelledVia?: AppointmentCancelMethod;

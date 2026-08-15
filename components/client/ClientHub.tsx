@@ -422,7 +422,7 @@ export default function ClientHub() {
     <>
       <ClientPortalShell
         title={`${client.firstName}'s client portal`}
-        subtitle="Manage appointments, share photos, pay online, and chat with Licky."
+        subtitle="Manage appointments, share photos, pay online, and chat with Hattie."
         onLogout={logout}
       >
         {client.lockedInDiscount && (
@@ -635,7 +635,7 @@ export default function ClientHub() {
               <div className="pt-2 border-t border-gray-100 space-y-3">
                 <h3 className="font-semibold text-gray-900 text-sm">Service address</h3>
                 <p className="text-xs text-gray-500">
-                  Where we come for grooming. Licky can also save this when you chat with him.
+                  Where we come for grooming. Hattie can also save this when you chat with her.
                 </p>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">

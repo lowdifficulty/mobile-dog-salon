@@ -25,7 +25,7 @@ function sanitizeGroomerId(raw: string | undefined): GroomerId | undefined {
 }
 
 /**
- * Same calendar data as /api/availability — used by Licky tools.
+ * Same calendar data as /api/availability — used by Hattie tools.
  */
 export async function getLickyAvailabilitySlots(options: {
   service?: string;

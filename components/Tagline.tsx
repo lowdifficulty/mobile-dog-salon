@@ -30,7 +30,7 @@ export function BrandingHeroImage({ className = "" }: { className?: string }) {
   return (
     <img
       src={BRANDING_AD}
-      alt="Licky the Chihuahua and Hattie the Chocolate Lab — Good Dogs Take Baths"
+      alt="Hattie the Chihuahua and a Chocolate Lab — Good Dogs Take Baths"
       className={`w-full max-w-lg mx-auto drop-shadow-xl ${className}`}
     />
   );

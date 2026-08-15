@@ -25,7 +25,25 @@ export interface SmsBotConfig {
   updatedAt?: string;
 }
 
-export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
+const LEGACY_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
+
+export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are Hattie, the Mobile Dog Salon SMS assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
+
+export function migrateSmsBotPrompt(prompt: string): string {
+  const trimmed = prompt.trim();
+  if (!trimmed || trimmed === LEGACY_SMS_BOT_SYSTEM_PROMPT) {
+    return DEFAULT_SMS_BOT_SYSTEM_PROMPT;
+  }
+  return trimmed.replace(/\bLicky\b/g, "Hattie");
+}
+
+function promptNeedsMigration(raw: Partial<SmsBotConfig> | null | undefined): boolean {
+  if (!raw) return false;
+  const prompt = (raw.systemPrompt || "").trim();
+  if (!prompt || prompt === LEGACY_SMS_BOT_SYSTEM_PROMPT) return true;
+  if (/\bLicky\b/.test(prompt)) return true;
+  return /\bLicky\b/.test(raw.customLogic || "");
+}
 
 export function emptySmsBotConfig(): SmsBotConfig {
   return {
@@ -39,12 +57,12 @@ export function emptySmsBotConfig(): SmsBotConfig {
   };
 }
 
-async function readFromLocalFile(): Promise<SmsBotConfig> {
+async function readRawFromLocalFile(): Promise<Partial<SmsBotConfig> | null> {
   try {
     const raw = await fs.readFile(FILE_PATH, "utf8");
-    return normalizeConfig(JSON.parse(raw) as Partial<SmsBotConfig>);
+    return JSON.parse(raw) as Partial<SmsBotConfig>;
   } catch {
-    return emptySmsBotConfig();
+    return null;
   }
 }
 
@@ -53,14 +71,39 @@ async function writeToLocalFile(config: SmsBotConfig): Promise<void> {
   await fs.writeFile(FILE_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
 }
 
+async function persistSmsBotConfig(config: SmsBotConfig): Promise<void> {
+  const redis = getRedisClient();
+  if (redis) {
+    await redis.set(REDIS_KEY, config);
+  }
+  if (!isVercelServerless()) {
+    await writeToLocalFile(config);
+  }
+}
+
+function withMigratedPrompt(raw: Partial<SmsBotConfig>): SmsBotConfig {
+  const normalized = normalizeConfig(raw);
+  if (!promptNeedsMigration(raw)) return normalized;
+  return { ...normalized, updatedAt: new Date().toISOString() };
+}
+
+async function loadAndMigrate(raw: Partial<SmsBotConfig> | null): Promise<SmsBotConfig> {
+  if (!raw) return emptySmsBotConfig();
+  const next = withMigratedPrompt(raw);
+  if (promptNeedsMigration(raw)) {
+    await persistSmsBotConfig(next);
+  }
+  return next;
+}
+
 function normalizeConfig(input: Partial<SmsBotConfig>): SmsBotConfig {
   const base = emptySmsBotConfig();
   return {
     mode: input.mode === "live" ? "live" : "test",
     enabled: input.enabled !== false,
     useAiPolish: input.useAiPolish !== false,
-    systemPrompt: (input.systemPrompt || base.systemPrompt).trim() || base.systemPrompt,
-    customLogic: (input.customLogic || "").trim(),
+    systemPrompt: migrateSmsBotPrompt(input.systemPrompt || base.systemPrompt),
+    customLogic: (input.customLogic || "").trim().replace(/\bLicky\b/g, "Hattie"),
     enableActions: input.enableActions !== false,
     testPhones: Array.from(
       new Set(
@@ -81,8 +124,8 @@ export async function readSmsBotConfig(): Promise<SmsBotConfig> {
   const redis = getRedisClient();
   if (redis) {
     const data = await redis.get<SmsBotConfig>(REDIS_KEY);
-    if (data) return normalizeConfig(data);
-    const seeded = await readFromLocalFile();
+    if (data) return loadAndMigrate(data);
+    const seeded = await loadAndMigrate(await readRawFromLocalFile());
     await redis.set(REDIS_KEY, seeded);
     return seeded;
   }
@@ -91,7 +134,7 @@ export async function readSmsBotConfig(): Promise<SmsBotConfig> {
     return emptySmsBotConfig();
   }
 
-  return readFromLocalFile();
+  return loadAndMigrate(await readRawFromLocalFile());
 }
 
 export async function writeSmsBotConfig(

@@ -19,13 +19,13 @@ import { getSchedulingPersistenceStatus, readSchedulingData } from "@/lib/schedu
 import { readLickyConfig } from "@/lib/client/licky-config-store";
 import type { ClientAccount } from "@/lib/payments/types";
 
-const LICKY_SYSTEM_PROMPT = `You are Hattie, the friendly tan Chihuahua mascot for Mobile Dog Salon — mobile dog grooming in Orange County and parts of LA County, California.
+const LICKY_SYSTEM_PROMPT = `You are Licky, the friendly tan Chihuahua mascot for Mobile Dog Salon — mobile dog grooming in Orange County and parts of LA County, California.
 
 Personality: warm, upbeat, helpful, concise. You love dogs. Plain language, not corporate jargon.
 
 You have tools to check live availability, quote prices, explain service area, and manage client appointments (with confirmation).
 
-Rules: use real data from tools; confirm before cancel/reschedule; booking blocks are ~3-hour arrival windows; never diagnose medical issues. Site dog prices are already 50% off (small full groom $110, list $220) — never quote $55.`;
+Rules: use real data from tools; confirm before cancel/reschedule; never tell a client their time changed unless reschedule_appointment returned Moved!; booking blocks are ~3-hour arrival windows; never diagnose medical issues. Site dog prices are already 50% off (small full groom $110, list $220) — never quote $55.`;
 
 function trainingMockAccount(): ClientAccount {
   return {
@@ -90,7 +90,7 @@ export async function buildLickyTrainingDump() {
   return {
     generatedAt: new Date().toISOString(),
     purpose:
-      "Training / knowledge export for Hattie client chatbot — paste into OpenAI project knowledge, fine-tuning prep, or internal QA.",
+      "Training / knowledge export for Licky client chatbot — paste into OpenAI project knowledge, fine-tuning prep, or internal QA.",
     systemPrompt: LICKY_SYSTEM_PROMPT,
     customTrainingText: lickyConfig.customTrainingText,
     customTrainingUpdatedAt: lickyConfig.updatedAt,
@@ -156,7 +156,7 @@ export function formatLickyTrainingMarkdown(
   dump: Awaited<ReturnType<typeof buildLickyTrainingDump>>
 ): string {
   const lines: string[] = [
-    "# Hattie Training / Knowledge Export",
+    "# Licky Training / Knowledge Export",
     `Generated: ${dump.generatedAt}`,
     "",
     "## System prompt",

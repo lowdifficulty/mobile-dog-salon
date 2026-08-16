@@ -16,11 +16,13 @@ import {
 import {
   describeUpcoming,
   getPrimaryUpcomingAppointment,
+  resolveSmsReschedulePreference,
   smsBookSlot,
   smsCancelUpcoming,
   smsListBookableSlots,
   smsRescheduleUpcoming,
 } from "./sms-bot-actions";
+import { looksLikeRescheduleRequest } from "@/lib/client/licky-reschedule-match";
 
 export type SmsBotFlowResult = {
   reply: string;
@@ -56,15 +58,23 @@ async function startRescheduleFlow(
     };
   }
 
-  const { slots } = await smsListBookableSlots(contact, {
-    preference,
-    groomerId: appt.groomerId,
-    service: appt.service,
-  });
+  const resolved = await resolveSmsReschedulePreference(contact, appt, preference);
+  if (resolved.kind === "confirm" && resolved.slot) {
+    const session = buildSmsBotSession("confirm_reschedule", {
+      appointmentId: appt.id,
+      slotKey: resolved.slot.slotKey,
+      service: appt.service,
+    });
+    await saveSmsBotSession(contact, session);
+    return {
+      reply: `${resolved.preview} Reply YES to confirm — I will not change it until you do.`,
+    };
+  }
 
+  const slots = resolved.slots;
   if (!slots.length) {
     return {
-      reply: `No open times in the next 2 weeks for ${appt.groomerId}. Call ${companyLegal.businessPhoneDisplay} and we'll help.`,
+      reply: `No open times in the next 2 weeks for ${appt.groomerId}. Your visit is still ${describeUpcoming(appt)}. Call ${companyLegal.businessPhoneDisplay} and we'll help.`,
     };
   }
 
@@ -77,7 +87,7 @@ async function startRescheduleFlow(
 
   return {
     reply: formatSlotOptionsMessage(
-      `Move ${describeUpcoming(appt)}. Pick a new time:`,
+      resolved.preview || `Move ${describeUpcoming(appt)}. Pick a new time:`,
       slots
     ),
   };
@@ -245,9 +255,7 @@ function wantsCancel(text: string, raw: string): boolean {
 }
 
 function wantsReschedule(text: string): boolean {
-  return /\b(reschedule|move|change|switch)\b/.test(text) && /\b(appt|appointment|visit|time|slot|booking)\b/.test(text)
-    || /\bmove my\b/.test(text)
-    || /\bchange my (appt|appointment|time)\b/.test(text);
+  return looksLikeRescheduleRequest(text);
 }
 
 function wantsStatus(text: string): boolean {

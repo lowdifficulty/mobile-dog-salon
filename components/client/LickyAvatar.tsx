@@ -1,13 +1,13 @@
 import { LICKY_AVATAR } from "@/lib/client/portal";
 
-/** White ring around the Hattie Chihuahua photo. */
+/** White ring around the original Licky Chihuahua photo. */
 const LICKY_AVATAR_RING = "#FFFFFF";
 
-/** Hattie Chihuahua photo inside a white circle. */
+/** Original Licky Chihuahua photo inside a white circle. */
 export default function LickyAvatar({
   size = 40,
   className = "",
-  alt = "Hattie",
+  alt = "Licky",
 }: {
   size?: number;
   className?: string;

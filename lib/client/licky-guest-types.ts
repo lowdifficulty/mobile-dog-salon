@@ -1,10 +1,19 @@
-/** Guest Hattie chat state stored in the client session cookie. */
+/** Guest Licky chat state stored in the client session cookie. */
 export interface LickyGuestState {
   pendingLickyBooking?: {
     slotKey: string;
     service: string;
     fromFallback?: boolean;
     holdId?: string;
+  } | null;
+  /** Confirmed-by-YES move waiting to write to the calendar. */
+  pendingLickyReschedule?: {
+    appointmentId: string;
+    slotKey: string;
+    fromLabel: string;
+    toLabel: string;
+    requestedClock?: string;
+    requestedPreference?: string;
   } | null;
   serviceAddress?: {
     address: string;

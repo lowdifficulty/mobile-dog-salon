@@ -7,8 +7,8 @@ export type AppointmentCancelMethod =
   | "unknown";
 
 export const CANCEL_METHOD_LABELS: Record<AppointmentCancelMethod, string> = {
-  sms_bot: "Customer SMS / Hattie SMS",
-  licky_chat: "Hattie chat",
+  sms_bot: "Customer SMS / Licky SMS",
+  licky_chat: "Licky chat",
   my_appointment: "My Appointment / website",
   staff: "Staff / groomer calendar",
   admin: "Admin",

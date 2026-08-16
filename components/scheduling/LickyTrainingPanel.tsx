@@ -36,7 +36,7 @@ export default function LickyTrainingPanel() {
     setSaveMessage("");
     try {
       const res = await fetch("/api/admin/licky-training");
-      if (!res.ok) throw new Error("Could not load Hattie training data");
+      if (!res.ok) throw new Error("Could not load Licky training data");
       const json = (await res.json()) as TrainingDumpSummary;
       setData(json);
       setCustomText(json.customTrainingText ?? "");
@@ -64,7 +64,7 @@ export default function LickyTrainingPanel() {
       if (!res.ok) {
         throw new Error(json.error ?? "Could not save");
       }
-      setSaveMessage("Saved — Hattie will use this text immediately.");
+      setSaveMessage("Saved — Licky will use this text immediately.");
       setCustomText(json.customTrainingText ?? customText);
       setData((prev) =>
         prev
@@ -82,7 +82,7 @@ export default function LickyTrainingPanel() {
   }
 
   if (loading) {
-    return <p className="text-gray-500 text-sm">Loading Hattie training export…</p>;
+    return <p className="text-gray-500 text-sm">Loading Licky training export…</p>;
   }
 
   if (error && !data) {
@@ -105,9 +105,9 @@ export default function LickyTrainingPanel() {
     <div className="space-y-6">
       <div className="site-card p-6 space-y-4">
         <div>
-          <h2 className="font-bold text-brand text-lg">Custom Hattie training text</h2>
+          <h2 className="font-bold text-brand text-lg">Custom Licky training text</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Hattie is on for the website chat widget. Inbound Voice AI stays off until
+            Licky is on for the website chat widget. Inbound Voice AI stays off until
             <code>VOICE_AI_ENABLED=1</code>. Add company background, tone, and policies here.
             Set <code>LICKY_ENABLED=0</code> to hide the widget.
           </p>
@@ -117,7 +117,7 @@ export default function LickyTrainingPanel() {
           value={customText}
           onChange={(e) => setCustomText(e.target.value)}
           rows={14}
-          placeholder="Example: Mobile Dog Salon started in… Hattie should always mention our cage-free approach… Never promise same-day bookings…"
+          placeholder="Example: Mobile Dog Salon started in… Licky should always mention our cage-free approach… Never promise same-day bookings…"
           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-y min-h-[200px] font-mono leading-relaxed"
         />
 
@@ -146,7 +146,7 @@ export default function LickyTrainingPanel() {
 
       <div className="site-card p-6 space-y-4">
         <div>
-          <h2 className="font-bold text-brand text-lg">Hattie training export</h2>
+          <h2 className="font-bold text-brand text-lg">Licky training export</h2>
           <p className="text-sm text-gray-600 mt-1">
             Download the full dump: live calendar, pricing, FAQs, groomers, your custom text above,
             and sample tool outputs.

@@ -4,6 +4,10 @@ import {
   lickyBookAppointment,
   type LickyActionContext,
 } from "@/lib/client/licky-actions";
+import {
+  getPendingLickyReschedule,
+  lickyRescheduleAppointment,
+} from "@/lib/client/licky-reschedule";
 import { getLickyAvailabilitySlots } from "@/lib/client/licky-availability";
 import {
   buildAvailabilityResponse,
@@ -66,11 +70,33 @@ export async function handleLickyClientAction(
     case "show_more_availability":
       return buildAvailabilityActionResponse(action.payload, ctx.holdOwnerId);
 
-    case "book_slot":
+    case "reschedule_slot": {
+      const appointmentId = payloadString(action.payload, "appointmentId");
+      const slotKey = payloadString(action.payload, "slotKey");
+      if (!slotKey) {
+        return structuredFromText("Missing slot — tap a time button.");
+      }
+      return lickyRescheduleAppointment(ctx, {
+        appointment_id: appointmentId || undefined,
+        slot_key: slotKey,
+        confirmed: true,
+      });
+    }
+
+    case "book_slot": {
       const slotKey = payloadString(action.payload, "slotKey");
       const service = payloadString(action.payload, "service") || "full-groom";
       if (!slotKey) {
         return structuredFromText("Missing slot — tap a time button.");
+      }
+      const pendingReschedule = getPendingLickyReschedule(ctx);
+      if (pendingReschedule) {
+        return lickyRescheduleAppointment(ctx, {
+          appointment_id: pendingReschedule.appointmentId,
+          slot_key: slotKey,
+          confirmed: true,
+          requested_time: pendingReschedule.requestedClock,
+        });
       }
       return lickyBookAppointment(
         ctx,
@@ -81,6 +107,7 @@ export async function handleLickyClientAction(
         },
         request
       );
+    }
 
     default:
       return structuredFromText("Try a button or ask me again!");

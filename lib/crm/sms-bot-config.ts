@@ -27,22 +27,34 @@ export interface SmsBotConfig {
 
 const LEGACY_SMS_BOT_SYSTEM_PROMPT = `You are the Mobile Dog Salon SMS follow-up assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
 
-export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are Hattie, the Mobile Dog Salon SMS assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
+const LEGACY_HATTIE_SMS_BOT_SYSTEM_PROMPT = `You are Hattie, the Mobile Dog Salon SMS assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
+
+export const DEFAULT_SMS_BOT_SYSTEM_PROMPT = `You are Licky, the Mobile Dog Salon SMS assistant. Write ONE short SMS reply (max 320 chars). Be warm, clear, and actionable. Never give vet advice. Include a booking or my-appointment link when useful. If the draft is fine, return it lightly edited. Do not use markdown. Dog site prices are already 50% off — small full groom is $110 (list $220), never $55.`;
 
 export function migrateSmsBotPrompt(prompt: string): string {
   const trimmed = prompt.trim();
-  if (!trimmed || trimmed === LEGACY_SMS_BOT_SYSTEM_PROMPT) {
+  if (
+    !trimmed ||
+    trimmed === LEGACY_SMS_BOT_SYSTEM_PROMPT ||
+    trimmed === LEGACY_HATTIE_SMS_BOT_SYSTEM_PROMPT
+  ) {
     return DEFAULT_SMS_BOT_SYSTEM_PROMPT;
   }
-  return trimmed.replace(/\bLicky\b/g, "Hattie");
+  return trimmed.replace(/\bHattie\b/g, "Licky");
 }
 
 function promptNeedsMigration(raw: Partial<SmsBotConfig> | null | undefined): boolean {
   if (!raw) return false;
   const prompt = (raw.systemPrompt || "").trim();
-  if (!prompt || prompt === LEGACY_SMS_BOT_SYSTEM_PROMPT) return true;
-  if (/\bLicky\b/.test(prompt)) return true;
-  return /\bLicky\b/.test(raw.customLogic || "");
+  if (
+    !prompt ||
+    prompt === LEGACY_SMS_BOT_SYSTEM_PROMPT ||
+    prompt === LEGACY_HATTIE_SMS_BOT_SYSTEM_PROMPT
+  ) {
+    return true;
+  }
+  if (/\bHattie\b/.test(prompt)) return true;
+  return /\bHattie\b/.test(raw.customLogic || "");
 }
 
 export function emptySmsBotConfig(): SmsBotConfig {
@@ -103,7 +115,7 @@ function normalizeConfig(input: Partial<SmsBotConfig>): SmsBotConfig {
     enabled: input.enabled !== false,
     useAiPolish: input.useAiPolish !== false,
     systemPrompt: migrateSmsBotPrompt(input.systemPrompt || base.systemPrompt),
-    customLogic: (input.customLogic || "").trim().replace(/\bLicky\b/g, "Hattie"),
+    customLogic: (input.customLogic || "").trim().replace(/\bHattie\b/g, "Licky"),
     enableActions: input.enableActions !== false,
     testPhones: Array.from(
       new Set(

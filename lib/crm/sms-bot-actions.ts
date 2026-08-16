@@ -7,8 +7,14 @@ import {
   type CreateAppointmentInput,
 } from "@/lib/scheduling/appointment-actions";
 import { getLickyAvailabilitySlots } from "@/lib/client/licky-availability";
+import {
+  buildLickyRescheduleNote,
+  recordLickyRescheduleFollowUp,
+} from "@/lib/client/licky-reschedule";
+import { resolveRescheduleTarget } from "@/lib/client/licky-reschedule-match";
 import { rankSlotsForPreference } from "@/lib/client/licky-slot-match";
 import { groomerName } from "@/lib/scheduling/groomers";
+import { parseSlotFromIso, parseSlotKey, slotToISO } from "@/lib/scheduling/slots";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import { companyLegal } from "@/lib/company-legal";
@@ -151,7 +157,7 @@ function buildCreateInput(
     address: contact.address!.trim(),
     city: contact.city?.trim(),
     zipCode: contact.zipCode!.trim(),
-    notes: "Booked via Hattie SMS.",
+    notes: "Booked via Licky SMS.",
   };
 }
 
@@ -193,6 +199,65 @@ export async function smsCancelUpcoming(
   };
 }
 
+export async function resolveSmsReschedulePreference(
+  contact: CrmContact,
+  appt: Appointment,
+  preference: string
+): Promise<{
+  kind: "confirm" | "pick";
+  slot?: { slotKey: string; label: string };
+  slots: ReturnType<typeof slotsToSessionOptions>;
+  preview: string;
+}> {
+  const { slots: listed } = await smsListBookableSlots(contact, {
+    preference,
+    groomerId: appt.groomerId,
+    service: appt.service,
+  });
+
+  const data = await getLickyAvailabilitySlots({
+    service: appt.service || "full-groom",
+    days: 14,
+    groomerId: appt.groomerId,
+    holdOwnerId: `sms:${contact.id}`,
+  });
+  const current = parseSlotFromIso(appt.startAt);
+  const match = resolveRescheduleTarget({
+    currentDate: current.date,
+    currentTime: current.time,
+    currentGroomerId: appt.groomerId,
+    preference,
+    openSlots: data.slots,
+  });
+
+  if (match.status === "target") {
+    const label = `${match.slot.date} ${match.slot.displayTime} ${match.slot.groomerName}`;
+    const windowNote = match.mappedFromSameWindow
+      ? ` ${match.requestedClock || "That time"} is still in your current window, so the next bookable start is ${match.slot.displayTime}.`
+      : match.requestedClock
+        ? ` We book arrival windows — ${match.requestedClock} maps to ${match.slot.displayTime}.`
+        : "";
+    return {
+      kind: "confirm",
+      slot: { slotKey: match.slot.slotKey, label },
+      slots: listed,
+      preview: `I can move ${describeUpcoming(appt)} to ${label}.${windowNote}`,
+    };
+  }
+
+  const fallback = listed.length
+    ? listed
+    : slotsToSessionOptions(match.alternatives);
+  const asked = match.requestedClock ? ` ${match.requestedClock}` : "";
+  return {
+    kind: "pick",
+    slots: fallback,
+    preview: asked
+      ? `${asked.trim()} isn't an open start time. Your visit is still ${describeUpcoming(appt)}. Pick a new time:`
+      : `Move ${describeUpcoming(appt)}. Pick a new time:`,
+  };
+}
+
 export async function smsRescheduleUpcoming(
   contact: CrmContact,
   appointmentId: string,
@@ -204,12 +269,28 @@ export async function smsRescheduleUpcoming(
     return { ok: false, error: "I couldn't find that upcoming appointment on your number." };
   }
 
+  const oldStart = appt.startAt;
+  let newIso = oldStart;
+  try {
+    const parsed = parseSlotKey(slotKey);
+    newIso = slotToISO(parsed.date, parsed.time);
+  } catch {
+    /* rescheduleAppointment rejects invalid keys */
+  }
+  const note = buildLickyRescheduleNote(oldStart, newIso, undefined, "sms");
+
   const result = await rescheduleAppointment(appointmentId, slotKey, smsBotActor(contact), {
     groomerId: appt.groomerId,
+    notesAppend: note,
   });
   if (!result.ok) {
-    return { ok: false, error: result.error };
+    return {
+      ok: false,
+      error: `${result.error} Your visit is still ${formatAppointmentWhen(oldStart)}. I did not change it.`,
+    };
   }
+
+  await recordLickyRescheduleFollowUp(result.appointment, note);
 
   return {
     ok: true,

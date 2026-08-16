@@ -1,5 +1,5 @@
 /**
- * Verify OpenAI credentials for Hattie chat.
+ * Verify OpenAI credentials for Licky chat.
  *
  * Usage:
  *   node scripts/test-licky-connection.mjs
@@ -49,7 +49,7 @@ try {
     messages: [
       {
         role: "system",
-        content: "You are Hattie, a friendly tan Chihuahua. Reply in one short sentence.",
+        content: "You are Licky, a friendly tan Chihuahua. Reply in one short sentence.",
       },
       { role: "user", content: "Say hello to a new client!" },
     ],
@@ -59,7 +59,7 @@ try {
   const reply = completion.choices[0]?.message?.content?.trim();
   console.log("OpenAI connected ✓");
   console.log("Model:", model);
-  console.log("Hattie says:", reply ?? "(empty response)");
+  console.log("Licky says:", reply ?? "(empty response)");
 } catch (err) {
   console.error("OpenAI connection failed:", err.message ?? err);
   process.exit(1);

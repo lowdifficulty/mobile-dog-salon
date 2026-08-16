@@ -12,7 +12,7 @@ export async function sendCustomerConfirmationEmail(
 
 export function bookingConfirmationSmsBody(appointment: Appointment): string {
   const when = formatBookingConfirmationSmsWhen(appointment);
-  return `This is Hattie with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed ${when}.`;
+  return `This is Licky with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed ${when}.`;
 }
 
 export async function sendCustomerConfirmationSms(

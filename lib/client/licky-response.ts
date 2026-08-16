@@ -7,6 +7,7 @@ export const LICKY_TOOL_RESULT_MAX = 8000;
 
 export type LickyButtonAction =
   | "book_slot"
+  | "reschedule_slot"
   | "show_more_availability"
   | "show_availability"
   | "send_message";

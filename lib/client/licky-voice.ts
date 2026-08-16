@@ -7,6 +7,7 @@ import { isVoiceAiEnabled } from "@/lib/client/licky-enabled";
 import { listAppointmentsByPhone } from "@/lib/client/appointments";
 import { buildLickyContextLines } from "@/lib/client/licky-session";
 import { lickyCompletePendingBooking } from "@/lib/client/licky-actions";
+import { lickyHandleRescheduleTurn } from "@/lib/client/licky-reschedule";
 import { findClientByPhone } from "@/lib/payments/store";
 import { findContactByPhone } from "@/lib/crm/store";
 import {
@@ -26,7 +27,7 @@ const MAX_TURNS = 12;
 const MAX_TIMEOUTS = 2;
 const BOOK_SPOKEN = "mobile dog dash salon dot com slash book";
 
-const VOICE_SYSTEM = `CHANNEL: live phone call with Hattie.
+const VOICE_SYSTEM = `CHANNEL: live phone call with Licky.
 Speak in short sentences. No markdown, no bullet lists, no URLs, no slot keys.
 Spell the website as ${BOOK_SPOKEN}. If they already have an appointment and are confirming it, say yes and read the weekday, date, and time clearly.
 When offering times, read at most three, then ask which one.
@@ -139,17 +140,17 @@ export async function describeUpcomingForPhone(from: string): Promise<string | n
 
 export async function buildLickyVoiceGreetingTwiml(from?: string): Promise<string> {
   let say =
-    "Hi, this is Hattie with Mobile Dog Salon. How can I help you today?";
+    "Hi, this is Licky with Mobile Dog Salon. How can I help you today?";
   if (from) {
     const upcoming = await describeUpcomingForPhone(from);
     const contact = await findContactByPhone(from).catch(() => null);
     const first = contact?.firstName?.trim();
     if (upcoming) {
       say = first
-        ? `Hi ${first}, this is Hattie with Mobile Dog Salon. I see you're booked: ${upcoming}. How can I help?`
-        : `Hi, this is Hattie with Mobile Dog Salon. I see you're booked: ${upcoming}. How can I help?`;
+        ? `Hi ${first}, this is Licky with Mobile Dog Salon. I see you're booked: ${upcoming}. How can I help?`
+        : `Hi, this is Licky with Mobile Dog Salon. I see you're booked: ${upcoming}. How can I help?`;
     } else if (first) {
-      say = `Hi ${first}, this is Hattie with Mobile Dog Salon. How can I help you today?`;
+      say = `Hi ${first}, this is Licky with Mobile Dog Salon. How can I help you today?`;
     }
   }
   return buildLickyVoiceTwiml({ say });
@@ -197,11 +198,11 @@ async function resolveVoiceContext(
 async function logVoiceTranscript(callSid: string, user: string, reply: string): Promise<void> {
   try {
     const existing = await findCallInteraction(callSid);
-    const chunk = [`Caller: ${user}`, `Hattie: ${reply}`].join("\n");
+    const chunk = [`Caller: ${user}`, `Licky: ${reply}`].join("\n");
     const transcript = [existing?.transcript, chunk].filter(Boolean).join("\n");
     await attachCallTranscript({ callSid, transcript });
   } catch (err) {
-    console.error("Hattie voice transcript failed:", err);
+    console.error("Licky voice transcript failed:", err);
   }
 }
 
@@ -257,7 +258,8 @@ export async function handleLickyVoiceTurn(options: {
   ctx.request = undefined;
 
   try {
-    const pending = await lickyCompletePendingBooking(ctx, speech);
+    const pendingReschedule = await lickyHandleRescheduleTurn(ctx, speech);
+    const pending = pendingReschedule ?? (await lickyCompletePendingBooking(ctx, speech));
     let reply: string;
     if (pending?.reply) {
       reply = pending.reply;
@@ -276,7 +278,7 @@ export async function handleLickyVoiceTurn(options: {
     const hangup = wantsHangup(reply) && session.turn >= 2;
     return buildLickyVoiceTwiml({ say: reply, hangup });
   } catch (err) {
-    console.error("Hattie voice turn failed:", err);
+    console.error("Licky voice turn failed:", err);
     return buildLickyVoiceTwiml({
       say: `Sorry, I hit a snag. Please text this number or book at ${BOOK_SPOKEN}.`,
     });

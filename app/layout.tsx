@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://mobiledog-salon.com"),
   title: "Mobile Dog Salon | Good Dogs Take Baths — Orange County",
   description:
-    "Good Dogs Take Baths! Cute, professional mobile dog grooming in your driveway across Orange County. Meet Hattie and all our good dogs.",
+    "Good Dogs Take Baths! Cute, professional mobile dog grooming in your driveway across Orange County. Meet Licky, Hattie, and all our good dogs.",
   keywords:
     "mobile dog grooming, Orange County, Good Dogs Take Baths, dog grooming, Irvine, Huntington Beach",
   openGraph: {

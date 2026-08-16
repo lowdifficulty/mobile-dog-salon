@@ -110,6 +110,12 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
         `Waiting to finish booking slot ${ctx.guest.pendingLickyBooking.slotKey} (${ctx.guest.pendingLickyBooking.service}).`
       );
     }
+    if (ctx.guest?.pendingLickyReschedule?.slotKey) {
+      const pending = ctx.guest.pendingLickyReschedule;
+      lines.push(
+        `Pending reschedule: move ${pending.appointmentId} from ${pending.fromLabel} to ${pending.toLabel}. If they say YES, call reschedule_appointment with confirmed=true. Do not claim the time changed until the tool returns Moved!.`
+      );
+    }
     if (callerPhone) {
       const byPhone = await listAppointmentsByPhone(callerPhone).catch(() => []);
       appendAppointmentContext(lines, byPhone);
@@ -155,6 +161,12 @@ export async function buildLickyContextLines(ctx: LickyActionContext): Promise<s
   if (pending?.slotKey) {
     contextLines.push(
       `Waiting for address to book slot ${pending.slotKey} (${pending.service}).`
+    );
+  }
+  if (ctx.guest?.pendingLickyReschedule?.slotKey) {
+    const move = ctx.guest.pendingLickyReschedule;
+    contextLines.push(
+      `Pending reschedule: move ${move.appointmentId} from ${move.fromLabel} to ${move.toLabel}. If they say YES, call reschedule_appointment with confirmed=true. Do not claim the time changed until the tool returns Moved!.`
     );
   }
 

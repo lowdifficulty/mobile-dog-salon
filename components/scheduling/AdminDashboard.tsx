@@ -39,7 +39,7 @@ const NAV: AdminNavItem[] = [
   { id: "appointments", label: "Appointments", group: "Admin" },
   { id: "team-calendar", label: "Team Calendar", group: "Admin" },
   { id: "twilio", label: "Phone & SMS", group: "Admin" },
-  { id: "licky", label: "Hattie Bot", group: "Admin" },
+  { id: "licky", label: "Licky Bot", group: "Admin" },
   { id: "emails", label: "Emails", group: "Admin" },
   { id: "shifts", label: "Hours", group: "Admin" },
   { id: "qa", label: "QA", group: "Admin" },

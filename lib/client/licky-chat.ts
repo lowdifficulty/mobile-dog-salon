@@ -6,6 +6,8 @@ import {
   lickyBookAppointment,
   lickyBuildAvailabilityResponse,
   lickyFindSlot,
+  lickyHandleRescheduleTurn,
+  lickyRescheduleAppointment,
   type LickyActionContext,
 } from "@/lib/client/licky-actions";
 import { buildLickyKnowledgeBlock } from "@/lib/client/licky-knowledge";
@@ -24,7 +26,7 @@ import {
 
 export type { ChatMessage } from "@/lib/client/licky-types";
 
-const LICKY_SYSTEM_PROMPT = `You are Hattie, the friendly Chihuahua mascot for Mobile Dog Salon (Orange County + parts of LA County). Brand colors are navy and pink — you are warm, not a rigid script bot.
+const LICKY_SYSTEM_PROMPT = `You are Licky, the friendly Chihuahua mascot for Mobile Dog Salon (Orange County + parts of LA County). Brand colors are navy and pink — you are warm, not a rigid script bot.
 
 You are a knowledgeable, warm assistant. Answer questions about the company, grooming, pricing, service area, policies, and pets using your knowledge and tools. Be helpful and conversational.
 
@@ -42,6 +44,7 @@ BOOKING (conversational):
 - Booking blocks are ~3-hour arrival windows. Same-day is not available online.
 - Guests need address + name + phone. Logged-in clients use account info.
 - For cancel/reschedule, use list_upcoming_appointments first (works for logged-in clients and callers identified by phone). Confirm before confirmed=true.
+- RESCHEDULE RULE: Never tell the client their time changed unless reschedule_appointment returned a reply that starts with "Moved!". If they ask to change a time (8am → 10:30, later, etc.), you MUST call reschedule_appointment with their preference. If the tool says the slot is unavailable or asks for YES, repeat that — do not invent a new time. Saying "you're moved to 10:30" without a Moved! tool result is forbidden.
 
 Show slot buttons when check_availability or find_slot returns times — the UI displays buttons automatically.
 
@@ -78,7 +81,11 @@ async function createFallbackReply(
   context: string,
   actionCtx: LickyActionContext
 ): Promise<LickyStructuredResponse> {
-  const last = messages.filter((m) => m.role === "user").pop()?.content.toLowerCase() ?? "";
+  const lastRaw = messages.filter((m) => m.role === "user").pop()?.content ?? "";
+  const rescheduleTurn = await lickyHandleRescheduleTurn(actionCtx, lastRaw);
+  if (rescheduleTurn) return rescheduleTurn;
+
+  const last = lastRaw.toLowerCase();
 
   if (/availability|open slot|when can|what times|schedule|book|appointment|an appt/.test(last)) {
     const groomer = last.includes("melanie")
@@ -133,8 +140,8 @@ async function createFallbackReply(
     const name = context.match(/Client: (\S+)/)?.[1];
     return structuredFromText(
       name
-        ? `Hi ${name}! I'm Hattie — ask me anything about grooming or booking.`
-        : "Hi! I'm Hattie — ask me about grooming, pricing, open times, or booking a visit."
+        ? `Hi ${name}! I'm Licky — ask me anything about grooming or booking.`
+        : "Hi! I'm Licky — ask me about grooming, pricing, open times, or booking a visit."
     );
   }
 
@@ -213,6 +220,7 @@ async function createLickyReplyInner(
         chatMessages.push(message);
         let slotUi: LickyStructuredResponse | null = null;
         let bookUi: LickyStructuredResponse | null = null;
+        let rescheduleUi: LickyStructuredResponse | null = null;
 
         for (const call of toolCalls) {
           if (call.type !== "function" || !call.function) {
@@ -277,6 +285,25 @@ async function createLickyReplyInner(
             continue;
           }
 
+          if (toolName === "reschedule_appointment") {
+            rescheduleUi = await lickyRescheduleAppointment(actionCtx, {
+              appointment_id:
+                typeof args.appointment_id === "string" ? args.appointment_id : undefined,
+              slot_key: typeof args.slot_key === "string" ? args.slot_key : undefined,
+              preference: typeof args.preference === "string" ? args.preference : undefined,
+              requested_time:
+                typeof args.requested_time === "string" ? args.requested_time : undefined,
+              date: typeof args.date === "string" ? args.date : undefined,
+              confirmed: args.confirmed === true || args.confirmed === "true",
+            });
+            chatMessages.push({
+              role: "tool",
+              tool_call_id: call.id,
+              content: truncateToolResult(rescheduleUi.reply),
+            });
+            continue;
+          }
+
           if (toolName === "book_appointment") {
             bookUi = await lickyBookAppointment(
               actionCtx,
@@ -309,6 +336,7 @@ async function createLickyReplyInner(
           });
         }
 
+        if (rescheduleUi) return rescheduleUi;
         if (bookUi) return bookUi;
         if (slotUi) {
           const text = message.content?.trim();

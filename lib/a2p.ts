@@ -15,6 +15,6 @@ export const smsTerms = `By opting in to receive SMS messages from ${name}, you 
 
 export const smsKeywordOptInNote = `You may also opt in to SMS messages by texting START to ${businessPhoneDisplay}.`;
 
-export const sampleConfirmationSms = `This is Hattie with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed Tuesday 8/11 at 8:00 AM. Any special instructions for your pup?`;
+export const sampleConfirmationSms = `This is Licky with Mobile Dog Salon. Your 50% discount is active. Appointment confirmed Tuesday 8/11 at 8:00 AM. Any special instructions for your pup?`;
 
 export const sampleReminderSms = `Mobile Dog Salon: Reminder — Bella's grooming is tomorrow. Full Groom · Saturday at 2:00 PM PT. Reply STOP to opt out.`;

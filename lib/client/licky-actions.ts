@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  cancelAppointment,
-  rescheduleAppointment,
-} from "@/lib/scheduling/appointment-actions";
+import { cancelAppointment } from "@/lib/scheduling/appointment-actions";
 import {
   getClientAppointment,
   getAppointmentByPhone,
@@ -55,6 +52,9 @@ import {
   savePendingBookingToCtx,
   saveServiceAddressToCtx,
 } from "@/lib/client/licky-guest-helpers";
+import { lickyRescheduleAppointment } from "@/lib/client/licky-reschedule";
+
+export { lickyHandleRescheduleTurn, lickyRescheduleAppointment } from "@/lib/client/licky-reschedule";
 
 export type { LickyActionContext } from "@/lib/client/licky-context";
 
@@ -95,7 +95,7 @@ async function lickyReserveSlot(
       holdId: hold.holdId,
     });
   } catch (err) {
-    console.error("Hattie pending booking save failed:", err);
+    console.error("Licky pending booking save failed:", err);
     return structuredFromText("Couldn't save your pick — try again in a moment.");
   }
 
@@ -149,9 +149,9 @@ async function appointmentForCtx(
 }
 
 function lickyActor(ctx: LickyActionContext): string {
-  if (ctx.account?.email) return `hattie:client:${ctx.account.email}`;
+  if (ctx.account?.email) return `licky:client:${ctx.account.email}`;
   const phone = ctxPhone(ctx).replace(/\D/g, "");
-  return phone ? `hattie:phone:${phone}` : "hattie:guest";
+  return phone ? `licky:phone:${phone}` : "licky:guest";
 }
 
 const MAX_SLOTS_IN_REPLY = 24;
@@ -321,13 +321,13 @@ export async function lickyBookAppointment(
     city,
     zipCode,
     notes: ctx.account?.lockedInDiscount
-      ? "50% discount locked in. Booked via Hattie chat."
-      : "Booked via Hattie chat.",
+      ? "50% discount locked in. Booked via Licky chat."
+      : "Booked via Licky chat.",
   };
 
   const actor = ctx.account
-    ? `hattie:${ctx.account.email}`
-    : `hattie:guest:${phone || "visitor"}`;
+    ? `licky:${ctx.account.email}`
+    : `licky:guest:${phone || "visitor"}`;
 
   const result = await createAppointment(
     input,
@@ -354,7 +354,7 @@ export async function lickyBookAppointment(
     const { runBookingFollowUp } = await import("@/lib/scheduling/booking-follow-up");
     await runBookingFollowUp(result.appointment, "booking");
   } catch (err) {
-    console.error("Hattie booking follow-up failed:", err);
+    console.error("Licky booking follow-up failed:", err);
   }
 
   const when = new Date(result.appointment.startAt).toLocaleString("en-US", {
@@ -659,36 +659,8 @@ export async function lickyCancelAppointment(
   return `Cancelled successfully: ${formatApptLine(result.appointment)}`;
 }
 
-export async function lickyRescheduleAppointment(
-  ctx: LickyActionContext,
-  params: { appointment_id: string; slot_key: string; confirmed?: boolean }
-): Promise<string> {
-  const appointmentId = params.appointment_id?.trim();
-  const slotKey = params.slot_key?.trim();
-
-  if (!appointmentId || !slotKey) {
-    return "appointment_id and slot_key are required. Use check_availability to get slot_key values.";
-  }
-
-  const appointment = await appointmentForCtx(ctx, appointmentId);
-  if (!appointment) {
-    if (!ctx.loggedIn && !ctxPhone(ctx)) {
-      return "Log in at /client/login to reschedule.";
-    }
-    return "I couldn't find that appointment on this number.";
-  }
-
-  if (!params.confirmed) {
-    return `Ready to reschedule ${appointmentId} to slot ${slotKey}. Confirm with the client, then call again with confirmed=true.`;
-  }
-
-  const result = await rescheduleAppointment(appointmentId, slotKey, lickyActor(ctx));
-
-  if (!result.ok) {
-    return `Could not reschedule: ${result.error}`;
-  }
-
-  return `Rescheduled successfully:\n${formatApptLine(result.appointment)}`;
+function isTrueFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "true";
 }
 
 export async function lickyGetServiceArea(): Promise<string> {
@@ -737,14 +709,21 @@ export async function executeLickyTool(
     case "cancel_appointment":
       return lickyCancelAppointment(ctx, {
         appointment_id: String(args.appointment_id ?? ""),
-        confirmed: Boolean(args.confirmed),
+        confirmed: isTrueFlag(args.confirmed),
       });
     case "reschedule_appointment":
-      return lickyRescheduleAppointment(ctx, {
-        appointment_id: String(args.appointment_id ?? ""),
-        slot_key: String(args.slot_key ?? ""),
-        confirmed: Boolean(args.confirmed),
-      });
+      return (
+        await lickyRescheduleAppointment(ctx, {
+          appointment_id:
+            typeof args.appointment_id === "string" ? args.appointment_id : undefined,
+          slot_key: typeof args.slot_key === "string" ? args.slot_key : undefined,
+          preference: typeof args.preference === "string" ? args.preference : undefined,
+          requested_time:
+            typeof args.requested_time === "string" ? args.requested_time : undefined,
+          date: typeof args.date === "string" ? args.date : undefined,
+          confirmed: isTrueFlag(args.confirmed),
+        })
+      ).reply;
     case "save_guest_contact":
       return lickySaveGuestContact(ctx, {
         first_name: typeof args.first_name === "string" ? args.first_name : undefined,

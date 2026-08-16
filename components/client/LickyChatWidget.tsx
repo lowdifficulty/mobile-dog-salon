@@ -126,15 +126,16 @@ export default function LickyChatWidget({
         return;
       }
 
-      if (button.action === "book_slot") {
+      if (button.action === "book_slot" || button.action === "reschedule_slot") {
+        const moving = button.action === "reschedule_slot";
         setMessages((prev) => [
           ...prev,
-          { role: "user", content: `Book ${button.label}` },
+          { role: "user", content: moving ? `Move to ${button.label}` : `Book ${button.label}` },
         ]);
         const data = await postChat({
-          action: { type: "book_slot", payload: button.payload },
+          action: { type: button.action, payload: button.payload },
         });
-        pushAssistant(data, "Could not book that time.");
+        pushAssistant(data, moving ? "Could not move that time." : "Could not book that time.");
         return;
       }
 
@@ -177,7 +178,7 @@ export default function LickyChatWidget({
           <div className="flex items-center gap-3 px-4 py-3 bg-brand text-white">
             <LickyAvatar size={40} className="border-2 border-white/40" />
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm">Hattie</p>
+              <p className="font-bold text-sm">Licky</p>
               <p className="text-xs text-white/80">Your grooming buddy</p>
             </div>
             <button
@@ -261,7 +262,7 @@ export default function LickyChatWidget({
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="Message Hattie…"
+                placeholder="Message Licky…"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-full text-sm"
               />
               <button
@@ -280,10 +281,10 @@ export default function LickyChatWidget({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-brand text-white shadow-lg pl-2 pr-4 py-2 hover:bg-brand-dark transition-colors"
-        aria-label="Chat with Hattie"
+        aria-label="Chat with Licky"
       >
-        <LickyAvatar size={40} alt="Chat with Hattie" />
-        <span className="text-sm font-semibold text-white">Chat with Hattie</span>
+        <LickyAvatar size={40} alt="Chat with Licky" />
+        <span className="text-sm font-semibold text-white">Chat with Licky</span>
       </button>
     </>
   );

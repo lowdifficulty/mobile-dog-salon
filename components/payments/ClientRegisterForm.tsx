@@ -49,7 +49,7 @@ export default function ClientRegisterForm() {
       <div className="site-card p-8">
         <h1 className="site-heading-section text-2xl mb-2">Create account</h1>
         <p className="text-gray-600 text-sm mb-6">
-          Manage appointments, share pet photos, pay online, and chat with Hattie.
+          Manage appointments, share pet photos, pay online, and chat with Licky.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

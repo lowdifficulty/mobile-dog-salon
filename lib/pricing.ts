@@ -140,7 +140,7 @@ export function formatPrice(amount: number): string {
 }
 
 /**
- * Canonical prices for AI (Hattie chat + Hattie SMS).
+ * Canonical prices for AI (Licky chat + Licky SMS).
  * SERVICE_PRICING values are already the 50% customer rate — never halve them again.
  */
 export function buildPublishedPricingFacts(): string {

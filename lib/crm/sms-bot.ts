@@ -197,6 +197,7 @@ async function maybeAiPolish(
     config.systemPrompt,
     buildPublishedPricingFacts(),
     "Never quote $55 for a small full groom. $110 is already the 50% discounted price (list $220).",
+    "Never say an appointment was moved, cancelled, or booked unless the draft already confirms that write happened.",
     config.customLogic ? `\nAdditional logic from admin:\n${config.customLogic}` : "",
   ]
     .filter(Boolean)

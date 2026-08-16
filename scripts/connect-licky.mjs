@@ -1,5 +1,5 @@
 /**
- * Add OpenAI API key for Hattie (local .env.local + Vercel).
+ * Add OpenAI API key for Licky (local .env.local + Vercel).
  *
  * Usage:
  *   node scripts/connect-licky.mjs sk-your-openai-key
@@ -23,7 +23,7 @@ let contents = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
 if (/^OPENAI_API_KEY=/m.test(contents)) {
   contents = contents.replace(/^OPENAI_API_KEY=.*$/m, `OPENAI_API_KEY=${apiKey}`);
 } else {
-  contents = contents.trimEnd() + `\n\n# Hattie AI chat\nOPENAI_API_KEY=${apiKey}\n`;
+  contents = contents.trimEnd() + `\n\n# Licky AI chat\nOPENAI_API_KEY=${apiKey}\n`;
 }
 
 writeFileSync(envPath, contents.endsWith("\n") ? contents : contents + "\n", "utf8");
@@ -72,4 +72,4 @@ const test = spawnSync("node", ["scripts/test-licky-connection.mjs"], {
 });
 if (test.status !== 0) process.exit(test.status ?? 1);
 
-console.log("\nHattie is connected! Restart localhost (npm run 67) to pick up the new key.");
+console.log("\nLicky is connected! Restart localhost (npm run 67) to pick up the new key.");

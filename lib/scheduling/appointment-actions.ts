@@ -78,6 +78,8 @@ export interface AppointmentMutationOptions {
   holdOwnerId?: string;
   /** Staff/admin bookings skip hold checks. */
   skipHold?: boolean;
+  /** Appended to appointment notes on reschedule (Licky / SMS). */
+  notesAppend?: string;
 }
 
 function clearReminderFlags(appointment: Appointment): void {
@@ -768,6 +770,12 @@ export async function rescheduleAppointment(
   appointment.startAt = slotToISO(date, time);
   appointment.durationMinutes = bookingDurationMinutesForGroomer(groomerId);
   appointment.status = "confirmed";
+  if (options?.notesAppend?.trim()) {
+    const extra = options.notesAppend.trim();
+    appointment.notes = appointment.notes?.trim()
+      ? `${appointment.notes.trim()}\n${extra}`
+      : extra;
+  }
   clearReminderFlags(appointment);
   data.availability = allocateShiftsFromAppointments(data);
 

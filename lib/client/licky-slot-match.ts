@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AvailableSlot } from "@/lib/scheduling/types";
 import { addDays, getTodayPacificDate } from "@/lib/scheduling/slots";
+import { parseClockMinutes, timeToMinutes } from "@/lib/client/licky-reschedule-match";
 
 const WEEKDAYS = [
   "sunday",
@@ -89,6 +90,15 @@ function scoreSlot(
   if (matchesTimeOfDay(slot.displayTime, pref)) score += 15;
 
   if (slot.displayTime.toLowerCase().includes(pref.trim())) score += 25;
+
+  const clockMins = parseClockMinutes(pref);
+  if (clockMins != null) {
+    const diff = Math.abs(timeToMinutes(slot.time) - clockMins);
+    if (diff === 0) score += 40;
+    else if (diff <= 30) score += 30;
+    else if (diff <= 90) score += 20;
+    else if (diff <= 180) score += 10;
+  }
 
   return score;
 }

@@ -146,7 +146,7 @@ export default function TwilioSettingsPanel() {
       setMessage(
         data.twimlAppSid
           ? "SMS, voice, and browser dialer webhooks connected."
-          : "SMS & voice webhooks connected. Inbound texts now hit the CRM + Hattie SMS at /api/twilio/inbound."
+          : "SMS & voice webhooks connected. Inbound texts now hit the CRM + Licky SMS at /api/twilio/inbound."
       );
       await load();
     } catch (e) {
@@ -181,11 +181,11 @@ export default function TwilioSettingsPanel() {
             status?.hasBrowserCalling ? "Ready (Voice SDK)" : "Needs API key",
           ],
           [
-            "Voice AI (Hattie)",
+            "Voice AI (Licky)",
             voiceAi?.enabled
               ? "On — answers inbound calls"
               : voiceAi?.lickyEnabled === false
-                ? "Off (Hattie disabled)"
+                ? "Off (Licky disabled)"
                 : "Off — calls forward to staff",
           ],
         ].map(([label, value]) => (
@@ -275,7 +275,7 @@ export default function TwilioSettingsPanel() {
             disabled={configuring || !status?.configured}
             className="px-4 py-2 rounded-lg text-sm font-semibold border border-brand text-brand bg-white disabled:opacity-50"
           >
-            {configuring ? "Connecting…" : "Connect Hattie SMS webhooks"}
+            {configuring ? "Connecting…" : "Connect Licky SMS webhooks"}
           </button>
         </div>
       </div>
@@ -283,7 +283,7 @@ export default function TwilioSettingsPanel() {
       <StaffDialerPanel />
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2 text-sm">
-        <h3 className="font-semibold text-brand">Inbound SMS (CRM + Hattie)</h3>
+        <h3 className="font-semibold text-brand">Inbound SMS (CRM + Licky)</h3>
         <p className="text-gray-600 text-xs">
           If customers see Twilio&apos;s default “Thanks for the message. Configure your number’s SMS
           URL…”, your number is not pointed at this site yet.
@@ -311,15 +311,15 @@ export default function TwilioSettingsPanel() {
             </li>
           </ul>
         ) : (
-          <p className="text-xs text-gray-500">Save From number, then use Connect Hattie SMS webhooks.</p>
+          <p className="text-xs text-gray-500">Save From number, then use Connect Licky SMS webhooks.</p>
         )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2 text-sm">
-        <h3 className="font-semibold text-brand">Inbound Voice AI (Hattie)</h3>
+        <h3 className="font-semibold text-brand">Inbound Voice AI (Licky)</h3>
         <p className="text-gray-600 text-xs">
           {voiceAi?.enabled
-            ? "Hattie answers inbound calls on the business number. There is no live transfer. Set VOICE_AI_ENABLED=0 to restore staff forwarding."
+            ? "Licky answers inbound calls on the business number. There is no live transfer. Set VOICE_AI_ENABLED=0 to restore staff forwarding."
             : "Voice AI is off. Inbound calls forward to the staff number above (or play the voicemail prompt if none is set)."}
         </p>
         <p className="text-gray-600 text-xs font-mono break-all">

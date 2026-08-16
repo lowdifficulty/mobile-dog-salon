@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { handleLickyVoiceTurn } from "@/lib/client/licky-voice";
 
-/** Twilio Gather callback — one Hattie voice turn. */
+/** Twilio Gather callback — one Licky voice turn. */
 export async function POST(request: Request) {
   const formData = await request.formData();
   const callSid = formData.get("CallSid")?.toString() ?? "";

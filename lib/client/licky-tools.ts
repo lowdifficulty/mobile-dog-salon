@@ -207,18 +207,36 @@ export const LICKY_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "reschedule_appointment",
       description:
-        "Move an appointment to a new slot from find_slot/check_availability. First call with confirmed=false; confirmed=true only after client confirms.",
+        "Move an existing appointment on the live calendar. Pass preference or requested_time (e.g. '10:30am') and the tool maps it to a real booking window. First call with confirmed=false; confirmed=true ONLY after the client says YES. Never tell the client the time changed unless this tool returns a message that starts with 'Moved!'. If the slot is taken, the tool says so and lists alternatives — do not claim success.",
       parameters: {
         type: "object",
         properties: {
-          appointment_id: { type: "string" },
+          appointment_id: {
+            type: "string",
+            description: "Optional when the client has only one upcoming visit",
+          },
           slot_key: {
             type: "string",
-            description: "From find_slot or check_availability",
+            description: "From find_slot or check_availability, if already chosen",
           },
-          confirmed: { type: "boolean" },
+          preference: {
+            type: "string",
+            description:
+              "What they asked for, e.g. '10:30am', 'Thursday afternoon', 'later'",
+          },
+          requested_time: {
+            type: "string",
+            description: "Clock time they asked for, e.g. 10:30am",
+          },
+          date: {
+            type: "string",
+            description: "Optional YYYY-MM-DD",
+          },
+          confirmed: {
+            type: "boolean",
+            description: "true only after explicit YES / button confirm",
+          },
         },
-        required: ["appointment_id", "slot_key"],
         additionalProperties: false,
       },
     },

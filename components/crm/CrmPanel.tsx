@@ -126,13 +126,17 @@ function CancelledStatusNote({ method }: { method?: string | null }) {
   return (
     <span className="inline-flex items-center gap-1 min-w-0">
       <span className="text-[10px] font-bold bg-gray-200 text-gray-700 rounded-full px-1.5 shrink-0">
-        Cancelled
+        C
       </span>
       {method ? (
         <span className="text-[10px] text-gray-500 truncate">{method}</span>
       ) : null}
     </span>
   );
+}
+
+function displayCancelledCopy(text?: string | null): string {
+  return (text || "").replace(/\bCancelled\b/gi, "C");
 }
 
 function isCancelledSystemNote(ix: {
@@ -412,10 +416,10 @@ export default function CrmPanel() {
           id: `cancelled-${a.id}`,
           channel: "system" as const,
           direction: "internal" as const,
-          body: `Cancelled · ${formatWhen(a.startAt)}${a.petName ? ` · ${a.petName}` : ""}${
+          body: `C · ${formatWhen(a.startAt)}${a.petName ? ` · ${a.petName}` : ""}${
             a.service ? ` · ${a.service}` : ""
           }\nVia ${method}`,
-          summary: `Cancelled via ${method}`,
+          summary: `C via ${method}`,
           actor: "system",
           createdAt: a.cancelledAt || a.startAt,
           metadata: {
@@ -432,12 +436,12 @@ export default function CrmPanel() {
         id: "cancelled-status",
         channel: "system",
         direction: "internal",
-        body: `Cancelled${
+        body: `C${
           detail.cancelledAppointmentAt
             ? ` · ${formatWhen(detail.cancelledAppointmentAt)}`
             : ""
         }\nVia ${method}`,
-        summary: `Cancelled via ${method}`,
+        summary: `C via ${method}`,
         actor: "system",
         createdAt: detail.cancelledAppointmentAt || new Date().toISOString(),
         metadata: { appointmentStatus: "cancelled" },
@@ -734,7 +738,7 @@ export default function CrmPanel() {
                     </div>
                     {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
                       <div className="text-[11px] font-semibold text-gray-600 mt-0.5">
-                        Cancelled
+                        C
                         {(detail?.cancelledMethodLabel || selected.cancelledMethodLabel)
                           ? ` via ${detail?.cancelledMethodLabel || selected.cancelledMethodLabel}`
                           : ""}
@@ -805,7 +809,7 @@ export default function CrmPanel() {
                         <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
                           {isSystem
                             ? cancelledNote
-                              ? "Cancelled"
+                              ? "C"
                               : "Status"
                             : ix.channel === "note"
                             ? "Note"
@@ -858,7 +862,11 @@ export default function CrmPanel() {
                           </div>
                         ) : (
                           <>
-                            <div className="whitespace-pre-wrap">{ix.body || ix.summary || "—"}</div>
+                            <div className="whitespace-pre-wrap">
+                              {cancelledNote
+                                ? displayCancelledCopy(ix.body || ix.summary)
+                                : ix.body || ix.summary || "—"}
+                            </div>
                             {ix.channel === "sms" && !suppressed && (
                               <SmsReceiptMarks
                                 direction={ix.direction}
@@ -1075,7 +1083,7 @@ function ContactDetailsContent({
       {(detail?.cancelledAppointments || []).length > 0 && (
         <div>
           <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-            Cancelled
+            C
           </div>
           {(detail?.cancelledAppointments || []).slice(0, 5).map((a) => (
             <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">

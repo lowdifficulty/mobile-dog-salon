@@ -56,7 +56,7 @@ type CrmContact = {
 
 type CrmInteraction = {
   id: string;
-  channel: "sms" | "call" | "note" | "email" | "system";
+  channel: "sms" | "call" | "note" | "email" | "system" | "meta";
   direction: "inbound" | "outbound" | "internal";
   body?: string;
   summary?: string;
@@ -395,6 +395,7 @@ export default function CrmPanel() {
     const items = (detail?.interactions || []).filter(
       (ix) =>
         ix.channel === "sms" ||
+        ix.channel === "meta" ||
         ix.channel === "call" ||
         ix.channel === "note" ||
         (ix.channel === "system" && ix.body)

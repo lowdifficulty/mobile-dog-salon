@@ -22745,10 +22745,11 @@
       "direction": "inbound",
       "body": "HELLO_TEST",
       "summary": "Inbound SMS",
-      "messageStatus": "received",
+      "messageStatus": "read",
       "twilioSid": "SMlocal1",
       "actor": "customer",
-      "createdAt": "2026-08-11T01:45:28.597Z"
+      "createdAt": "2026-08-11T01:45:28.597Z",
+      "readAt": "2026-08-15T20:54:29.704Z"
     },
     {
       "id": "97e23fb8-de2a-4c95-b648-ab56d512306c",

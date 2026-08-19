@@ -307,6 +307,9 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   platform: Awaited<ReturnType<typeof twilioStatus>> & {
     smsBotEnabled: boolean;
     smsBotMode?: string;
+    metaConfigured?: boolean;
+    metaBotEnabled?: boolean;
+    metaBotMode?: string;
     crmStorage: ReturnType<typeof getPersistenceMode>;
   };
 }> {
@@ -365,10 +368,12 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   contacts = sortContacts(contacts, sortField, sortOrder);
 
   const all = data.contacts;
-  const [platform, botEnabled, botConfig] = await Promise.all([
+  const [platform, botEnabled, botConfig, metaStatusInfo, metaBotConfig] = await Promise.all([
     twilioStatus(),
     isSmsBotEnabled(),
     import("./sms-bot-config").then((m) => m.readSmsBotConfig()).catch(() => null),
+    import("@/lib/meta/config").then((m) => m.metaStatus()).catch(() => null),
+    import("@/lib/meta/meta-bot-config").then((m) => m.readMetaBotConfig()).catch(() => null),
   ]);
   return {
     contacts,
@@ -383,6 +388,9 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
       ...platform,
       smsBotEnabled: botConfig?.enabled ?? botEnabled,
       smsBotMode: botConfig?.mode,
+      metaConfigured: metaStatusInfo?.configured ?? false,
+      metaBotEnabled: metaBotConfig?.enabled ?? false,
+      metaBotMode: metaBotConfig?.mode,
       crmStorage: getPersistenceMode(),
     },
   };

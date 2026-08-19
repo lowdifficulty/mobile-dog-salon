@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import AdminAppShell, { type AdminNavItem } from "@/components/admin/AdminAppShell";
-import PhoneSmsPanel from "@/components/admin/PhoneSmsPanel";
 import TeamCalendarPanel from "./TeamCalendarPanel";
 import StaffPaymentsPanel from "@/components/payments/StaffPaymentsPanel";
 import QaDiagnosticsPanel from "./QaDiagnosticsPanel";
@@ -16,6 +16,11 @@ import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
 import OpportunitiesPanel from "@/components/crm/OpportunitiesPanel";
+import DashboardErrorBoundary from "./DashboardErrorBoundary";
+
+const PhoneSmsPanel = dynamic(() => import("@/components/admin/PhoneSmsPanel"), {
+  loading: () => <div className="p-6 text-sm text-gray-500">Loading Phone &amp; SMS…</div>,
+});
 
 type Tab =
   | "crm"
@@ -79,26 +84,28 @@ export default function AdminDashboard() {
       lockViewport={tab === "crm"}
     >
       <div className={padded ? "p-4 md:p-6" : "h-full min-h-0 overflow-hidden"}>
-        {tab === "crm" && <CrmPanel />}
-        {tab === "opportunities" && (
-          <OpportunitiesPanel onOpenConversation={openCrmConversation} />
-        )}
-        {tab === "payments" && <StaffPaymentsPanel />}
-        {tab === "twilio" && <PhoneSmsPanel />}
-        {tab === "emails" && <EmailCampaignsPanel />}
-        {tab === "licky" && <LickyTrainingPanel />}
-        {tab === "qa" && <QaDiagnosticsPanel />}
-        {tab === "analytics" && <FunnelAnalyticsPanel />}
-        {tab === "accounting" && <AdminAccountingPanel />}
-        {tab === "appointments" && <AdminAppointmentsPanel />}
-        {tab === "team-calendar" && (
-          <TeamCalendarPanel
-            availabilityApi="/api/staff/availability"
-            allowDeleteAppointments
-          />
-        )}
-        {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
-        {tab === "logins" && <StaffLoginLogPanel />}
+        <DashboardErrorBoundary>
+          {tab === "crm" && <CrmPanel />}
+          {tab === "opportunities" && (
+            <OpportunitiesPanel onOpenConversation={openCrmConversation} />
+          )}
+          {tab === "payments" && <StaffPaymentsPanel />}
+          {tab === "twilio" && <PhoneSmsPanel />}
+          {tab === "emails" && <EmailCampaignsPanel />}
+          {tab === "licky" && <LickyTrainingPanel />}
+          {tab === "qa" && <QaDiagnosticsPanel />}
+          {tab === "analytics" && <FunnelAnalyticsPanel />}
+          {tab === "accounting" && <AdminAccountingPanel />}
+          {tab === "appointments" && <AdminAppointmentsPanel />}
+          {tab === "team-calendar" && (
+            <TeamCalendarPanel
+              availabilityApi="/api/staff/availability"
+              allowDeleteAppointments
+            />
+          )}
+          {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}
+          {tab === "logins" && <StaffLoginLogPanel />}
+        </DashboardErrorBoundary>
       </div>
     </AdminAppShell>
   );

@@ -27,6 +27,7 @@
     "reminders": "node scripts/run-reminders.mjs",
     "a2p-info": "node scripts/print-a2p-campaign-info.mjs",
     "seed-crm": "node scripts/seed-crm.mjs",
+    "backfill-meta": "npx tsx scripts/backfill-meta-conversations.mjs",
     "import-blogs": "node scripts/import-blog-pack.mjs",
     "fetch-blog-images": "node scripts/fetch-blog-images.mjs",
     "apply-blog-images": "node scripts/apply-blog-image-links.mjs",

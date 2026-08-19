@@ -108,6 +108,13 @@ export async function findContactById(id: string): Promise<CrmContact | null> {
   return data.contacts.find((c) => c.id === id) ?? null;
 }
 
+export async function findContactByMetaPsid(psid: string): Promise<CrmContact | null> {
+  const needle = psid.trim();
+  if (!needle) return null;
+  const data = await readCrmData();
+  return data.contacts.find((c) => c.metaPsid === needle) ?? null;
+}
+
 export async function upsertContact(
   contact: CrmContact,
   options?: { interaction?: CrmInteraction }
@@ -137,7 +144,11 @@ export async function appendInteraction(interaction: CrmInteraction): Promise<Cr
     contact.updatedAt = interaction.createdAt;
     if (interaction.direction === "inbound") {
       contact.lastInboundAt = interaction.createdAt;
-      if (interaction.channel === "sms" || interaction.channel === "call") {
+      if (
+        interaction.channel === "sms" ||
+        interaction.channel === "call" ||
+        interaction.channel === "meta"
+      ) {
         contact.unreadCount = (contact.unreadCount ?? 0) + 1;
       }
     }
@@ -181,7 +192,11 @@ export async function markContactRead(contactId: string): Promise<void> {
 
   for (let i = 0; i < data.interactions.length; i++) {
     const ix = data.interactions[i];
-    if (ix.contactId !== contactId || ix.channel !== "sms" || ix.direction !== "inbound") {
+    if (
+      ix.contactId !== contactId ||
+      (ix.channel !== "sms" && ix.channel !== "meta") ||
+      ix.direction !== "inbound"
+    ) {
       continue;
     }
     if (ix.readAt) continue;

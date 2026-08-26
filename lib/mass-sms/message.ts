@@ -11,6 +11,20 @@ export function massRebookSmsBody(appointment: Appointment): string {
   return `Hi ${firstName}! It's been a few weeks since ${petLabel}'s last Mobile Dog Salon visit. Your 50% discount is still active — book again: ${bookUrl} Reply STOP to opt out.`;
 }
 
+export function massLeadNurtureSmsBody(lead: {
+  firstName?: string;
+  petName?: string;
+}): string {
+  const firstName = (lead.firstName ?? "").trim() || "there";
+  const petLabel = (lead.petName ?? "").trim() || "your pup";
+  const bookUrl = `${companyLegal.siteUrl}${legalRoutes.book}`;
+  return `Hi ${firstName}! Still thinking about grooming for ${petLabel}? Mobile Dog Salon comes to you — 50% off your first visit when you book: ${bookUrl} Reply STOP to opt out.`;
+}
+
+export function massLeadNurtureSmsPreview(): string {
+  return massLeadNurtureSmsBody({ firstName: "Alex", petName: "Buddy" });
+}
+
 export function massRebookSmsPreview(): string {
   return massRebookSmsBody({
     id: "preview",

@@ -1,6 +1,9 @@
+export type MassSmsCampaignKind = "rebook" | "lead-nurture";
+
 export interface MassSmsSentRecord {
   phoneKey: string;
-  appointmentId: string;
+  appointmentId?: string;
+  leadId?: string;
   firstName: string;
   petName: string;
   sentAt: string;
@@ -20,16 +23,22 @@ export interface MassSmsEligibleContact {
   phone: string;
   firstName: string;
   lastName: string;
-  petName: string;
-  lastVisitAt: string;
-  lastVisitAppointmentId: string;
-  daysSinceVisit: number;
-  groomerName: string;
+  petName?: string;
+  /** Rebook — last completed visit */
+  lastVisitAt?: string;
+  lastVisitAppointmentId?: string;
+  daysSinceVisit?: number;
+  groomerName?: string;
+  /** Lead nurture — never booked */
+  leadId?: string;
+  funnelStep?: string;
+  daysSinceContact?: number;
   sentThisWeek: boolean;
   sentAt?: string;
 }
 
 export interface MassSmsStatus {
+  kind?: MassSmsCampaignKind;
   campaignWeek: string;
   eligibleCount: number;
   pendingCount: number;

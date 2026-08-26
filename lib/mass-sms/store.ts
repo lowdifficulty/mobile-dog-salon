@@ -3,13 +3,24 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/persistence";
-import type { MassSmsCampaignData, MassSmsSentRecord } from "./types";
+import type { MassSmsCampaignData, MassSmsCampaignKind, MassSmsSentRecord } from "./types";
 
-const FILE_PATH = path.join(process.cwd(), "data", "mass-sms-campaign.json");
-const REDIS_KEY = "mds:mass-sms-campaign";
+function filePathForKind(kind: MassSmsCampaignKind): string {
+  const suffix = kind === "lead-nurture" ? "lead-nurture" : "rebook";
+  return path.join(process.cwd(), "data", `mass-sms-campaign-${suffix}.json`);
+}
+
+function redisKeyForKind(kind: MassSmsCampaignKind): string {
+  return kind === "lead-nurture"
+    ? "mds:mass-sms-campaign:lead-nurture"
+    : "mds:mass-sms-campaign:rebook";
+}
+
+const readCacheByKind = new Map<
+  MassSmsCampaignKind,
+  { data: MassSmsCampaignData; at: number }
+>();
 const READ_CACHE_MS = 5_000;
-
-let readCache: { data: MassSmsCampaignData; at: number } | null = null;
 
 /** Monday of the current week in America/Los_Angeles (YYYY-MM-DD). */
 export function currentCampaignWeek(now = new Date()): string {
@@ -45,18 +56,33 @@ export function emptyCampaignData(week = currentCampaignWeek()): MassSmsCampaign
   return { campaignWeek: week, sent: [] };
 }
 
-async function readFromLocalFile(): Promise<MassSmsCampaignData> {
+async function readFromLocalFile(kind: MassSmsCampaignKind): Promise<MassSmsCampaignData> {
+  const filePath = filePathForKind(kind);
   try {
-    const raw = await fs.readFile(FILE_PATH, "utf8");
+    const raw = await fs.readFile(filePath, "utf8");
     return JSON.parse(raw) as MassSmsCampaignData;
   } catch {
+    // Legacy single-file campaign (rebook only)
+    if (kind === "rebook") {
+      try {
+        const legacy = path.join(process.cwd(), "data", "mass-sms-campaign.json");
+        const raw = await fs.readFile(legacy, "utf8");
+        return JSON.parse(raw) as MassSmsCampaignData;
+      } catch {
+        return emptyCampaignData();
+      }
+    }
     return emptyCampaignData();
   }
 }
 
-async function writeToLocalFile(data: MassSmsCampaignData): Promise<void> {
-  await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
-  await fs.writeFile(FILE_PATH, JSON.stringify(data, null, 2) + "\n", "utf8");
+async function writeToLocalFile(
+  kind: MassSmsCampaignKind,
+  data: MassSmsCampaignData
+): Promise<void> {
+  const filePath = filePathForKind(kind);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
 function normalizeCampaignData(data: MassSmsCampaignData): MassSmsCampaignData {
@@ -71,16 +97,19 @@ function normalizeCampaignData(data: MassSmsCampaignData): MassSmsCampaignData {
   };
 }
 
-export async function readMassSmsCampaign(): Promise<MassSmsCampaignData> {
-  if (readCache && Date.now() - readCache.at < READ_CACHE_MS) {
-    return normalizeCampaignData(readCache.data);
+export async function readMassSmsCampaign(
+  kind: MassSmsCampaignKind = "rebook"
+): Promise<MassSmsCampaignData> {
+  const cached = readCacheByKind.get(kind);
+  if (cached && Date.now() - cached.at < READ_CACHE_MS) {
+    return normalizeCampaignData(cached.data);
   }
 
   const redis = getRedisClient();
   if (redis) {
-    const data = await redis.get<MassSmsCampaignData>(REDIS_KEY);
+    const data = await redis.get<MassSmsCampaignData>(redisKeyForKind(kind));
     const normalized = normalizeCampaignData(data ?? emptyCampaignData());
-    readCache = { data: normalized, at: Date.now() };
+    readCacheByKind.set(kind, { data: normalized, at: Date.now() });
     return normalized;
   }
 
@@ -88,30 +117,36 @@ export async function readMassSmsCampaign(): Promise<MassSmsCampaignData> {
     return emptyCampaignData();
   }
 
-  const normalized = normalizeCampaignData(await readFromLocalFile());
-  readCache = { data: normalized, at: Date.now() };
+  const normalized = normalizeCampaignData(await readFromLocalFile(kind));
+  readCacheByKind.set(kind, { data: normalized, at: Date.now() });
   return normalized;
 }
 
-export async function writeMassSmsCampaign(data: MassSmsCampaignData): Promise<void> {
+export async function writeMassSmsCampaign(
+  kind: MassSmsCampaignKind,
+  data: MassSmsCampaignData
+): Promise<void> {
   assertWritablePersistence();
   const normalized = normalizeCampaignData(data);
-  readCache = { data: normalized, at: Date.now() };
+  readCacheByKind.set(kind, { data: normalized, at: Date.now() });
 
   const redis = getRedisClient();
   if (redis) {
-    await redis.set(REDIS_KEY, normalized);
+    await redis.set(redisKeyForKind(kind), normalized);
     return;
   }
 
-  await writeToLocalFile(normalized);
+  await writeToLocalFile(kind, normalized);
 }
 
-export async function appendMassSmsSent(records: MassSmsSentRecord[]): Promise<MassSmsCampaignData> {
-  const data = await readMassSmsCampaign();
+export async function appendMassSmsSent(
+  kind: MassSmsCampaignKind,
+  records: MassSmsSentRecord[]
+): Promise<MassSmsCampaignData> {
+  const data = await readMassSmsCampaign(kind);
   data.sent.push(...records);
   data.lastBatchAt = new Date().toISOString();
-  await writeMassSmsCampaign(data);
+  await writeMassSmsCampaign(kind, data);
   return data;
 }
 

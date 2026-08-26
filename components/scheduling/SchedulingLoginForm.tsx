@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SchedulingShell from "./SchedulingShell";
 
-export default function SchedulingLoginForm({
+function SchedulingLoginFormInner({
   role,
   title,
   subtitle,
@@ -18,6 +18,8 @@ export default function SchedulingLoginForm({
   dashboardPath: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next")?.trim() || dashboardPath;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -46,7 +48,7 @@ export default function SchedulingLoginForm({
       return;
     }
 
-    router.push(dashboardPath);
+    router.push(nextPath.startsWith("/") ? nextPath : dashboardPath);
     router.refresh();
   }
 
@@ -120,5 +122,27 @@ export default function SchedulingLoginForm({
         </div>
       </div>
     </SchedulingShell>
+  );
+}
+
+export default function SchedulingLoginForm(props: {
+  role: "groomer" | "admin";
+  title: string;
+  subtitle: string;
+  loginPath: string;
+  dashboardPath: string;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <SchedulingShell title={props.title}>
+          <div className="max-w-md mx-auto site-card p-8">
+            <p className="text-sm text-gray-500">Loading…</p>
+          </div>
+        </SchedulingShell>
+      }
+    >
+      <SchedulingLoginFormInner {...props} />
+    </Suspense>
   );
 }

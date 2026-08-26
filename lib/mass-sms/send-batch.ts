@@ -4,7 +4,7 @@ import { readSchedulingData } from "@/lib/scheduling/store";
 import { readLeadsData } from "@/lib/leads/store";
 import { appendMassSmsSent } from "./store";
 import { listMassSmsEligibleContacts } from "./eligibility";
-import { massLeadNurtureSmsBody, massRebookSmsBody } from "./message";
+import { massLeadNurtureSmsBody, massRebookSmsBody, massCancelledSmsBody } from "./message";
 import type { MassSmsCampaignKind, MassSmsSentRecord } from "./types";
 
 const DEFAULT_BATCH_SIZE = 3;
@@ -90,6 +90,53 @@ export async function sendMassSmsBatch(options?: {
           });
         } catch (err) {
           console.error("CRM log for mass SMS failed:", err);
+        }
+      } else {
+        failed.push(record);
+      }
+    } else if (kind === "cancelled") {
+      const appointment = scheduling.appointments.find(
+        (a) => a.id === contact.cancelledAppointmentId
+      );
+
+      if (!appointment) {
+        failed.push({
+          phoneKey: contact.phoneKey,
+          appointmentId: contact.cancelledAppointmentId,
+          firstName: contact.firstName,
+          petName: contact.petName ?? "",
+          sentAt: now,
+          error: "Appointment not found",
+        });
+        continue;
+      }
+
+      const body = massCancelledSmsBody(appointment);
+      const result = await sendSms(appointment.phone, body);
+
+      const record: MassSmsSentRecord = {
+        phoneKey: contact.phoneKey,
+        appointmentId: appointment.id,
+        firstName: contact.firstName,
+        petName: contact.petName ?? appointment.petName,
+        sentAt: now,
+        twilioSid: result.sid,
+        error: result.ok ? undefined : result.error,
+      };
+
+      if (result.ok) {
+        sent.push(record);
+        try {
+          const { recordSystemOutboundSms } = await import("@/lib/crm/messaging");
+          await recordSystemOutboundSms({
+            appointment,
+            body,
+            summary: "Mass cancelled win-back SMS",
+            twilioSid: result.sid,
+            metadata: { appointmentId: appointment.id, kind: "mass_cancelled_sms" },
+          });
+        } catch (err) {
+          console.error("CRM log for cancelled mass SMS failed:", err);
         }
       } else {
         failed.push(record);

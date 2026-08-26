@@ -6,19 +6,31 @@ import {
 } from "@/lib/scheduling/appointment-filters";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { readSchedulingData } from "@/lib/scheduling/store";
+import { listTooFarAppointments } from "@/lib/scheduling/too-far-appointments";
 
 export async function GET(request: Request) {
   try {
     const user = await requireGroomer();
     const { searchParams } = new URL(request.url);
-    const filter = parseStaffAppointmentFilter(searchParams.get("filter"));
+    const filterParam = searchParams.get("filter");
     const now = new Date();
 
     const data = await readSchedulingData();
     let list = data.appointments;
-    if (!groomerSeesTeamAppointments(user.groomerId!)) {
+    const scopedToGroomer = !groomerSeesTeamAppointments(user.groomerId!);
+    if (scopedToGroomer) {
       list = list.filter((a) => a.groomerId === user.groomerId);
     }
+
+    if (filterParam === "tooFar") {
+      const tooFar = await listTooFarAppointments(list, {
+        groomerId: scopedToGroomer ? user.groomerId! : undefined,
+        now,
+      });
+      return NextResponse.json({ tooFar });
+    }
+
+    const filter = parseStaffAppointmentFilter(filterParam);
     list = filterStaffAppointments(list, filter, now);
 
     return NextResponse.json({ appointments: list });

@@ -1,5 +1,6 @@
 import "server-only";
 import type { Appointment } from "@/lib/scheduling/types";
+import { groomerConversationShortUrl } from "@/lib/crm/groomer-conversation-link";
 import { buildIcsEvent } from "@/lib/scheduling/calendar";
 import { appointmentEmailVariables } from "./appointment-email-vars";
 import {
@@ -11,6 +12,7 @@ import { sendTemplatedEmail } from "./send-templated-email";
 import { GROOMERS, MELANIE_BOOKING_NOTIFY_EMAILS } from "@/lib/scheduling/groomers";
 import {
   GROOMER_BOOKING_SMS_PHONES,
+  GROOMER_EXTRA_BOOKING_SMS_PHONES,
   OWNER_BOOKING_NOTIFY_PHONE,
 } from "./staff-sms-recipients";
 
@@ -26,8 +28,17 @@ async function sendStaffBookingSms(appointment: Appointment): Promise<void> {
   const { ensureAppointmentShortCode } = await import(
     "@/lib/scheduling/appointment-short-link"
   );
-  const { appointment: linked, url } = await ensureAppointmentShortCode(appointment);
+  const { appointment: linked, url: detailsUrl } = await ensureAppointmentShortCode(appointment);
+  try {
+    const { ensureContactFromAppointment } = await import("@/lib/crm/messaging");
+    await ensureContactFromAppointment(linked);
+  } catch (err) {
+    console.error("CRM contact sync for groomer booking SMS failed:", err);
+  }
   const groomerPhone = GROOMER_BOOKING_SMS_PHONES[linked.groomerId];
+  const groomerConversationUrl = linked.shortCode
+    ? groomerConversationShortUrl(linked.shortCode)
+    : detailsUrl;
   let openNext7 = 0;
   try {
     openNext7 = await openSlotsNext7Days();
@@ -36,7 +47,7 @@ async function sendStaffBookingSms(appointment: Appointment): Promise<void> {
   }
 
   const sends: Promise<unknown>[] = [
-    sendSms(OWNER_BOOKING_NOTIFY_PHONE, ownerNewBookingSmsBody(linked, openNext7, url), {
+    sendSms(OWNER_BOOKING_NOTIFY_PHONE, ownerNewBookingSmsBody(linked, openNext7, detailsUrl), {
       skipOptOutCheck: true,
     }).then((result) => {
       if (!result.ok) {
@@ -45,11 +56,14 @@ async function sendStaffBookingSms(appointment: Appointment): Promise<void> {
     }),
   ];
 
-  if (groomerPhone) {
+  const groomerSmsBody = groomerNewBookingSmsBody(linked, groomerConversationUrl);
+  const groomerPhones = [
+    ...(groomerPhone ? [groomerPhone] : []),
+    ...(GROOMER_EXTRA_BOOKING_SMS_PHONES[linked.groomerId] ?? []),
+  ];
+  for (const phone of groomerPhones) {
     sends.push(
-      sendSms(groomerPhone, groomerNewBookingSmsBody(linked, url), {
-        skipOptOutCheck: true,
-      }).then((result) => {
+      sendSms(phone, groomerSmsBody, { skipOptOutCheck: true }).then((result) => {
         if (!result.ok) {
           console.error("Groomer booking SMS failed:", result.error);
         }

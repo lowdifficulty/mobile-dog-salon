@@ -6,14 +6,15 @@ import { assertWritablePersistence, isVercelServerless } from "@/lib/scheduling/
 import type { MassSmsCampaignData, MassSmsCampaignKind, MassSmsSentRecord } from "./types";
 
 function filePathForKind(kind: MassSmsCampaignKind): string {
-  const suffix = kind === "lead-nurture" ? "lead-nurture" : "rebook";
+  const suffix =
+    kind === "lead-nurture" ? "lead-nurture" : kind === "cancelled" ? "cancelled" : "rebook";
   return path.join(process.cwd(), "data", `mass-sms-campaign-${suffix}.json`);
 }
 
 function redisKeyForKind(kind: MassSmsCampaignKind): string {
-  return kind === "lead-nurture"
-    ? "mds:mass-sms-campaign:lead-nurture"
-    : "mds:mass-sms-campaign:rebook";
+  if (kind === "lead-nurture") return "mds:mass-sms-campaign:lead-nurture";
+  if (kind === "cancelled") return "mds:mass-sms-campaign:cancelled";
+  return "mds:mass-sms-campaign:rebook";
 }
 
 const readCacheByKind = new Map<

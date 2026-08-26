@@ -3,6 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
+import TooFarAppointmentsList from "./TooFarAppointmentsList";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
@@ -11,11 +12,12 @@ const StaffAppointmentCalendar = dynamic(() => import("./StaffAppointmentCalenda
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type View = "list" | "calendar";
+type View = "calendar" | "list" | "tooFar";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "calendar", label: "Calendar" },
   { id: "list", label: "List" },
+  { id: "tooFar", label: "Too Far Please Review" },
 ];
 
 export default function GroomerAppointmentsPanel({
@@ -58,6 +60,13 @@ export default function GroomerAppointmentsPanel({
           allowOverrideAvailability
           colorByGroomer
           onOpenConversation={onOpenConversation}
+        />
+      ) : view === "tooFar" ? (
+        <TooFarAppointmentsList
+          refreshKey={refreshKey}
+          apiUrl="/api/groomer/appointments"
+          currentGroomerId={groomerId}
+          colorByGroomer
         />
       ) : (
         <StaffAppointmentCalendar

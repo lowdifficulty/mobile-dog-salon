@@ -98,10 +98,10 @@ function withOptionalUrl(cores: string[], detailsUrl?: string): string {
   return firstSmsUnderLimit(...options);
 }
 
-/** Groomer alert for a new booking — kept short for SMS, with optional details link. */
+/** Groomer alert for a new booking — kept short for SMS, with optional CRM conversation link. */
 export function groomerNewBookingSmsBody(
   appointment: Appointment,
-  detailsUrl?: string
+  conversationUrl?: string
 ): string {
   const when = compactStaffBookingWhen(appointment);
   const name = compactClientName(appointment);
@@ -114,7 +114,7 @@ export function groomerNewBookingSmsBody(
       `New: ${name}, ${pet}, ${when}. ${phone}`,
       `New: ${name}, ${pet}, ${when}.`,
     ],
-    detailsUrl
+    conversationUrl
   );
 }
 

@@ -9,3 +9,8 @@ export const GROOMER_BOOKING_SMS_PHONES: Partial<Record<GroomerId, string>> = {
   melanie: "7142517732",
   jessica: "6823665544",
 };
+
+/** Extra team phones notified on new bookings for a groomer (e.g. Jessica + Chris). */
+export const GROOMER_EXTRA_BOOKING_SMS_PHONES: Partial<Record<GroomerId, string[]>> = {
+  jessica: ["6616747893"],
+};

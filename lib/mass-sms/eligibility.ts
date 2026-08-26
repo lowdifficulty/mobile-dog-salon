@@ -178,21 +178,91 @@ export async function listLeadNurtureEligibleContacts(
   return eligible;
 }
 
+export async function listCancelledEligibleContacts(
+  now = new Date()
+): Promise<MassSmsEligibleContact[]> {
+  const data = await readSchedulingData();
+  const campaign = await readMassSmsCampaign("cancelled");
+  const sentThisWeek = phonesSentThisWeek(campaign);
+  const sentAtByPhone = new Map(
+    campaign.sent.map((r) => [r.phoneKey, r.sentAt] as const)
+  );
+
+  const upcomingByPhone = buildUpcomingPhoneSet(data.appointments, now);
+  const lastCancelledByPhone = new Map<string, Appointment>();
+
+  for (const appt of data.appointments) {
+    if (appt.status !== "cancelled") continue;
+    if (!hasValidSmsPhone(appt)) continue;
+
+    const phoneKey = normalizePhoneKey(appt.phone);
+    const cancelledMs = appt.cancelledAt
+      ? new Date(appt.cancelledAt).getTime()
+      : new Date(appt.startAt).getTime();
+    const existing = lastCancelledByPhone.get(phoneKey);
+    const existingMs = existing?.cancelledAt
+      ? new Date(existing.cancelledAt).getTime()
+      : existing
+        ? new Date(existing.startAt).getTime()
+        : 0;
+    if (!existing || cancelledMs > existingMs) {
+      lastCancelledByPhone.set(phoneKey, appt);
+    }
+  }
+
+  const eligible: MassSmsEligibleContact[] = [];
+
+  for (const [phoneKey, appt] of lastCancelledByPhone) {
+    if (upcomingByPhone.has(phoneKey)) continue;
+
+    const cancelledAt = appt.cancelledAt ?? appt.startAt;
+    const cancelledMs = new Date(cancelledAt).getTime();
+    const daysSinceCancelled = Math.floor(
+      (now.getTime() - cancelledMs) / (24 * 60 * 60 * 1000)
+    );
+
+    eligible.push({
+      phoneKey,
+      phone: appt.phone,
+      firstName: appt.firstName,
+      lastName: appt.lastName,
+      petName: appt.petName,
+      cancelledAt,
+      cancelledAppointmentId: appt.id,
+      daysSinceCancelled,
+      groomerName: GROOMERS[appt.groomerId].name,
+      sentThisWeek: sentThisWeek.has(phoneKey),
+      sentAt: sentAtByPhone.get(phoneKey),
+    });
+  }
+
+  eligible.sort((a, b) => (b.daysSinceCancelled ?? 0) - (a.daysSinceCancelled ?? 0));
+  return eligible;
+}
+
 export async function listMassSmsEligibleContacts(
   kind: MassSmsCampaignKind = "rebook",
   now = new Date()
 ): Promise<MassSmsEligibleContact[]> {
-  return kind === "lead-nurture"
-    ? listLeadNurtureEligibleContacts(now)
-    : listRebookEligibleContacts(now);
+  if (kind === "lead-nurture") return listLeadNurtureEligibleContacts(now);
+  if (kind === "cancelled") return listCancelledEligibleContacts(now);
+  return listRebookEligibleContacts(now);
 }
 
 export async function getMassSmsStatus(kind: MassSmsCampaignKind = "rebook", now = new Date()) {
   const eligible = await listMassSmsEligibleContacts(kind, now);
   const campaign = await readMassSmsCampaign(kind);
-  const { massRebookSmsPreview, massLeadNurtureSmsPreview } = await import("./message");
+  const { massRebookSmsPreview, massLeadNurtureSmsPreview, massCancelledSmsPreview } =
+    await import("./message");
 
   const pending = eligible.filter((c) => !c.sentThisWeek);
+
+  const messagePreview =
+    kind === "lead-nurture"
+      ? massLeadNurtureSmsPreview()
+      : kind === "cancelled"
+        ? massCancelledSmsPreview()
+        : massRebookSmsPreview();
 
   return {
     kind,
@@ -201,7 +271,6 @@ export async function getMassSmsStatus(kind: MassSmsCampaignKind = "rebook", now
     pendingCount: pending.length,
     sentThisWeekCount: eligible.filter((c) => c.sentThisWeek).length,
     lastBatchAt: campaign.lastBatchAt,
-    messagePreview:
-      kind === "lead-nurture" ? massLeadNurtureSmsPreview() : massRebookSmsPreview(),
+    messagePreview,
   };
 }

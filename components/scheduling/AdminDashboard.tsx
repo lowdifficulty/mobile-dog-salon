@@ -87,7 +87,11 @@ export default function AdminDashboard() {
         <DashboardErrorBoundary>
           {tab === "crm" && <CrmPanel />}
           {tab === "opportunities" && (
-            <OpportunitiesPanel onOpenConversation={openCrmConversation} />
+            <OpportunitiesPanel
+              onOpenConversation={openCrmConversation}
+              appointmentsApiBase="/api/admin/appointments"
+              allowOverrideAvailability
+            />
           )}
           {tab === "payments" && <StaffPaymentsPanel />}
           {tab === "mass-sms" && <MassSmsPanel />}

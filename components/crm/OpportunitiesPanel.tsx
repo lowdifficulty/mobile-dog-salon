@@ -8,8 +8,12 @@ type SubTab = "pipeline" | "contacts";
 
 export default function OpportunitiesPanel({
   onOpenConversation,
+  appointmentsApiBase = "/api/staff/appointments",
+  allowOverrideAvailability = false,
 }: {
   onOpenConversation?: (contactId: string) => void;
+  appointmentsApiBase?: string;
+  allowOverrideAvailability?: boolean;
 }) {
   const [subTab, setSubTab] = useState<SubTab>("pipeline");
 
@@ -38,7 +42,14 @@ export default function OpportunitiesPanel({
       </div>
 
       {subTab === "pipeline" && (
-        <LeadsPanel apiBase="/api/staff/leads" contactsLayout hideJobApplicants />
+        <LeadsPanel
+          apiBase="/api/staff/leads"
+          appointmentsApiBase={appointmentsApiBase}
+          contactsLayout
+          hideJobApplicants
+          allowOverrideAvailability={allowOverrideAvailability}
+          onOpenConversation={onOpenConversation}
+        />
       )}
       {subTab === "contacts" && (
         <CrmContactsPanel onOpenConversation={onOpenConversation} />

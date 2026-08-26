@@ -85,6 +85,22 @@ function NavIcon({ id }: { id: string }) {
           <path d="M9 18a3 3 0 0 0 6 0" />
         </svg>
       );
+    case "mass-sms":
+      return (
+        <svg
+          className={common}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M5 6h8a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H9l-2 2v-2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+          <path d="M13 14h7a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1" />
+          <path d="M16 11h4M16 14h3" />
+        </svg>
+      );
     case "twilio":
       return (
         <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">

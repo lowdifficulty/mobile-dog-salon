@@ -179,9 +179,12 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
             {tab === "follow-ups" && isMelanie && (
               <LeadsPanel
                 apiBase="/api/staff/leads"
+                appointmentsApiBase="/api/groomer/appointments"
+                currentGroomerId={groomerId}
                 melanieFollowUpCrm
                 hideJobApplicants
                 allowDelete={false}
+                onOpenConversation={openCrmConversation}
               />
             )}
             {tab === "accounting" && groomerHasAccounting(groomerId) && (

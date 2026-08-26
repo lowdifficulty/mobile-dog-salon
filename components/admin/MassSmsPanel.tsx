@@ -20,6 +20,12 @@ const TABS: { id: MassSmsCampaignKind; label: string; description: string }[] = 
     description:
       "Leads who started the booking form but never scheduled. Drops off when they book; stays on the list each week until they do.",
   },
+  {
+    id: "cancelled",
+    label: "Cancelled",
+    description:
+      "Clients who cancelled an appointment with SMS opt-in and no upcoming visit. Win-back SMS each week until they rebook.",
+  },
 ];
 
 function formatWhen(iso: string): string {
@@ -214,6 +220,11 @@ export default function MassSmsPanel() {
                           <th className="px-4 py-2">Last groomer</th>
                           <th className="px-4 py-2">Days since visit</th>
                         </>
+                      ) : tab === "cancelled" ? (
+                        <>
+                          <th className="px-4 py-2">Groomer</th>
+                          <th className="px-4 py-2">Days since cancelled</th>
+                        </>
                       ) : (
                         <>
                           <th className="px-4 py-2">Funnel step</th>
@@ -237,6 +248,11 @@ export default function MassSmsPanel() {
                           <>
                             <td className="px-4 py-2">{c.groomerName ?? "—"}</td>
                             <td className="px-4 py-2">{c.daysSinceVisit ?? "—"}</td>
+                          </>
+                        ) : tab === "cancelled" ? (
+                          <>
+                            <td className="px-4 py-2">{c.groomerName ?? "—"}</td>
+                            <td className="px-4 py-2">{c.daysSinceCancelled ?? "—"}</td>
                           </>
                         ) : (
                           <>

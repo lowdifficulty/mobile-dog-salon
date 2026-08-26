@@ -11,7 +11,12 @@ export async function POST(request: Request) {
       batchSize?: number;
       kind?: MassSmsCampaignKind;
     };
-    const kind = body.kind === "lead-nurture" ? "lead-nurture" : "rebook";
+    const kind: MassSmsCampaignKind =
+      body.kind === "lead-nurture"
+        ? "lead-nurture"
+        : body.kind === "cancelled"
+          ? "cancelled"
+          : "rebook";
     const result = await sendMassSmsBatch({
       kind,
       batchSize: body.batchSize,

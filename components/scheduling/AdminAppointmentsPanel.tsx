@@ -3,16 +3,18 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
+import TooFarAppointmentsList from "./TooFarAppointmentsList";
 
 const StaffAppointmentCalendar = dynamic(() => import("./StaffAppointmentCalendar"), {
   loading: () => <p className="text-sm text-gray-500">Loading calendar…</p>,
 });
 
-type View = "list" | "calendar";
+type View = "calendar" | "list" | "tooFar";
 
 const VIEWS: { id: View; label: string }[] = [
   { id: "calendar", label: "Calendar" },
   { id: "list", label: "List" },
+  { id: "tooFar", label: "Too Far Please Review" },
 ];
 
 export default function AdminAppointmentsPanel({
@@ -52,6 +54,12 @@ export default function AdminAppointmentsPanel({
           showRecentFilter
           colorByGroomer
           onOpenConversation={onOpenConversation}
+        />
+      ) : view === "tooFar" ? (
+        <TooFarAppointmentsList
+          refreshKey={refreshKey}
+          apiUrl="/api/admin/appointments"
+          colorByGroomer
         />
       ) : (
         <StaffAppointmentCalendar

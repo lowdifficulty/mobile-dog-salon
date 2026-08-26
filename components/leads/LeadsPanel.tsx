@@ -40,6 +40,7 @@ import LeadDetailsEditor, {
   type LeadDetailsFormValues,
 } from "@/components/leads/LeadDetailsEditor";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
+import LeadContactActions from "@/components/leads/LeadContactActions";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 type LeadsPanelView = LeadCrmView | "job_applicants";
@@ -73,6 +74,7 @@ interface LeadRow {
   appointmentStartAt?: string;
   groomerId?: GroomerId;
   groomerName?: string;
+  appointmentId?: string;
   followUpMode: LeadFollowUpMode;
   visitOutcome: VisitOutcome;
   listStatus: LeadListStatus;
@@ -254,6 +256,18 @@ function sortScheduledLeads(leads: LeadRow[]): LeadRow[] {
   return sorted;
 }
 
+function sortPrioritizeFollowUp(leads: LeadRow[]): LeadRow[] {
+  return [...leads].sort((a, b) => {
+    const aFu = a.followUpMode === "fu" ? 0 : 1;
+    const bFu = b.followUpMode === "fu" ? 0 : 1;
+    if (aFu !== bFu) return aFu - bFu;
+    const aDue = a.followUpDue && a.followUpMode === "fu" ? 0 : 1;
+    const bDue = b.followUpDue && b.followUpMode === "fu" ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+}
+
 function sortCompletedLeads(leads: LeadRow[]): LeadRow[] {
   const sorted = [...leads];
   sorted.sort((a, b) => {
@@ -368,18 +382,24 @@ export default function LeadsPanel({
   hideJobApplicants = false,
   allowDelete = true,
   apiBase = "/api/admin/leads",
+  appointmentsApiBase = "/api/admin/appointments",
   currentGroomerId,
   contactsLayout = false,
   melanieFollowUpCrm = false,
+  onOpenConversation,
+  allowOverrideAvailability = false,
 }: {
   hideJobApplicants?: boolean;
   allowDelete?: boolean;
   apiBase?: string;
+  appointmentsApiBase?: string;
   currentGroomerId?: GroomerId;
   /** Admin Contacts tab: Customers and Scheduled only (no leads funnel / applicants). */
   contactsLayout?: boolean;
   /** Melanie: all-team follow-up workspace with notes and FU/chill toggles. */
   melanieFollowUpCrm?: boolean;
+  onOpenConversation?: (contactId: string) => void;
+  allowOverrideAvailability?: boolean;
 }) {
   const [view, setView] = useState<LeadsPanelView>("scheduled");
   const [abandonedSubtab, setAbandonedSubtab] = useState<AbandonedLeadSubtab>("all");
@@ -466,9 +486,11 @@ export default function LeadsPanel({
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
       });
+    } else if (contactsLayout) {
+      list = sortPrioritizeFollowUp(list);
     }
     return list;
-  }, [leads, sort, view, melanieFollowUpCrm]);
+  }, [leads, sort, view, melanieFollowUpCrm, contactsLayout]);
 
   const abandonedSubtabCounts = useMemo(() => {
     if (view !== "abandoned") return null;
@@ -983,6 +1005,14 @@ export default function LeadsPanel({
                           </p>
                         )}
                       </div>
+
+                      <LeadContactActions
+                        lead={lead}
+                        appointmentsApiBase={appointmentsApiBase}
+                        onOpenConversation={onOpenConversation}
+                        allowOverrideAvailability={allowOverrideAvailability}
+                        onActionComplete={() => loadLeads({ silent: true })}
+                      />
 
                       <button
                         type="button"

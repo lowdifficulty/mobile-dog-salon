@@ -1,4 +1,4 @@
-export type MassSmsCampaignKind = "rebook" | "lead-nurture";
+export type MassSmsCampaignKind = "rebook" | "lead-nurture" | "cancelled";
 
 export interface MassSmsSentRecord {
   phoneKey: string;
@@ -33,6 +33,10 @@ export interface MassSmsEligibleContact {
   leadId?: string;
   funnelStep?: string;
   daysSinceContact?: number;
+  /** Cancelled — most recent cancellation */
+  cancelledAt?: string;
+  cancelledAppointmentId?: string;
+  daysSinceCancelled?: number;
   sentThisWeek: boolean;
   sentAt?: string;
 }

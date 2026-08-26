@@ -1,18 +1,34 @@
 import { NextResponse } from "next/server";
-import { ensureContactFromAppointment } from "@/lib/crm/messaging";
+import { ensureContactFromAppointment, ensureContactForPhone } from "@/lib/crm/messaging";
+import { findAppointmentByShortCode } from "@/lib/scheduling/appointment-short-link";
 import { readSchedulingData } from "@/lib/scheduling/store";
 import { requireStaff } from "@/lib/scheduling/auth";
 
 export async function GET(request: Request) {
   try {
     await requireStaff();
-    const appointmentId = new URL(request.url).searchParams.get("appointmentId")?.trim();
-    if (!appointmentId) {
-      return NextResponse.json({ error: "appointmentId required" }, { status: 400 });
+    const params = new URL(request.url).searchParams;
+    const appointmentId = params.get("appointmentId")?.trim();
+    const code = params.get("code")?.trim().toLowerCase();
+    const phone = params.get("phone")?.trim();
+
+    if (!appointmentId && !code && !phone) {
+      return NextResponse.json({ error: "appointmentId, code, or phone required" }, { status: 400 });
     }
 
-    const { appointments } = await readSchedulingData();
-    const appointment = appointments.find((ap) => ap.id === appointmentId);
+    if (phone) {
+      const contact = await ensureContactForPhone(phone);
+      return NextResponse.json({ contactId: contact.id });
+    }
+
+    let appointment = null;
+    if (code) {
+      appointment = await findAppointmentByShortCode(code);
+    } else if (appointmentId) {
+      const { appointments } = await readSchedulingData();
+      appointment = appointments.find((ap) => ap.id === appointmentId) ?? null;
+    }
+
     if (!appointment) {
       return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
     }

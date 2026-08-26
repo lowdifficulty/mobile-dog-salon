@@ -4,7 +4,9 @@ import { getMassSmsStatus, listMassSmsEligibleContacts } from "@/lib/mass-sms/el
 import type { MassSmsCampaignKind } from "@/lib/mass-sms/types";
 
 function parseKind(raw: string | null): MassSmsCampaignKind {
-  return raw === "lead-nurture" ? "lead-nurture" : "rebook";
+  if (raw === "lead-nurture") return "lead-nurture";
+  if (raw === "cancelled") return "cancelled";
+  return "rebook";
 }
 
 export async function GET(request: Request) {

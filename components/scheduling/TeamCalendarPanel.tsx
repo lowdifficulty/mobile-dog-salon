@@ -25,12 +25,14 @@ export default function TeamCalendarPanel({
   calendarRefreshKey: externalCalendarRefreshKey = 0,
   allowDeleteAppointments = false,
   scopeGroomerId,
+  onOpenConversation,
 }: {
   availabilityOnly?: boolean;
   availabilityApi?: string;
   calendarRefreshKey?: number;
   allowDeleteAppointments?: boolean;
   scopeGroomerId?: GroomerId;
+  onOpenConversation?: (contactId: string) => void;
 }) {
   const [tab, setTab] = useState<TeamTab>("calendar");
   const [groomerId, setGroomerId] = useState<GroomerFilter>("all");
@@ -114,6 +116,7 @@ export default function TeamCalendarPanel({
             filter="upcoming"
             allowOverrideAvailability
             allowDelete={allowDeleteAppointments}
+            onOpenConversation={onOpenConversation}
           />
         </>
       )}
@@ -122,6 +125,7 @@ export default function TeamCalendarPanel({
           apiUrl={appointmentApi}
           filter="past"
           allowDelete={allowDeleteAppointments}
+          onOpenConversation={onOpenConversation}
         />
       )}
     </div>

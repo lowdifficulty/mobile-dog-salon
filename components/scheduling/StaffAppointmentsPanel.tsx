@@ -24,6 +24,7 @@ export default function StaffAppointmentsPanel({
   showRecentFilter = false,
   refreshKey = 0,
   colorByGroomer,
+  onOpenConversation,
 }: {
   apiUrl: string;
   currentGroomerId?: GroomerId;
@@ -32,6 +33,7 @@ export default function StaffAppointmentsPanel({
   showRecentFilter?: boolean;
   refreshKey?: number;
   colorByGroomer?: boolean;
+  onOpenConversation?: (contactId: string) => void;
 }) {
   const [filter, setFilter] = useState<StaffAppointmentFilter>("upcoming");
   const subtabs = showRecentFilter
@@ -63,6 +65,7 @@ export default function StaffAppointmentsPanel({
         currentGroomerId={currentGroomerId}
         allowOverrideAvailability={allowOverrideAvailability}
         allowDelete={allowDelete}
+        onOpenConversation={onOpenConversation}
         {...(colorByGroomer !== undefined ? { colorByGroomer } : {})}
       />
     </div>

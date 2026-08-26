@@ -10,6 +10,7 @@ import {
 } from "@/lib/scheduling/groomer-crm-colors";
 import { useStaffCallbackPhone } from "@/lib/twilio/use-staff-callback-phone";
 import { useStaffDialerPanel } from "@/lib/twilio/staff-dialer-context";
+import { CRM_OPEN_CONTACT_SESSION_KEY } from "@/lib/crm/open-conversation-client";
 
 type Platform = {
   configured: boolean;
@@ -126,17 +127,13 @@ function CancelledStatusNote({ method }: { method?: string | null }) {
   return (
     <span className="inline-flex items-center gap-1 min-w-0">
       <span className="text-[10px] font-bold bg-gray-200 text-gray-700 rounded-full px-1.5 shrink-0">
-        C
+        Cancelled
       </span>
       {method ? (
         <span className="text-[10px] text-gray-500 truncate">{method}</span>
       ) : null}
     </span>
   );
-}
-
-function displayCancelledCopy(text?: string | null): string {
-  return (text || "").replace(/\bCancelled\b/gi, "C");
 }
 
 function isCancelledSystemNote(ix: {
@@ -260,9 +257,9 @@ export default function CrmPanel() {
   const [selectedId, setSelectedId] = useState(() => {
     if (typeof window === "undefined") return "";
     try {
-      const open = sessionStorage.getItem("mds-crm-open-contact");
+      const open = sessionStorage.getItem(CRM_OPEN_CONTACT_SESSION_KEY);
       if (open) {
-        sessionStorage.removeItem("mds-crm-open-contact");
+        sessionStorage.removeItem(CRM_OPEN_CONTACT_SESSION_KEY);
         deepLinkContactId.current = open;
         return open;
       }
@@ -417,10 +414,10 @@ export default function CrmPanel() {
           id: `cancelled-${a.id}`,
           channel: "system" as const,
           direction: "internal" as const,
-          body: `C · ${formatWhen(a.startAt)}${a.petName ? ` · ${a.petName}` : ""}${
+          body: `Cancelled · ${formatWhen(a.startAt)}${a.petName ? ` · ${a.petName}` : ""}${
             a.service ? ` · ${a.service}` : ""
           }\nVia ${method}`,
-          summary: `C via ${method}`,
+          summary: `Cancelled via ${method}`,
           actor: "system",
           createdAt: a.cancelledAt || a.startAt,
           metadata: {
@@ -437,12 +434,12 @@ export default function CrmPanel() {
         id: "cancelled-status",
         channel: "system",
         direction: "internal",
-        body: `C${
+        body: `Cancelled${
           detail.cancelledAppointmentAt
             ? ` · ${formatWhen(detail.cancelledAppointmentAt)}`
             : ""
         }\nVia ${method}`,
-        summary: `C via ${method}`,
+        summary: `Cancelled via ${method}`,
         actor: "system",
         createdAt: detail.cancelledAppointmentAt || new Date().toISOString(),
         metadata: { appointmentStatus: "cancelled" },
@@ -739,7 +736,7 @@ export default function CrmPanel() {
                     </div>
                     {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
                       <div className="text-[11px] font-semibold text-gray-600 mt-0.5">
-                        C
+                        Cancelled
                         {(detail?.cancelledMethodLabel || selected.cancelledMethodLabel)
                           ? ` via ${detail?.cancelledMethodLabel || selected.cancelledMethodLabel}`
                           : ""}
@@ -810,7 +807,7 @@ export default function CrmPanel() {
                         <div className="text-[10px] uppercase tracking-wide opacity-70 mb-1">
                           {isSystem
                             ? cancelledNote
-                              ? "C"
+                              ? "Cancelled"
                               : "Status"
                             : ix.channel === "note"
                             ? "Note"
@@ -864,9 +861,7 @@ export default function CrmPanel() {
                         ) : (
                           <>
                             <div className="whitespace-pre-wrap">
-                              {cancelledNote
-                                ? displayCancelledCopy(ix.body || ix.summary)
-                                : ix.body || ix.summary || "—"}
+                              {ix.body || ix.summary || "—"}
                             </div>
                             {ix.channel === "sms" && !suppressed && (
                               <SmsReceiptMarks
@@ -1084,7 +1079,7 @@ function ContactDetailsContent({
       {(detail?.cancelledAppointments || []).length > 0 && (
         <div>
           <div className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-1">
-            C
+            Cancelled
           </div>
           {(detail?.cancelledAppointments || []).slice(0, 5).map((a) => (
             <div key={a.id} className="text-sm border border-gray-100 rounded-lg px-2 py-1.5 mb-1">

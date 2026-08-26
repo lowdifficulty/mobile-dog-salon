@@ -10,7 +10,7 @@ import {
 } from "@/lib/request-client-info";
 import { getPersistenceMode } from "@/lib/scheduling/persistence";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
-import type { GroomerId, SessionUser } from "@/lib/scheduling/types";
+import type { GroomerId, SessionUser, StaffId } from "@/lib/scheduling/types";
 
 export interface StaffLoginLogEntry {
   id: string;
@@ -19,6 +19,7 @@ export interface StaffLoginLogEntry {
   email: string;
   name: string;
   groomerId?: GroomerId;
+  staffId?: StaffId;
   loginIdentifier: string;
   ip: string | null;
   ipChain: string[];
@@ -56,6 +57,7 @@ function entryFromClientInfo(
     email: user.email,
     name: user.name,
     groomerId: user.groomerId,
+    staffId: user.staffId,
     loginIdentifier,
     ip: client.ip,
     ipChain: client.ipChain,

@@ -26,6 +26,7 @@ import { appointmentToStaffBookPrefill } from "@/lib/scheduling/staff-book-prefi
 import type { VanSlotOccupancy } from "@/lib/scheduling/van-capacity";
 import { activeVansOnDate, vanLabel, type VanId } from "@/lib/scheduling/vans";
 import AppointmentPaymentModal from "@/components/payments/AppointmentPaymentModal";
+import AppointmentMessageButton from "@/components/scheduling/AppointmentMessageButton";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -157,11 +158,13 @@ export default function StaffAppointmentCalendar({
   groomerId,
   refreshKey = 0,
   onRebook,
+  onOpenConversation,
 }: {
   mode: "groomer" | "admin";
   groomerId?: GroomerId;
   refreshKey?: number;
   onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
+  onOpenConversation?: (contactId: string) => void;
 }) {
   const today = getTodayPacificDate();
   const seesTeam = groomerId ? groomerSeesTeamAppointments(groomerId) : true;
@@ -520,6 +523,13 @@ export default function StaffAppointmentCalendar({
                                   Collect payment
                                 </button>
                               )}
+                            {onOpenConversation && (
+                              <AppointmentMessageButton
+                                appointmentId={ap.id}
+                                onOpenConversation={onOpenConversation}
+                                variant="pill"
+                              />
+                            )}
                             {mode === "groomer" && onRebook && isOwn && (
                               <button
                                 type="button"

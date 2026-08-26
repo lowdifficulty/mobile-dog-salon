@@ -13,6 +13,7 @@ function formatWhen(at: string): string {
 
 function roleLabel(entry: StaffLoginLogEntry): string {
   if (entry.role === "admin") return "Admin";
+  if (entry.role === "staff") return `Staff · ${entry.name}`;
   if (entry.groomerId) return `Groomer · ${GROOMERS[entry.groomerId].name}`;
   return "Groomer";
 }

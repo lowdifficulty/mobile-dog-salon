@@ -28,6 +28,7 @@ import LeadDetailsEditor, {
   type LeadDetailsFormValues,
 } from "@/components/leads/LeadDetailsEditor";
 import AppointmentPaymentModal from "@/components/payments/AppointmentPaymentModal";
+import AppointmentMessageButton from "@/components/scheduling/AppointmentMessageButton";
 
 const LEADS_API = "/api/staff/leads";
 
@@ -59,6 +60,7 @@ export default function AppointmentList({
   allowOverrideAvailability = false,
   allowDelete = false,
   colorByGroomer: colorByGroomerProp,
+  onOpenConversation,
 }: {
   apiUrl: string;
   filter: StaffAppointmentFilter;
@@ -66,6 +68,7 @@ export default function AppointmentList({
   allowOverrideAvailability?: boolean;
   allowDelete?: boolean;
   colorByGroomer?: boolean;
+  onOpenConversation?: (contactId: string) => void;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -437,6 +440,13 @@ export default function AppointmentList({
                     >
                       Edit client
                     </button>
+                    {onOpenConversation && (
+                      <AppointmentMessageButton
+                        appointmentId={ap.id}
+                        onOpenConversation={onOpenConversation}
+                        disabled={isBusy}
+                      />
+                    )}
                     <button
                       type="button"
                       onClick={() => openReschedule(ap)}

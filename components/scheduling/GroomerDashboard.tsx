@@ -21,6 +21,7 @@ import LeadsPanel from "@/components/leads/LeadsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
 import { groomerSeesTeamAppointments } from "@/lib/scheduling/groomers";
 import { groomerHasAccounting } from "@/lib/analytics/groomer-accounting-shared";
+import { stashCrmOpenContact } from "@/lib/crm/open-conversation-client";
 import type { SessionUser } from "@/lib/scheduling/types";
 
 const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
@@ -51,6 +52,11 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
     setBookPrefill(prefill);
     setBookFormKey((key) => key + 1);
     setTab("book");
+  }
+
+  function openCrmConversation(contactId: string) {
+    stashCrmOpenContact(contactId);
+    setTab("crm");
   }
 
   useEffect(() => {
@@ -138,6 +144,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
                 groomerId={groomerId}
                 refreshKey={appointmentRefreshKey}
                 onRebook={openRebook}
+                onOpenConversation={openCrmConversation}
               />
             )}
             {tab === "book" && (
@@ -165,6 +172,7 @@ export default function GroomerDashboard({ user }: { user: SessionUser }) {
                 availabilityApi="/api/staff/availability"
                 calendarRefreshKey={calendarRefreshKey}
                 scopeGroomerId={seesTeamAppointments ? undefined : groomerId}
+                onOpenConversation={openCrmConversation}
               />
             )}
             {tab === "availability" && <GroomerShiftsTab groomerId={groomerId} />}

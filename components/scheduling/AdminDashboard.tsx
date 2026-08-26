@@ -14,9 +14,11 @@ import StaffShiftsPanel from "./StaffShiftsPanel";
 import AdminAccountingPanel from "@/components/accounting/AdminAccountingPanel";
 import AdminAppointmentsPanel from "./AdminAppointmentsPanel";
 import EmailCampaignsPanel from "@/components/admin/EmailCampaignsPanel";
+import MassSmsPanel from "@/components/admin/MassSmsPanel";
 import CrmPanel from "@/components/crm/CrmPanel";
 import OpportunitiesPanel from "@/components/crm/OpportunitiesPanel";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
+import { stashCrmOpenContact } from "@/lib/crm/open-conversation-client";
 
 const PhoneSmsPanel = dynamic(() => import("@/components/admin/PhoneSmsPanel"), {
   loading: () => <div className="p-6 text-sm text-gray-500">Loading Phone &amp; SMS…</div>,
@@ -35,12 +37,14 @@ type Tab =
   | "appointments"
   | "team-calendar"
   | "shifts"
-  | "logins";
+  | "logins"
+  | "mass-sms";
 
 const NAV: AdminNavItem[] = [
   { id: "crm", label: "Conversations", group: "CRM" },
   { id: "opportunities", label: "Opportunities", group: "CRM" },
   { id: "payments", label: "Payments", group: "CRM" },
+  { id: "mass-sms", label: "Mass SMS", group: "CRM" },
   { id: "appointments", label: "Appointments", group: "Admin" },
   { id: "team-calendar", label: "Team Calendar", group: "Admin" },
   { id: "twilio", label: "Phone & SMS", group: "Admin" },
@@ -64,11 +68,7 @@ export default function AdminDashboard() {
   }
 
   function openCrmConversation(contactId: string) {
-    try {
-      sessionStorage.setItem("mds-crm-open-contact", contactId);
-    } catch {
-      /* ignore */
-    }
+    stashCrmOpenContact(contactId);
     setTab("crm");
   }
 
@@ -90,17 +90,21 @@ export default function AdminDashboard() {
             <OpportunitiesPanel onOpenConversation={openCrmConversation} />
           )}
           {tab === "payments" && <StaffPaymentsPanel />}
+          {tab === "mass-sms" && <MassSmsPanel />}
           {tab === "twilio" && <PhoneSmsPanel />}
           {tab === "emails" && <EmailCampaignsPanel />}
           {tab === "licky" && <LickyTrainingPanel />}
           {tab === "qa" && <QaDiagnosticsPanel />}
           {tab === "analytics" && <FunnelAnalyticsPanel />}
           {tab === "accounting" && <AdminAccountingPanel />}
-          {tab === "appointments" && <AdminAppointmentsPanel />}
+          {tab === "appointments" && (
+            <AdminAppointmentsPanel onOpenConversation={openCrmConversation} />
+          )}
           {tab === "team-calendar" && (
             <TeamCalendarPanel
               availabilityApi="/api/staff/availability"
               allowDeleteAppointments
+              onOpenConversation={openCrmConversation}
             />
           )}
           {tab === "shifts" && <StaffShiftsPanel apiBase="/api/admin/availability" />}

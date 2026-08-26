@@ -22,10 +22,12 @@ export default function GroomerAppointmentsPanel({
   groomerId,
   refreshKey = 0,
   onRebook,
+  onOpenConversation,
 }: {
   groomerId: GroomerId;
   refreshKey?: number;
   onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
+  onOpenConversation?: (contactId: string) => void;
 }) {
   const [view, setView] = useState<View>("calendar");
 
@@ -55,6 +57,7 @@ export default function GroomerAppointmentsPanel({
           currentGroomerId={groomerId}
           allowOverrideAvailability
           colorByGroomer
+          onOpenConversation={onOpenConversation}
         />
       ) : (
         <StaffAppointmentCalendar
@@ -62,6 +65,7 @@ export default function GroomerAppointmentsPanel({
           groomerId={groomerId}
           refreshKey={refreshKey}
           onRebook={onRebook}
+          onOpenConversation={onOpenConversation}
         />
       )}
     </div>

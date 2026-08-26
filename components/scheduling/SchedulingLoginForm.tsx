@@ -66,7 +66,7 @@ export default function SchedulingLoginForm({
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
-                placeholder="Melanie, Diamond, Jessica, or Chris"
+                placeholder="Melanie, Diamond, Jessica, Chris, or Mary"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl"
               />
             </div>

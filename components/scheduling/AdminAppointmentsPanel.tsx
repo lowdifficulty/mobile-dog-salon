@@ -15,7 +15,13 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "list", label: "List" },
 ];
 
-export default function AdminAppointmentsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
+export default function AdminAppointmentsPanel({
+  refreshKey = 0,
+  onOpenConversation,
+}: {
+  refreshKey?: number;
+  onOpenConversation?: (contactId: string) => void;
+}) {
   const [view, setView] = useState<View>("calendar");
 
   return (
@@ -45,9 +51,14 @@ export default function AdminAppointmentsPanel({ refreshKey = 0 }: { refreshKey?
           allowDelete
           showRecentFilter
           colorByGroomer
+          onOpenConversation={onOpenConversation}
         />
       ) : (
-        <StaffAppointmentCalendar mode="admin" refreshKey={refreshKey} />
+        <StaffAppointmentCalendar
+          mode="admin"
+          refreshKey={refreshKey}
+          onOpenConversation={onOpenConversation}
+        />
       )}
     </div>
   );

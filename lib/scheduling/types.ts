@@ -5,6 +5,8 @@ export type { VanId, AppointmentCancelMethod };
 
 export type GroomerId = "melanie" | "diamond" | "jessica";
 
+export type StaffId = "mary";
+
 export type AppointmentStatus = "confirmed" | "cancelled";
 
 export interface AvailabilityDay {
@@ -106,8 +108,9 @@ export interface AvailableSlot {
 }
 
 export interface SessionUser {
-  role: "groomer" | "admin";
+  role: "groomer" | "admin" | "staff";
   groomerId?: GroomerId;
+  staffId?: StaffId;
   email: string;
   name: string;
 }

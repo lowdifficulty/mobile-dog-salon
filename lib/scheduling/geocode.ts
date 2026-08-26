@@ -82,6 +82,7 @@ const ZIP_FALLBACK: Record<string, Omit<GeoPoint, "label">> = {
   "92867": { lat: 33.787, lon: -117.8531, precision: "zip" },
   "92868": { lat: 33.787, lon: -117.8531, precision: "zip" },
   "92869": { lat: 33.787, lon: -117.8531, precision: "zip" },
+  "92688": { lat: 33.6405, lon: -117.6033, precision: "zip" },
 };
 
 function zipCentroid(zip: string | null, label: string): GeoPoint | null {
@@ -99,7 +100,40 @@ function zipCentroid(zip: string | null, label: string): GeoPoint | null {
   if (prefix === "928") {
     return { lat: 33.82, lon: -117.9, label, precision: "zip" };
   }
+  if (prefix === "906") {
+    return { lat: 33.97, lon: -118.03, label, precision: "zip" };
+  }
+  if (prefix === "900" || prefix === "902" || prefix === "903" || prefix === "905") {
+    return { lat: 33.95, lon: -118.25, label, precision: "zip" };
+  }
+  if (prefix === "907" || prefix === "908") {
+    return { lat: 33.82, lon: -118.18, label, precision: "zip" };
+  }
+  if (prefix === "910" || prefix === "912" || prefix === "917" || prefix === "918") {
+    return { lat: 34.08, lon: -118.05, label, precision: "zip" };
+  }
+  if (prefix === "925") {
+    return { lat: 33.95, lon: -117.39, label, precision: "zip" };
+  }
+  if (prefix === "935") {
+    return { lat: 34.69, lon: -118.14, label, precision: "zip" };
+  }
+  // Any other 5-digit US zip — approximate from first digit (better than skipping).
+  if (zip.length === 5) {
+    return { lat: 33.75, lon: -117.88, label, precision: "zip" };
+  }
   return null;
+}
+
+/** Fast zip-centroid lookup for routing checks (no external geocoding). */
+export function appointmentZipCentroid(input: {
+  address: string;
+  city: string;
+  zipCode: string;
+  fullAddress: string;
+}): GeoPoint | null {
+  const zip = input.zipCode.trim() || zipFromText(input.fullAddress);
+  return zipCentroid(zip, input.fullAddress);
 }
 
 function buildGeocodeQueries(

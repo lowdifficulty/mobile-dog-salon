@@ -21,18 +21,23 @@ export async function GET(request: Request) {
     if (groomerId) list = list.filter((a) => a.groomerId === groomerId);
 
     if (filterParam === "tooFar") {
-      const tooFar = await listTooFarAppointments(list, {
+      const { tooFar, meta } = listTooFarAppointments(list, {
         groomerId: groomerId ?? undefined,
         now,
       });
-      return NextResponse.json({ tooFar });
+      return NextResponse.json({ tooFar, meta });
     }
 
     const filter = parseStaffAppointmentFilter(filterParam);
     list = filterStaffAppointments(list, filter, now);
 
     return NextResponse.json({ appointments: list });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Request failed";
+    if (message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("Admin appointments GET failed:", err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

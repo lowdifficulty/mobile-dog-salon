@@ -4,6 +4,9 @@ import { ROUTE_DEPOT } from "./route-depot";
 export interface GroomerHomeBase {
   label: string;
   fullAddress: string;
+  /** Fixed start coordinates — avoids slow geocoding on serverless. */
+  lat: number;
+  lon: number;
   /**
    * One-way max driving miles from this groomer's start point before an upcoming
    * appointment is flagged on the "Too Far Please Review" tab.
@@ -16,16 +19,22 @@ export const GROOMER_HOME_BASES: Record<GroomerId, GroomerHomeBase> = {
   jessica: {
     label: "Jessica home base (Anaheim, CA)",
     fullAddress: "Anaheim, CA",
+    lat: 33.8366,
+    lon: -117.9143,
     maxDriveMiles: 8,
   },
   melanie: {
     label: "Melanie home base (Garden Grove, CA)",
     fullAddress: "Garden Grove, CA",
+    lat: 33.7739,
+    lon: -117.9414,
     maxDriveMiles: 8,
   },
   diamond: {
     label: "Diamond home base (depot)",
     fullAddress: ROUTE_DEPOT.fullAddress,
+    lat: 33.6411,
+    lon: -117.9187,
     maxDriveMiles: 8,
   },
 };

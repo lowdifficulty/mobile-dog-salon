@@ -21,6 +21,7 @@ export default function StaffAppointmentsPanel({
   currentGroomerId,
   allowOverrideAvailability = false,
   allowDelete = false,
+  allowVisitCloseout = false,
   showRecentFilter = false,
   refreshKey = 0,
   colorByGroomer,
@@ -30,6 +31,7 @@ export default function StaffAppointmentsPanel({
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
   allowDelete?: boolean;
+  allowVisitCloseout?: boolean;
   showRecentFilter?: boolean;
   refreshKey?: number;
   colorByGroomer?: boolean;
@@ -65,6 +67,7 @@ export default function StaffAppointmentsPanel({
         currentGroomerId={currentGroomerId}
         allowOverrideAvailability={allowOverrideAvailability}
         allowDelete={allowDelete}
+        allowVisitCloseout={allowVisitCloseout}
         onOpenConversation={onOpenConversation}
         {...(colorByGroomer !== undefined ? { colorByGroomer } : {})}
       />

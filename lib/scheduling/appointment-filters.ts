@@ -1,12 +1,20 @@
 import { bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-/** Keep confirmed appointments in Upcoming for this long after the visit ends. */
+/** @deprecated Appointments stay in Upcoming until groomer closeout; kept for callers that reference it. */
 export const STAFF_UPCOMING_GRACE_MS = 10 * 60 * 60 * 1000;
 
 const DEFAULT_DURATION_MINUTES = 180;
 
 export type StaffAppointmentFilter = "upcoming" | "past" | "all" | "recent";
+
+type AppointmentFilterFields = {
+  startAt: string;
+  status: string;
+  durationMinutes?: number;
+  groomerId?: GroomerId;
+  visitClosedAt?: string;
+};
 
 export function parseStaffAppointmentFilter(
   value: string | null
@@ -15,11 +23,7 @@ export function parseStaffAppointmentFilter(
   return "upcoming";
 }
 
-function appointmentEndMs(appointment: {
-  startAt: string;
-  durationMinutes?: number;
-  groomerId?: GroomerId;
-}): number {
+function appointmentEndMs(appointment: AppointmentFilterFields): number {
   const duration =
     appointment.durationMinutes ??
     (appointment.groomerId
@@ -28,60 +32,42 @@ function appointmentEndMs(appointment: {
   return new Date(appointment.startAt).getTime() + duration * 60 * 1000;
 }
 
+/** @deprecated Use closeout-based upcoming logic instead. */
 export function staffUpcomingCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - STAFF_UPCOMING_GRACE_MS);
 }
 
+/** Confirmed visits that have not been closed out by the groomer. */
 export function isStaffUpcomingAppointment(
-  appointment: { startAt: string; status: string; durationMinutes?: number; groomerId?: GroomerId },
-  now: Date = new Date()
+  appointment: AppointmentFilterFields,
+  _now: Date = new Date()
 ): boolean {
   if (appointment.status !== "confirmed") return false;
-  return appointmentEndMs(appointment) + STAFF_UPCOMING_GRACE_MS >= now.getTime();
+  return !appointment.visitClosedAt;
 }
 
-/** Cancelled always; confirmed visits that have finished. */
+/** Cancelled visits, or confirmed visits the groomer has closed out. */
 export function isStaffPastAppointment(
-  appointment: {
-    startAt: string;
-    status: string;
-    durationMinutes?: number;
-    groomerId?: GroomerId;
-  },
-  now: Date = new Date()
+  appointment: AppointmentFilterFields,
+  _now: Date = new Date()
 ): boolean {
   if (appointment.status === "cancelled") return true;
   if (appointment.status !== "confirmed") return false;
-  return appointmentEndMs(appointment) <= now.getTime();
+  return Boolean(appointment.visitClosedAt);
 }
 
-/** Upcoming (incl. 10hr post-visit grace) always; past confirmed when viewing Past or All. */
+/** Manage until the groomer closes the appointment out. */
 export function canStaffManageAppointment(
-  appointment: {
-    startAt: string;
-    status: string;
-    durationMinutes?: number;
-    groomerId?: GroomerId;
-  },
-  filter: StaffAppointmentFilter,
-  now: Date = new Date()
+  appointment: AppointmentFilterFields,
+  _filter: StaffAppointmentFilter,
+  _now: Date = new Date()
 ): boolean {
   if (appointment.status !== "confirmed") return false;
-  if (isStaffUpcomingAppointment(appointment, now)) return true;
-  if (filter === "past" || filter === "all" || filter === "recent") {
-    return appointmentEndMs(appointment) <= now.getTime();
-  }
-  return false;
+  return !appointment.visitClosedAt;
 }
 
 export function filterStaffAppointments<
-  T extends {
-    startAt: string;
-    status: string;
-    createdAt: string;
-    durationMinutes?: number;
-    groomerId?: GroomerId;
-  },
+  T extends AppointmentFilterFields & { createdAt: string },
 >(
   appointments: T[],
   filter: StaffAppointmentFilter,
@@ -104,4 +90,12 @@ export function filterStaffAppointments<
   return appointments
     .filter((a) => isStaffPastAppointment(a, now))
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
+}
+
+/** Whether the visit time has passed (for closeout eligibility). */
+export function isStaffVisitEnded(
+  appointment: AppointmentFilterFields,
+  now: Date = new Date()
+): boolean {
+  return appointmentEndMs(appointment) <= now.getTime();
 }

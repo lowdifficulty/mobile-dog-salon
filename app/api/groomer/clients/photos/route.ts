@@ -10,6 +10,9 @@ export async function POST(request: Request) {
     const appointmentId = String(form.get("appointmentId") ?? "").trim();
     const petName = String(form.get("petName") ?? "");
     const caption = String(form.get("caption") ?? "");
+    const kindRaw = String(form.get("kind") ?? "").trim();
+    const kind =
+      kindRaw === "before" || kindRaw === "after" ? kindRaw : undefined;
     const file = form.get("file");
 
     if (!appointmentId) {
@@ -32,7 +35,8 @@ export async function POST(request: Request) {
       user.groomerId!,
       file,
       petName,
-      caption
+      caption,
+      { kind, appointmentId }
     );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });

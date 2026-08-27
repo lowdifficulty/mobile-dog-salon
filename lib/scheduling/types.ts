@@ -9,6 +9,17 @@ export type StaffId = "mary";
 
 export type AppointmentStatus = "confirmed" | "cancelled";
 
+/** Groomer-recorded outcome when closing out a finished visit. */
+export type VisitCloseStatus = "complete" | "cancelled";
+
+export type AppointmentPaidVia =
+  | "cash"
+  | "card"
+  | "venmo"
+  | "zelle"
+  | "check"
+  | "other";
+
 export interface AvailabilityDay {
   groomerId: GroomerId;
   date: string; // YYYY-MM-DD
@@ -62,6 +73,18 @@ export interface Appointment {
   reminder2hSmsSentAt?: string;
   /** ISO timestamp when 3-week rebook email was sent */
   rebook3wEmailSentAt?: string;
+  /** Groomer closeout: visit completed or marked cancelled (e.g. no-show). */
+  visitCloseStatus?: VisitCloseStatus;
+  /** ISO timestamp when groomer closed out the visit. */
+  visitClosedAt?: string;
+  /** Actor (groomer email) who closed the visit. */
+  visitClosedBy?: string;
+  /** Groomer notes about the dog / visit at closeout. */
+  groomNotes?: string;
+  /** Amount customer paid at visit (cents). */
+  paidAmountCents?: number;
+  /** How the customer paid at visit. */
+  paidVia?: AppointmentPaidVia;
 }
 
 export interface SchedulingData {

@@ -29,6 +29,11 @@ import LeadDetailsEditor, {
 } from "@/components/leads/LeadDetailsEditor";
 import AppointmentPaymentModal from "@/components/payments/AppointmentPaymentModal";
 import AppointmentMessageButton from "@/components/scheduling/AppointmentMessageButton";
+import GroomerVisitCloseoutForm from "@/components/scheduling/GroomerVisitCloseoutForm";
+import {
+  appointmentNeedsCloseout,
+  canGroomerCloseVisit,
+} from "@/lib/scheduling/visit-closeout-shared";
 
 const LEADS_API = "/api/staff/leads";
 
@@ -59,6 +64,7 @@ export default function AppointmentList({
   currentGroomerId,
   allowOverrideAvailability = false,
   allowDelete = false,
+  allowVisitCloseout = false,
   colorByGroomer: colorByGroomerProp,
   onOpenConversation,
 }: {
@@ -67,6 +73,7 @@ export default function AppointmentList({
   currentGroomerId?: GroomerId;
   allowOverrideAvailability?: boolean;
   allowDelete?: boolean;
+  allowVisitCloseout?: boolean;
   colorByGroomer?: boolean;
   onOpenConversation?: (contactId: string) => void;
 }) {
@@ -83,6 +90,7 @@ export default function AppointmentList({
   const [leadFormValues, setLeadFormValues] = useState<LeadDetailsFormValues | null>(null);
   const [leadFormLoading, setLeadFormLoading] = useState(false);
   const [payAppointment, setPayAppointment] = useState<Appointment | null>(null);
+  const [closeoutAppointmentId, setCloseoutAppointmentId] = useState<string | null>(null);
 
   const manageApiBase = apiUrl.split("?")[0];
 
@@ -125,6 +133,17 @@ export default function AppointmentList({
   function closeEditLead() {
     setEditLeadAppointmentId(null);
     setLeadFormValues(null);
+  }
+
+  function closeVisitCloseout() {
+    setCloseoutAppointmentId(null);
+  }
+
+  function openVisitCloseout(ap: Appointment) {
+    setActionError(null);
+    closeReschedule();
+    closeEditLead();
+    setCloseoutAppointmentId(ap.id);
   }
 
   async function openEditLead(ap: Appointment) {
@@ -316,6 +335,7 @@ export default function AppointmentList({
         const appointmentTitle = formatAppointmentTitle(ap);
         const isRescheduling = rescheduleId === ap.id;
         const isEditingLead = editLeadAppointmentId === ap.id;
+        const isClosingVisit = closeoutAppointmentId === ap.id;
         const isBusy = busyId === ap.id;
         const isOwnAppointment = currentGroomerId && ap.groomerId === currentGroomerId;
         const cardAccentClass = groomerAppointmentCardClass(ap.groomerId, {
@@ -330,7 +350,12 @@ export default function AppointmentList({
         const canManage =
           canStaffManageAppointment(ap, filter) &&
           (!currentGroomerId || ap.groomerId === currentGroomerId);
-        const showActions = canManage || allowDelete;
+        const showCloseout =
+          allowVisitCloseout &&
+          currentGroomerId &&
+          canGroomerCloseVisit(ap, currentGroomerId);
+        const needsCloseout = appointmentNeedsCloseout(ap);
+        const showActions = canManage || allowDelete || showCloseout;
 
         return (
           <div
@@ -351,6 +376,21 @@ export default function AppointmentList({
                   {ap.status === "cancelled" && (
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                       Cancelled
+                    </span>
+                  )}
+                  {ap.visitCloseStatus === "complete" && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-green-700">
+                      Visit complete
+                    </span>
+                  )}
+                  {ap.visitCloseStatus === "cancelled" && ap.visitClosedAt && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                      Closed · cancelled
+                    </span>
+                  )}
+                  {needsCloseout && showCloseout && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-brand">
+                      Needs close
                     </span>
                   )}
                   {filter === "recent" && (
@@ -403,12 +443,35 @@ export default function AppointmentList({
                     <span className="font-semibold text-gray-800">Notes:</span> {ap.notes}
                   </p>
                 )}
+                {ap.groomNotes && (
+                  <p className="text-xs text-gray-600 mt-1.5 whitespace-pre-wrap break-words">
+                    <span className="font-semibold text-gray-800">Groom notes:</span> {ap.groomNotes}
+                  </p>
+                )}
+                {ap.paidAmountCents != null && ap.paidAmountCents > 0 && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    <span className="font-semibold text-gray-800">Paid:</span> $
+                    {(ap.paidAmountCents / 100).toFixed(2)}
+                    {ap.paidVia ? ` · ${ap.paidVia}` : ""}
+                  </p>
+                )}
               </div>
             </div>
 
             {showActions && (
               <div className="mt-1.5 pt-1.5 border-t border-black/[0.04]">
-                {isEditingLead && canManage ? (
+                {isClosingVisit && showCloseout ? (
+                  <GroomerVisitCloseoutForm
+                    appointment={ap}
+                    apiBase={manageApiBase}
+                    busy={isBusy}
+                    onSaved={async () => {
+                      closeVisitCloseout();
+                      await loadAppointments();
+                    }}
+                    onCancel={closeVisitCloseout}
+                  />
+                ) : isEditingLead && canManage ? (
                   leadFormLoading || !leadFormValues ? (
                     <p className="text-sm text-gray-500">Loading client details…</p>
                   ) : (
@@ -420,9 +483,9 @@ export default function AppointmentList({
                       onCancel={closeEditLead}
                     />
                   )
-                ) : !isRescheduling && canManage ? (
+                ) : !isRescheduling && (canManage || showCloseout) ? (
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-center text-xs">
-                    {ap.status !== "cancelled" && getAppointmentBookedPrice(ap) != null && (
+                    {canManage && ap.status !== "cancelled" && getAppointmentBookedPrice(ap) != null && (
                       <button
                         type="button"
                         onClick={() => setPayAppointment(ap)}
@@ -432,44 +495,62 @@ export default function AppointmentList({
                         Pay
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => openEditLead(ap)}
-                      disabled={isBusy}
-                      className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
-                    >
-                      Edit client
-                    </button>
-                    {onOpenConversation && (
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => openEditLead(ap)}
+                        disabled={isBusy}
+                        className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
+                      >
+                        Edit client
+                      </button>
+                    )}
+                    {canManage && onOpenConversation && (
                       <AppointmentMessageButton
                         appointmentId={ap.id}
                         onOpenConversation={onOpenConversation}
                         disabled={isBusy}
                       />
                     )}
-                    <button
-                      type="button"
-                      onClick={() => openReschedule(ap)}
-                      disabled={isBusy}
-                      className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
-                    >
-                      Reschedule
-                    </button>
-                    <SendToGroomerButton
-                      type="appointment"
-                      appointmentId={ap.id}
-                      currentGroomerId={currentGroomerId ?? ap.groomerId}
-                      disabled={isBusy}
-                      onSent={() => loadAppointments()}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCancel(ap)}
-                      disabled={isBusy}
-                      className="font-semibold text-red-600 hover:text-red-800 disabled:opacity-50"
-                    >
-                      {isBusy ? "Working…" : "Cancel"}
-                    </button>
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => openReschedule(ap)}
+                        disabled={isBusy}
+                        className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
+                      >
+                        Reschedule
+                      </button>
+                    )}
+                    {canManage && (
+                      <SendToGroomerButton
+                        type="appointment"
+                        appointmentId={ap.id}
+                        currentGroomerId={currentGroomerId ?? ap.groomerId}
+                        disabled={isBusy}
+                        onSent={() => loadAppointments()}
+                      />
+                    )}
+                    {showCloseout && (
+                      <button
+                        type="button"
+                        onClick={() => openVisitCloseout(ap)}
+                        disabled={isBusy}
+                        className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
+                      >
+                        {needsCloseout ? "Close appointment" : "Update appointment"}
+                      </button>
+                    )}
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancel(ap)}
+                        disabled={isBusy}
+                        className="font-semibold text-red-600 hover:text-red-800 disabled:opacity-50"
+                      >
+                        {isBusy ? "Working…" : "Cancel"}
+                      </button>
+                    )}
                     {allowDelete && (
                       <button
                         type="button"

@@ -4,6 +4,11 @@ import {
   cancelAppointment,
   rescheduleAppointment,
 } from "@/lib/scheduling/appointment-actions";
+import {
+  closeGroomerVisit,
+  type GroomerVisitCloseoutInput,
+} from "@/lib/scheduling/visit-closeout";
+import type { AppointmentPaidVia, VisitCloseStatus } from "@/lib/scheduling/types";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -41,6 +46,39 @@ export async function PATCH(request: Request, context: RouteContext) {
           allowSameDay: Boolean(body.overrideAvailability),
         }
       );
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status });
+      }
+      return NextResponse.json({ ok: true, appointment: result.appointment });
+    }
+
+    if (action === "closeout") {
+      const outcome = body.outcome as VisitCloseStatus | undefined;
+      if (!outcome) {
+        return NextResponse.json({ error: "outcome is required" }, { status: 400 });
+      }
+
+      const paidRaw = body.paidAmountDollars;
+      let paidAmountCents: number | undefined;
+      if (paidRaw !== undefined && paidRaw !== null && paidRaw !== "") {
+        const dollars = Number(paidRaw);
+        if (!Number.isFinite(dollars) || dollars < 0) {
+          return NextResponse.json({ error: "Invalid paid amount" }, { status: 400 });
+        }
+        paidAmountCents = Math.round(dollars * 100);
+      }
+
+      const input: GroomerVisitCloseoutInput = {
+        outcome,
+        firstName: body.firstName as string | undefined,
+        lastName: body.lastName as string | undefined,
+        petName: body.petName as string | undefined,
+        groomNotes: body.groomNotes as string | undefined,
+        paidAmountCents,
+        paidVia: body.paidVia as AppointmentPaidVia | undefined,
+      };
+
+      const result = await closeGroomerVisit(id, user.groomerId!, user.email, input);
       if (!result.ok) {
         return NextResponse.json({ error: result.error }, { status: result.status });
       }

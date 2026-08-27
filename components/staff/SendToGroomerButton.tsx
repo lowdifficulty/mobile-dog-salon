@@ -4,6 +4,9 @@ import { useState } from "react";
 import type { GroomerId } from "@/lib/scheduling/types";
 import { GROOMERS, groomerAcceptsBookings } from "@/lib/scheduling/groomers";
 
+const DEFAULT_LINK_CLASS =
+  "font-semibold text-gray-600 hover:text-brand disabled:opacity-50";
+
 export default function SendToGroomerButton({
   type,
   leadId,
@@ -11,6 +14,7 @@ export default function SendToGroomerButton({
   currentGroomerId,
   disabled,
   onSent,
+  className = DEFAULT_LINK_CLASS,
 }: {
   type: "lead" | "appointment";
   leadId?: string;
@@ -18,6 +22,7 @@ export default function SendToGroomerButton({
   currentGroomerId?: GroomerId;
   disabled?: boolean;
   onSent?: () => void;
+  className?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -53,19 +58,19 @@ export default function SendToGroomerButton({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       {targets.map((id) => (
         <button
           key={id}
           type="button"
           disabled={disabled || busy}
           onClick={() => send(id)}
-          className="px-3 py-1.5 text-sm font-semibold rounded-lg border border-brand bg-white text-brand hover:bg-brand/5 disabled:opacity-50"
+          className={className}
         >
           Send to {GROOMERS[id].name}
         </button>
       ))}
-      {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
+      {error && <span className="text-red-600">{error}</span>}
+    </>
   );
 }

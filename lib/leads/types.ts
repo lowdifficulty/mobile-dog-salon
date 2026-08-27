@@ -57,10 +57,16 @@ export interface LeadNote {
   createdAt: string;
 }
 
+export type ClientPhotoKind = "before" | "after";
+
 export interface ClientPhoto {
   id: string;
   petName?: string;
   caption?: string;
+  /** Before/after groom photos when uploaded at visit closeout. */
+  kind?: ClientPhotoKind;
+  /** Appointment the photo belongs to (visit closeout uploads). */
+  appointmentId?: string;
   createdAt: string;
 }
 

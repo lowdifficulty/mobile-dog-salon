@@ -162,22 +162,37 @@ export function computeGroomerAccountingSummary(input: {
 
     const dogCount = dogCountForAppointment(appointment);
     const cardPayment = cardByPrefix.get(appointment.id.slice(0, 8).toLowerCase());
-    const paymentMethod: GroomerPaymentMethod = cardPayment ? "card" : "cash";
+    const groomerRecorded =
+      appointment.paidAmountCents != null && appointment.paidAmountCents > 0;
+    const paymentMethod: GroomerPaymentMethod = groomerRecorded
+      ? appointment.paidVia === "card"
+        ? "card"
+        : "cash"
+      : cardPayment
+        ? "card"
+        : "cash";
+    const serviceDollarsFromGroomer = groomerRecorded
+      ? roundMoney(appointment.paidAmountCents! / 100)
+      : serviceDollars;
     const cardAmountDollars = cardPayment
       ? roundMoney(cardPayment.amountCents / 100)
-      : null;
+      : groomerRecorded && paymentMethod === "card"
+        ? serviceDollarsFromGroomer
+        : null;
+
+    const countedDollars = groomerRecorded ? serviceDollarsFromGroomer : serviceDollars;
 
     if (paymentMethod === "card") {
-      cardTotalDollars += serviceDollars;
+      cardTotalDollars += countedDollars;
       cardPaymentCount += 1;
     } else {
-      cashTotalDollars += serviceDollars;
+      cashTotalDollars += countedDollars;
       cashPaymentCount += 1;
     }
 
     const { groomerShareDollars, salonShareDollars } = splitCommission(
       groomerId,
-      serviceDollars,
+      countedDollars,
       dogCount
     );
     groomerTotalDollars += groomerShareDollars;
@@ -189,8 +204,8 @@ export function computeGroomerAccountingSummary(input: {
       clientName: `${appointment.firstName} ${appointment.lastName}`.trim(),
       petSummary: formatPetsList(getAppointmentPets(appointment)) || appointment.petName || "Pet",
       dogCount,
-      serviceDollars,
-      serviceDisplay: formatPrice(serviceDollars),
+      serviceDollars: countedDollars,
+      serviceDisplay: formatPrice(countedDollars),
       paymentMethod,
       cardAmountDollars,
       cardAmountDisplay:

@@ -4,11 +4,11 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { getLeadById, readLeadsData, writeLeadsData } from "@/lib/leads/store";
-import type { ClientPhoto } from "@/lib/leads/types";
+import type { ClientPhoto, ClientPhotoKind } from "@/lib/leads/types";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import type { GroomerId } from "@/lib/scheduling/types";
 
-const MAX_PHOTOS_PER_LEAD = 12;
+const MAX_PHOTOS_PER_LEAD = 100;
 const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -23,6 +23,8 @@ interface StoredClientPhoto {
   data: string;
   petName?: string;
   caption?: string;
+  kind?: ClientPhotoKind;
+  appointmentId?: string;
   createdAt: string;
 }
 
@@ -86,7 +88,8 @@ export async function addClientPhoto(
   groomerId: GroomerId,
   file: File,
   petName?: string,
-  caption?: string
+  caption?: string,
+  options?: { kind?: ClientPhotoKind; appointmentId?: string }
 ): Promise<
   { ok: true; photo: ClientPhoto } | { ok: false; error: string; status: number }
 > {
@@ -117,6 +120,8 @@ export async function addClientPhoto(
   const createdAt = new Date().toISOString();
   const trimmedPetName = petName?.trim() || undefined;
   const trimmedCaption = caption?.trim() || undefined;
+  const kind = options?.kind;
+  const appointmentId = options?.appointmentId?.trim() || undefined;
 
   await writeStoredPhoto(photoId, {
     leadId,
@@ -125,6 +130,8 @@ export async function addClientPhoto(
     data: bytes.toString("base64"),
     petName: trimmedPetName,
     caption: trimmedCaption,
+    kind,
+    appointmentId,
     createdAt,
   });
 
@@ -132,6 +139,8 @@ export async function addClientPhoto(
     id: photoId,
     petName: trimmedPetName,
     caption: trimmedCaption,
+    kind,
+    appointmentId,
     createdAt,
   };
 

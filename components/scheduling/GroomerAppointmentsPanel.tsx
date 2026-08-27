@@ -58,6 +58,7 @@ export default function GroomerAppointmentsPanel({
           apiUrl="/api/groomer/appointments"
           currentGroomerId={groomerId}
           allowOverrideAvailability
+          allowVisitCloseout
           colorByGroomer
           onOpenConversation={onOpenConversation}
         />

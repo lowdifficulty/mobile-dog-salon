@@ -1,15 +1,23 @@
-import { appointmentEnded } from "@/lib/analytics/visits";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
+import { appointmentEnded } from "@/lib/analytics/visits";
 
-export function canGroomerCloseVisit(
+/** Groomer may open the closeout form for their confirmed, unclosed appointments (any time). */
+export function canGroomerEditCloseout(
   appointment: Appointment,
-  groomerId: GroomerId,
-  now = Date.now()
+  groomerId: GroomerId
 ): boolean {
   if (appointment.groomerId !== groomerId) return false;
   if (appointment.visitClosedAt) return true;
   if (appointment.status === "cancelled") return false;
-  return appointmentEnded(appointment, now);
+  return appointment.status === "confirmed";
+}
+
+/** @deprecated Use canGroomerEditCloseout */
+export function canGroomerCloseVisit(
+  appointment: Appointment,
+  groomerId: GroomerId
+): boolean {
+  return canGroomerEditCloseout(appointment, groomerId);
 }
 
 export function appointmentNeedsCloseout(
@@ -18,7 +26,7 @@ export function appointmentNeedsCloseout(
 ): boolean {
   return (
     appointment.status === "confirmed" &&
-    appointmentEnded(appointment, now) &&
-    !appointment.visitClosedAt
+    !appointment.visitClosedAt &&
+    appointmentEnded(appointment, now)
   );
 }

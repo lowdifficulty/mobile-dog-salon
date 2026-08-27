@@ -4,7 +4,8 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import StaffAppShell, { type StaffNavItem } from "@/components/staff/StaffAppShell";
-import StaffAppointmentsPanel from "./StaffAppointmentsPanel";
+import StaffSchedulePanel from "./StaffSchedulePanel";
+import GroomerDailyRoute from "./GroomerDailyRoute";
 import StaffBookAppointmentForm from "./StaffBookAppointmentForm";
 import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
 import DashboardErrorBoundary from "./DashboardErrorBoundary";
@@ -21,6 +22,7 @@ const TeamCalendarPanel = dynamic(() => import("./TeamCalendarPanel"), {
 type Tab =
   | "crm"
   | "appointments"
+  | "routes"
   | "opportunities"
   | "payments"
   | "team-calendar"
@@ -31,6 +33,7 @@ const NAV: StaffNavItem[] = [
   { id: "opportunities", label: "Opportunities", group: "CRM" },
   { id: "payments", label: "Payments", group: "CRM" },
   { id: "appointments", label: "Appointments", group: "Schedule" },
+  { id: "routes", label: "Routes", group: "Schedule" },
   { id: "team-calendar", label: "Team Calendar", group: "Schedule" },
   { id: "book", label: "Book", group: "Schedule" },
 ];
@@ -76,14 +79,15 @@ export default function StaffSalesDashboard({ user }: { user: SessionUser }) {
           )}
           {tab === "payments" && <StaffPaymentsPanel />}
           {tab === "appointments" && (
-            <StaffAppointmentsPanel
-              apiUrl="/api/staff/appointments"
-              allowOverrideAvailability
-              allowDelete
-              showRecentFilter
-              colorByGroomer
+            <StaffSchedulePanel
               refreshKey={appointmentRefreshKey}
               onOpenConversation={openCrmConversation}
+            />
+          )}
+          {tab === "routes" && (
+            <GroomerDailyRoute
+              routeApiBase="/api/staff/route"
+              allowGroomerPick
             />
           )}
           {tab === "book" && (

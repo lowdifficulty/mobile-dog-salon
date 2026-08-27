@@ -32,7 +32,7 @@ import AppointmentMessageButton from "@/components/scheduling/AppointmentMessage
 import GroomerVisitCloseoutForm from "@/components/scheduling/GroomerVisitCloseoutForm";
 import {
   appointmentNeedsCloseout,
-  canGroomerCloseVisit,
+  canGroomerEditCloseout,
 } from "@/lib/scheduling/visit-closeout-shared";
 
 const LEADS_API = "/api/staff/leads";
@@ -353,7 +353,7 @@ export default function AppointmentList({
         const showCloseout =
           allowVisitCloseout &&
           currentGroomerId &&
-          canGroomerCloseVisit(ap, currentGroomerId);
+          canGroomerEditCloseout(ap, currentGroomerId);
         const needsCloseout = appointmentNeedsCloseout(ap);
         const showActions = canManage || allowDelete || showCloseout;
 
@@ -465,6 +465,7 @@ export default function AppointmentList({
                     appointment={ap}
                     apiBase={manageApiBase}
                     busy={isBusy}
+                    onDraftSaved={loadAppointments}
                     onSaved={async () => {
                       closeVisitCloseout();
                       await loadAppointments();
@@ -538,7 +539,7 @@ export default function AppointmentList({
                         disabled={isBusy}
                         className="font-semibold text-gray-600 hover:text-brand disabled:opacity-50"
                       >
-                        {needsCloseout ? "Close appointment" : "Update appointment"}
+                        {ap.visitClosedAt ? "Update appointment" : "Close appointment"}
                       </button>
                     )}
                     {canManage && (

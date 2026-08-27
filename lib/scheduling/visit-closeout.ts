@@ -16,20 +16,23 @@ import type {
   GroomerId,
   VisitCloseStatus,
 } from "@/lib/scheduling/types";
-import { canGroomerCloseVisit } from "@/lib/scheduling/visit-closeout-shared";
+import { canGroomerEditCloseout } from "@/lib/scheduling/visit-closeout-shared";
 
 export type AppointmentActionResult =
   | { ok: true; appointment: Appointment }
   | { ok: false; error: string; status: number };
 
-export interface GroomerVisitCloseoutInput {
-  outcome: VisitCloseStatus;
+export interface GroomerVisitCloseoutDraftInput {
   firstName?: string;
   lastName?: string;
   petName?: string;
   groomNotes?: string;
   paidAmountCents?: number;
   paidVia?: AppointmentPaidVia;
+}
+
+export interface GroomerVisitCloseoutInput extends GroomerVisitCloseoutDraftInput {
+  outcome: VisitCloseStatus;
 }
 
 const PAID_VIA_VALUES = new Set<AppointmentPaidVia>([
@@ -40,6 +43,23 @@ const PAID_VIA_VALUES = new Set<AppointmentPaidVia>([
   "check",
   "other",
 ]);
+
+function validateDraftInput(
+  input: GroomerVisitCloseoutDraftInput
+): { ok: true } | { ok: false; error: string } {
+  if (
+    input.paidAmountCents !== undefined &&
+    (!Number.isInteger(input.paidAmountCents) || input.paidAmountCents < 0)
+  ) {
+    return { ok: false, error: "Paid amount must be a non-negative whole number of cents." };
+  }
+
+  if (input.paidVia !== undefined && !PAID_VIA_VALUES.has(input.paidVia)) {
+    return { ok: false, error: "Invalid payment method." };
+  }
+
+  return { ok: true };
+}
 
 function validateCloseoutInput(
   input: GroomerVisitCloseoutInput
@@ -62,6 +82,33 @@ function validateCloseoutInput(
   return { ok: true };
 }
 
+function applyDraftFields(
+  appointment: Appointment,
+  input: GroomerVisitCloseoutDraftInput
+): void {
+  if (input.firstName !== undefined) {
+    appointment.firstName = input.firstName.trim();
+  }
+  if (input.lastName !== undefined) {
+    appointment.lastName = input.lastName.trim();
+  }
+  if (input.petName !== undefined) {
+    appointment.petName = input.petName.trim();
+  }
+
+  const groomNotes = input.groomNotes?.trim();
+  if (groomNotes !== undefined) {
+    appointment.groomNotes = groomNotes;
+  }
+
+  if (input.paidAmountCents !== undefined) {
+    appointment.paidAmountCents = input.paidAmountCents;
+  }
+  if (input.paidVia !== undefined) {
+    appointment.paidVia = input.paidVia;
+  }
+}
+
 function applyCloseoutFields(
   appointment: Appointment,
   input: GroomerVisitCloseoutInput,
@@ -77,17 +124,7 @@ function applyCloseoutFields(
     appointment.petName = input.petName.trim();
   }
 
-  const groomNotes = input.groomNotes?.trim();
-  if (groomNotes) {
-    appointment.groomNotes = groomNotes;
-  }
-
-  if (input.paidAmountCents !== undefined) {
-    appointment.paidAmountCents = input.paidAmountCents;
-  }
-  if (input.paidVia !== undefined) {
-    appointment.paidVia = input.paidVia;
-  }
+  applyDraftFields(appointment, input);
 
   appointment.visitCloseStatus = input.outcome;
   appointment.visitClosedAt = new Date().toISOString();
@@ -167,8 +204,8 @@ export async function getGroomerVisitCloseout(
   if (appointment.groomerId !== groomerId) {
     return { ok: false, error: "Not your appointment", status: 403 };
   }
-  if (!canGroomerCloseVisit(appointment, groomerId)) {
-    return { ok: false, error: "Visit is not ready for closeout yet.", status: 400 };
+  if (!canGroomerEditCloseout(appointment, groomerId)) {
+    return { ok: false, error: "Not available for this appointment.", status: 400 };
   }
 
   const lead = await findLeadForAppointment(appointment);
@@ -187,6 +224,53 @@ export async function getGroomerVisitCloseout(
     leadId: lead?.id ?? null,
     photos: forAppointment,
   };
+}
+
+export async function saveGroomerVisitDraft(
+  appointmentId: string,
+  groomerId: GroomerId,
+  actor: string,
+  input: GroomerVisitCloseoutDraftInput
+): Promise<AppointmentActionResult> {
+  const validation = validateDraftInput(input);
+  if (!validation.ok) {
+    return { ok: false, error: validation.error, status: 400 };
+  }
+
+  const data = await readSchedulingData();
+  const appointment = data.appointments.find((a) => a.id === appointmentId);
+  if (!appointment) {
+    return { ok: false, error: "Appointment not found", status: 404 };
+  }
+  if (appointment.groomerId !== groomerId) {
+    return { ok: false, error: "Not your appointment", status: 403 };
+  }
+  if (!canGroomerEditCloseout(appointment, groomerId) || appointment.visitClosedAt) {
+    return { ok: false, error: "Appointment is already closed.", status: 400 };
+  }
+
+  applyDraftFields(appointment, input);
+
+  await writeSchedulingData(data, {
+    action: "appointment_reschedule",
+    actor,
+    groomerId,
+  });
+
+  await patchLeadForAppointmentByGroomer(
+    appointmentId,
+    {
+      firstName: appointment.firstName,
+      lastName: appointment.lastName,
+      petName: appointment.petName,
+    },
+    groomerId,
+    actor
+  );
+
+  const refreshed = await readSchedulingData();
+  const saved = refreshed.appointments.find((a) => a.id === appointmentId) ?? appointment;
+  return { ok: true, appointment: saved };
 }
 
 export async function closeGroomerVisit(
@@ -208,11 +292,11 @@ export async function closeGroomerVisit(
   if (appointment.groomerId !== groomerId) {
     return { ok: false, error: "Not your appointment", status: 403 };
   }
-  if (!canGroomerCloseVisit(appointment, groomerId)) {
-    return { ok: false, error: "Visit is not ready for closeout yet.", status: 400 };
+  if (!canGroomerEditCloseout(appointment, groomerId)) {
+    return { ok: false, error: "Not available for this appointment.", status: 400 };
   }
 
-  if (input.outcome === "cancelled" && appointment.status === "confirmed") {
+  if (input.outcome === "cancelled" && appointment.status === "confirmed" && !appointment.visitClosedAt) {
     const cancelResult = await cancelAppointment(appointmentId, actor, {
       groomerId,
       cancelledVia: "staff",

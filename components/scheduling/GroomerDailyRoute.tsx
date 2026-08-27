@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { DailyRoutePlan } from "@/lib/scheduling/daily-route";
+import { BOOKABLE_GROOMER_IDS, GROOMERS } from "@/lib/scheduling/groomers";
 import type { GroomerId } from "@/lib/scheduling/types";
 import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
 import { appointmentToStaffBookPrefill } from "@/lib/scheduling/staff-book-prefill";
@@ -38,36 +39,54 @@ function formatDateLabel(date: string): string {
 }
 
 export default function GroomerDailyRoute({
-  groomerId,
+  groomerId: fixedGroomerId,
+  routeApiBase = "/api/groomer/route",
+  allowGroomerPick = false,
   onRebook,
 }: {
-  groomerId: GroomerId;
+  groomerId?: GroomerId;
+  routeApiBase?: string;
+  allowGroomerPick?: boolean;
   onRebook?: (prefill: StaffBookAppointmentPrefill) => void;
 }) {
+  const [selectedGroomerId, setSelectedGroomerId] = useState<GroomerId | "">(
+    fixedGroomerId ?? ""
+  );
+  const groomerId = (allowGroomerPick ? selectedGroomerId : fixedGroomerId) as
+    | GroomerId
+    | undefined;
+  const bookableGroomerIds = BOOKABLE_GROOMER_IDS;
   const [scheduledDates, setScheduledDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [route, setRoute] = useState<DailyRoutePlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRoute = useCallback(async (date: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/groomer/route?date=${encodeURIComponent(date)}`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not load route");
-      setScheduledDates(data.scheduledDates ?? []);
-      setRoute(data.route ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load route");
-      setRoute(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadRoute = useCallback(
+    async (date: string, forGroomerId: GroomerId) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ date });
+        if (allowGroomerPick || routeApiBase.includes("/staff/")) {
+          params.set("groomerId", forGroomerId);
+        }
+        const res = await fetch(`${routeApiBase}?${params.toString()}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not load route");
+        setScheduledDates(data.scheduledDates ?? []);
+        setRoute(data.route ?? null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load route");
+        setRoute(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [allowGroomerPick, routeApiBase]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -76,7 +95,44 @@ export default function GroomerDailyRoute({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/groomer/route", { cache: "no-store" });
+        if (allowGroomerPick) {
+          const res = await fetch(routeApiBase, { cache: "no-store" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error ?? "Could not load route");
+          if (cancelled) return;
+
+          const defaultId =
+            (data.defaultGroomerId as GroomerId | undefined) ??
+            bookableGroomerIds[0];
+          setSelectedGroomerId(defaultId);
+          const groomerRow = (data.groomers as { groomerId: GroomerId; scheduledDates: string[]; defaultDate: string | null }[] | undefined)?.find(
+            (g) => g.groomerId === defaultId
+          );
+          const dates = groomerRow?.scheduledDates ?? [];
+          setScheduledDates(dates);
+          const initial = groomerRow?.defaultDate ?? dates[0] ?? "";
+          setSelectedDate(initial);
+          if (initial && defaultId) {
+            await loadRoute(initial, defaultId);
+          } else {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (!groomerId) {
+          setLoading(false);
+          return;
+        }
+
+        const params = new URLSearchParams();
+        if (routeApiBase.includes("/staff/")) {
+          params.set("groomerId", groomerId);
+        }
+        const res = await fetch(
+          params.size ? `${routeApiBase}?${params}` : routeApiBase,
+          { cache: "no-store" }
+        );
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Could not load route");
         if (cancelled) return;
@@ -86,7 +142,7 @@ export default function GroomerDailyRoute({
         const initial = data.defaultDate ?? dates[0] ?? "";
         setSelectedDate(initial);
         if (initial) {
-          await loadRoute(initial);
+          await loadRoute(initial, groomerId);
         } else {
           setLoading(false);
         }
@@ -102,11 +158,41 @@ export default function GroomerDailyRoute({
     return () => {
       cancelled = true;
     };
-  }, [loadRoute]);
+  }, [allowGroomerPick, groomerId, loadRoute, routeApiBase]);
 
   function handleDateChange(date: string) {
     setSelectedDate(date);
-    if (date) void loadRoute(date);
+    if (date && groomerId) void loadRoute(date, groomerId);
+  }
+
+  function handleGroomerChange(id: GroomerId) {
+    setSelectedGroomerId(id);
+    setRoute(null);
+    setScheduledDates([]);
+    setSelectedDate("");
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${routeApiBase}?groomerId=${encodeURIComponent(id)}`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Could not load route");
+        const dates = data.scheduledDates ?? [];
+        setScheduledDates(dates);
+        const initial = data.defaultDate ?? dates[0] ?? "";
+        setSelectedDate(initial);
+        if (initial) {
+          await loadRoute(initial, id);
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load route");
+        setLoading(false);
+      }
+    })();
   }
 
   async function rebookAppointment(appointmentId: string) {
@@ -131,26 +217,45 @@ export default function GroomerDailyRoute({
         <div>
           <h3 className="text-base font-bold text-gray-900">Daily route</h3>
           <p className="text-xs text-gray-500 mt-1 max-w-xl">
-            Full drive cycle: depot → each client in time order → back to depot. Gas at 11 MPG
-            plus ¼ gal per appointment, priced at $5.25/gal.
+            {allowGroomerPick
+              ? "Review each groomer's drive cycle to spot visits outside territory. Open Google Maps to verify stops."
+              : "Full drive cycle: depot → each client in time order → back to depot. Gas at 11 MPG plus ¼ gal per appointment, priced at $5.25/gal."}
           </p>
         </div>
-        {scheduledDates.length > 0 && (
-          <label className="text-xs font-medium text-gray-700 shrink-0">
-            <span className="block mb-1">Day</span>
-            <select
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className="w-full sm:w-auto rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm min-w-[220px]"
-            >
-              {scheduledDates.map((date) => (
-                <option key={date} value={date}>
-                  {formatDateLabel(date)}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
+        <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+          {allowGroomerPick && (
+            <label className="text-xs font-medium text-gray-700">
+              <span className="block mb-1">Groomer</span>
+              <select
+                value={selectedGroomerId}
+                onChange={(e) => handleGroomerChange(e.target.value as GroomerId)}
+                className="w-full sm:w-auto rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm min-w-[160px]"
+              >
+                {bookableGroomerIds.map((id) => (
+                  <option key={id} value={id}>
+                    {GROOMERS[id].name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {scheduledDates.length > 0 && (
+            <label className="text-xs font-medium text-gray-700">
+              <span className="block mb-1">Day</span>
+              <select
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="w-full sm:w-auto rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm min-w-[220px]"
+              >
+                {scheduledDates.map((date) => (
+                  <option key={date} value={date}>
+                    {formatDateLabel(date)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       </div>
 
       {loading && (
@@ -166,9 +271,10 @@ export default function GroomerDailyRoute({
         </p>
       )}
 
-      {!loading && !error && scheduledDates.length === 0 && (
+      {!loading && !error && scheduledDates.length === 0 && groomerId && (
         <p className="text-sm text-gray-600 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
-          No upcoming scheduled appointments on your calendar.
+          No upcoming scheduled appointments
+          {allowGroomerPick ? ` for ${GROOMERS[groomerId].name}` : " on your calendar"}.
         </p>
       )}
 

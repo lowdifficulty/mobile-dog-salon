@@ -26,16 +26,21 @@ export default function GroomerVisitCloseoutForm({
   apiBase,
   busy,
   onSaved,
+  onDraftSaved,
   onCancel,
 }: {
   appointment: Appointment;
   apiBase: string;
   busy?: boolean;
   onSaved: () => Promise<void>;
+  onDraftSaved?: () => Promise<void>;
   onCancel: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [outcome, setOutcome] = useState<"complete" | "cancelled">(
     appointment.visitCloseStatus ?? "complete"
   );
@@ -143,9 +148,45 @@ export default function GroomerVisitCloseoutForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function buildPayload() {
+    return {
+      firstName,
+      lastName,
+      petName,
+      groomNotes,
+      paidAmountDollars: paidAmountDollars.trim() || undefined,
+      paidVia: paidVia,
+    };
+  }
+
+  async function handleSaveDraft() {
+    setSaving(true);
     setError("");
+    setSaveMessage("");
+    try {
+      const res = await fetch(`${apiBase}/${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "closeout-save",
+          ...buildPayload(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not save appointment");
+      setSaveMessage("Saved — appointment stays open until you close it.");
+      await onDraftSaved?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save appointment");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCloseAppointment() {
+    setClosing(true);
+    setError("");
+    setSaveMessage("");
     try {
       const res = await fetch(`${apiBase}/${appointment.id}`, {
         method: "PATCH",
@@ -153,25 +194,29 @@ export default function GroomerVisitCloseoutForm({
         body: JSON.stringify({
           action: "closeout",
           outcome,
-          firstName,
-          lastName,
-          petName,
-          groomNotes,
-          paidAmountDollars: paidAmountDollars.trim() || undefined,
+          ...buildPayload(),
           paidVia: outcome === "complete" ? paidVia : undefined,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not save visit");
+      if (!res.ok) throw new Error(data.error ?? "Could not close appointment");
       await onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save visit");
+      setError(err instanceof Error ? err.message : "Could not close appointment");
+    } finally {
+      setClosing(false);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await handleCloseAppointment();
   }
 
   const beforePhotos = photos.filter((p) => p.kind === "before");
   const afterPhotos = photos.filter((p) => p.kind === "after");
-  const isDisabled = busy || photoBusy;
+  const isDisabled = busy || photoBusy || saving || closing;
+  const isClosed = Boolean(appointment.visitClosedAt);
 
   if (loading) {
     return <p className="text-sm text-gray-500">Loading appointment closeout…</p>;
@@ -186,6 +231,11 @@ export default function GroomerVisitCloseoutForm({
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
           {error}
+        </p>
+      )}
+      {saveMessage && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+          {saveMessage}
         </p>
       )}
 
@@ -311,12 +361,22 @@ export default function GroomerVisitCloseoutForm({
       </div>
 
       <div className="flex flex-wrap gap-2">
+        {!isClosed && (
+          <button
+            type="button"
+            disabled={isDisabled}
+            onClick={() => void handleSaveDraft()}
+            className="px-4 py-2 border border-brand text-brand text-sm font-semibold rounded-xl hover:bg-brand/5 disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save appointment"}
+          </button>
+        )}
         <button
           type="submit"
           disabled={isDisabled}
           className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-xl hover:bg-brand-dark disabled:opacity-50"
         >
-          {busy ? "Saving…" : appointment.visitClosedAt ? "Update appointment" : "Save appointment"}
+          {closing ? "Closing…" : isClosed ? "Update appointment" : "Close appointment"}
         </button>
         <button
           type="button"

@@ -49,6 +49,7 @@ type CrmContact = {
   daysSinceLastAppointment?: number | null;
   isFollowUp?: boolean;
   hasUpcomingAppointment?: boolean;
+  nextAppointmentAt?: string | null;
   hasCancelledAppointment?: boolean;
   cancelledAppointmentAt?: string | null;
   cancelledMethodLabel?: string | null;
@@ -107,6 +108,17 @@ type ContactDetail = CrmContact & {
     cancelledMethodLabel?: string | null;
   }[];
 };
+
+function formatNextAppointment(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
 
 function formatWhen(iso?: string): string {
   if (!iso) return "—";
@@ -665,6 +677,11 @@ export default function CrmPanel() {
                       {groomerId === "melanie" && " · Melanie"}
                       {groomerId === "jessica" && " · Jessica"}
                     </div>
+                    {c.nextAppointmentAt && (
+                      <div className="text-[11px] font-semibold text-emerald-700 mt-0.5">
+                        Next appt {formatNextAppointment(c.nextAppointmentAt)}
+                      </div>
+                    )}
                     {showFollowUpMeta && (
                       <div className="text-[11px] font-semibold text-amber-700 mt-0.5">
                         Last groomed {formatDaysSince(c.daysSinceLastAppointment)}

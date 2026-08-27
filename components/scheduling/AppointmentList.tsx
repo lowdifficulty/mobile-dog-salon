@@ -12,6 +12,7 @@ import StaffDateTimePicker, {
 import type { Appointment, AvailableSlot, GroomerId } from "@/lib/scheduling/types";
 import {
   canStaffManageAppointment,
+  filterStaffAppointments,
   type StaffAppointmentFilter,
 } from "@/lib/scheduling/appointment-filters";
 import SendToGroomerButton from "@/components/staff/SendToGroomerButton";
@@ -104,7 +105,9 @@ export default function AppointmentList({
     setLoading(true);
     return fetch(listUrl)
       .then((r) => r.json())
-      .then((d) => setAppointments(d.appointments ?? []))
+      .then((d) =>
+        setAppointments(filterStaffAppointments(d.appointments ?? [], filter))
+      )
       .finally(() => setLoading(false));
   }, [listUrl]);
 

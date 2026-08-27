@@ -136,6 +136,8 @@ export type CrmContactSortMeta = {
   lastPastAppointmentAt: string | null;
   daysSinceLastAppointment: number | null;
   hasUpcomingAppointment: boolean;
+  /** Earliest confirmed visit today or later (Pacific). */
+  nextAppointmentAt: string | null;
   /** Cancelled visit on file and no remaining upcoming confirmed appointment. */
   hasCancelledAppointment: boolean;
   cancelledAppointmentAt: string | null;

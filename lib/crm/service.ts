@@ -24,6 +24,7 @@ import {
 } from "./contact-zones";
 import { parseContactAddress } from "./parse-address";
 import type { GroomerId } from "@/lib/scheduling/types";
+import { isAppointmentTodayOrFuture } from "@/lib/scheduling/appointment-filters";
 import {
   cancelMethodLabel,
   resolveCancelMethod,
@@ -109,14 +110,15 @@ function enrichContactWithSortMeta(
     .filter((a) => a.status === "cancelled")
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
   const pastAppointments = confirmedLinked
-    .filter((a) => new Date(a.startAt).getTime() < now)
+    .filter((a) => !isAppointmentTodayOrFuture({ startAt: a.startAt, status: a.status }))
     .sort((a, b) => b.startAt.localeCompare(a.startAt));
-  const upcomingAppointments = confirmedLinked.filter(
-    (a) => new Date(a.startAt).getTime() >= now
-  );
+  const upcomingAppointments = confirmedLinked
+    .filter((a) => isAppointmentTodayOrFuture({ startAt: a.startAt, status: a.status }))
+    .sort((a, b) => a.startAt.localeCompare(b.startAt));
 
   const lastPastAppointmentAt = pastAppointments[0]?.startAt ?? null;
   const lastAppointmentAt = lastPastAppointmentAt;
+  const nextAppointmentAt = upcomingAppointments[0]?.startAt ?? null;
   const hasUpcomingAppointment = upcomingAppointments.length > 0;
   const hasCancelledAppointment =
     cancelledLinked.length > 0 && !hasUpcomingAppointment;
@@ -151,6 +153,7 @@ function enrichContactWithSortMeta(
     lastPastAppointmentAt,
     daysSinceLastAppointment,
     hasUpcomingAppointment,
+    nextAppointmentAt,
     hasCancelledAppointment,
     cancelledAppointmentAt,
     cancelledMethodLabel,
@@ -405,7 +408,6 @@ export async function getCrmContactDetail(
   if (!contact) return null;
 
   const { appointments } = await readSchedulingData();
-  const now = Date.now();
   const mine = appointments.filter(
     (a) =>
       contact.appointmentIds.includes(a.id) ||
@@ -439,10 +441,18 @@ export async function getCrmContactDetail(
     fullName: displayNameFromContact(refreshed),
     interactions,
     upcomingAppointments: mapped
-      .filter((a) => a.status === "confirmed" && new Date(a.startAt).getTime() >= now)
+      .filter(
+        (a) =>
+          a.status === "confirmed" &&
+          isAppointmentTodayOrFuture({ startAt: a.startAt, status: a.status })
+      )
       .sort((a, b) => a.startAt.localeCompare(b.startAt)),
     pastAppointments: mapped
-      .filter((a) => new Date(a.startAt).getTime() < now)
+      .filter(
+        (a) =>
+          a.status === "confirmed" &&
+          !isAppointmentTodayOrFuture({ startAt: a.startAt, status: a.status })
+      )
       .sort((a, b) => b.startAt.localeCompare(a.startAt)),
     cancelledAppointments: mapped
       .filter((a) => a.status === "cancelled")

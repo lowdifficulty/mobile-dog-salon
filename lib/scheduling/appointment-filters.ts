@@ -1,4 +1,5 @@
 import { bookingDurationMinutesForGroomer } from "@/lib/scheduling/groomers";
+import { getTodayPacificDate, parseSlotFromIso } from "@/lib/scheduling/slots";
 import type { GroomerId } from "@/lib/scheduling/types";
 
 /** @deprecated Appointments stay in Upcoming until groomer closeout; kept for callers that reference it. */
@@ -37,13 +38,35 @@ export function staffUpcomingCutoff(now: Date = new Date()): Date {
   return new Date(now.getTime() - STAFF_UPCOMING_GRACE_MS);
 }
 
-/** Confirmed visits that have not been closed out by the groomer. */
+/** Appointment is scheduled today or later (Pacific calendar date). */
+export function isAppointmentTodayOrFuture(
+  appointment: AppointmentFilterFields,
+  now: Date = new Date()
+): boolean {
+  const today = getTodayPacificDate();
+  const { date } = parseSlotFromIso(appointment.startAt);
+  return date >= today;
+}
+
+/** Confirmed or cancelled visits on today's calendar date or later. */
+export function isStaffCalendarVisibleAppointment(
+  appointment: AppointmentFilterFields,
+  now: Date = new Date()
+): boolean {
+  if (appointment.status !== "confirmed" && appointment.status !== "cancelled") {
+    return false;
+  }
+  return isAppointmentTodayOrFuture(appointment, now);
+}
+
+/** Confirmed visits that have not been closed out, from today onward. */
 export function isStaffUpcomingAppointment(
   appointment: AppointmentFilterFields,
-  _now: Date = new Date()
+  now: Date = new Date()
 ): boolean {
   if (appointment.status !== "confirmed") return false;
-  return !appointment.visitClosedAt;
+  if (appointment.visitClosedAt) return false;
+  return isAppointmentTodayOrFuture(appointment, now);
 }
 
 /** Cancelled visits, or confirmed visits the groomer has closed out. */

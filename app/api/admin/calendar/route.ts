@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/scheduling/auth";
+import { isStaffCalendarVisibleAppointment } from "@/lib/scheduling/appointment-filters";
 import { GROOMERS, SHIFT_HORIZON_MONTHS } from "@/lib/scheduling/groomers";
 import { getShiftHorizonEndDate, getTodayPacificDate } from "@/lib/scheduling/slots";
 import { readSchedulingData } from "@/lib/scheduling/store";
@@ -13,7 +14,9 @@ export async function GET(request: Request) {
     const to = searchParams.get("to") ?? getShiftHorizonEndDate(SHIFT_HORIZON_MONTHS);
 
     const data = await readSchedulingData();
-    const appointments = data.appointments;
+    const appointments = data.appointments.filter((a) =>
+      isStaffCalendarVisibleAppointment(a)
+    );
     const slots = buildVanSlotOccupancy(data, { from, to });
     const openSlots = slots
       .filter((slot) => slot.status === "open")

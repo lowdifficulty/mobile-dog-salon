@@ -19,6 +19,7 @@ import {
 import AppointmentAddressActions from "@/components/scheduling/AppointmentAddressActions";
 import AppointmentPhoneActions from "@/components/scheduling/AppointmentPhoneActions";
 import { parseSlotFromIso, getTodayPacificDate } from "@/lib/scheduling/slots";
+import { isStaffCalendarVisibleAppointment } from "@/lib/scheduling/appointment-filters";
 import { setStaffAppointmentsCache } from "@/lib/scheduling/use-staff-appointments-cache";
 import type { Appointment, GroomerId } from "@/lib/scheduling/types";
 import type { StaffBookAppointmentPrefill } from "@/lib/scheduling/staff-book-prefill";
@@ -216,7 +217,11 @@ export default function StaffAppointmentCalendar({
         );
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Could not load calendar.");
-        setAppointments(data.appointments ?? []);
+        setAppointments(
+          ((data.appointments ?? []) as Appointment[]).filter((a) =>
+            isStaffCalendarVisibleAppointment(a)
+          )
+        );
         setAdminOpenSlots(data.openSlots ?? []);
         setSlotOccupancy(data.slots ?? []);
         setOpenSlotKeys([]);
@@ -229,7 +234,9 @@ export default function StaffAppointmentCalendar({
         const availData = await availRes.json();
         if (!apRes.ok) throw new Error(apData.error ?? "Could not load appointments.");
         if (!availRes.ok) throw new Error(availData.error ?? "Could not load availability.");
-        const loadedAppointments = apData.appointments ?? [];
+        const loadedAppointments = ((apData.appointments ?? []) as Appointment[]).filter(
+          (a) => isStaffCalendarVisibleAppointment(a)
+        );
         setAppointments(loadedAppointments);
         if (groomerId) {
           setStaffAppointmentsCache(groomerId, loadedAppointments);

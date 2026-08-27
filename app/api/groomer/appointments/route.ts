@@ -23,11 +23,11 @@ export async function GET(request: Request) {
     }
 
     if (filterParam === "tooFar") {
-      const { tooFar, meta } = listTooFarAppointments(list, {
+      const { routes, isolated, tooFar, meta } = listTooFarAppointments(list, {
         groomerId: scopedToGroomer ? user.groomerId! : undefined,
         now,
       });
-      return NextResponse.json({ tooFar, meta });
+      return NextResponse.json({ routes, isolated, tooFar, meta });
     }
 
     const filter = parseStaffAppointmentFilter(filterParam);

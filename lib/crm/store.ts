@@ -227,6 +227,37 @@ export async function setContactBotEnabled(
   return data.contacts[idx];
 }
 
+export async function updateContactFields(
+  contactId: string,
+  patch: Partial<
+    Pick<
+      CrmContact,
+      | "phone"
+      | "phoneE164"
+      | "firstName"
+      | "lastName"
+      | "fullName"
+      | "email"
+      | "address"
+      | "city"
+      | "zipCode"
+      | "pets"
+      | "service"
+    >
+  >
+): Promise<CrmContact | null> {
+  const data = await readCrmData();
+  const idx = data.contacts.findIndex((c) => c.id === contactId);
+  if (idx < 0) return null;
+  data.contacts[idx] = {
+    ...data.contacts[idx],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeCrmData(data);
+  return data.contacts[idx];
+}
+
 export async function setContactSmsBotSession(
   contactId: string,
   session: SmsBotSession | null

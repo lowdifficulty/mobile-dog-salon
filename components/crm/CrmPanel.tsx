@@ -11,6 +11,10 @@ import {
 import { useStaffCallbackPhone } from "@/lib/twilio/use-staff-callback-phone";
 import { useStaffDialerPanel } from "@/lib/twilio/staff-dialer-context";
 import { CRM_OPEN_CONTACT_SESSION_KEY } from "@/lib/crm/open-conversation-client";
+import CrmContactEditor, {
+  contactToFormValues,
+  type CrmContactFormValues,
+} from "@/components/crm/CrmContactEditor";
 
 type Platform = {
   configured: boolean;
@@ -294,6 +298,7 @@ export default function CrmPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -388,6 +393,10 @@ export default function CrmPanel() {
     const id = window.setInterval(tick, CRM_POLL_MS);
     return () => window.clearInterval(id);
   }, [selectedId, loadDetail, loadContacts]);
+
+  useEffect(() => {
+    setEditOpen(false);
+  }, [selectedId]);
 
   useEffect(() => {
     if (threadRef.current) {
@@ -550,6 +559,49 @@ export default function CrmPanel() {
       setBusy(null);
     }
   }
+
+  async function saveContactEdits(values: CrmContactFormValues) {
+    if (!selectedId) return;
+    setBusy("edit");
+    setError(null);
+    setBanner(null);
+    try {
+      const res = await fetch(`/api/admin/crm/contacts/${selectedId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: values.phone,
+          firstName: values.firstName,
+          lastName: values.lastName,
+          email: values.email,
+          service: values.service,
+          address: values.address,
+          city: values.city,
+          zipCode: values.zipCode,
+          pets: values.pets.map((pet) => ({
+            petName: pet.petName,
+            petSize: pet.petSize,
+            petBreed: pet.petBreed || undefined,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save contact");
+      setEditOpen(false);
+      setBanner("Contact updated");
+      await loadDetail(selectedId);
+      await loadContacts();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const editInitial = useMemo(
+    () => contactToFormValues(detail ?? selected ?? {}),
+    [detail, selected]
+  );
 
   const showListPane = isLargeScreen || !mobileThreadOpen;
   const showThreadPane = isLargeScreen || mobileThreadOpen;
@@ -769,6 +821,13 @@ export default function CrmPanel() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditOpen(true)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-brand/30 text-brand hover:bg-brand/5"
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     onClick={() => setMobileDetailsOpen(true)}
@@ -996,6 +1055,38 @@ export default function CrmPanel() {
               onSaveNote={() => void saveNote()}
               onToggleBot={(enabled) => void toggleBot(enabled)}
             />
+          </div>
+        </div>
+      )}
+
+      {editOpen && selected && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <button
+            type="button"
+            aria-label="Close edit contact"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => !busy && setEditOpen(false)}
+          />
+          <div className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-xl">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between z-10">
+              <h3 className="font-bold text-brand">Edit contact</h3>
+              <button
+                type="button"
+                onClick={() => !busy && setEditOpen(false)}
+                className="text-gray-500 hover:text-gray-800 px-2 text-xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4">
+              <CrmContactEditor
+                initial={editInitial}
+                busy={busy === "edit"}
+                onSave={saveContactEdits}
+                onCancel={() => setEditOpen(false)}
+              />
+            </div>
           </div>
         </div>
       )}

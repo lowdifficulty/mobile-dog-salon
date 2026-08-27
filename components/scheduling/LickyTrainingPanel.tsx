@@ -107,9 +107,10 @@ export default function LickyTrainingPanel() {
         <div>
           <h2 className="font-bold text-brand text-lg">Custom Licky training text</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Licky is on for the website chat widget. Inbound Voice AI stays off until
-            <code>VOICE_AI_ENABLED=1</code>. Add company background, tone, and policies here.
-            Set <code>LICKY_ENABLED=0</code> to hide the widget.
+            Licky is off on the public website while testing. Set <code>LICKY_ENABLED=1</code>{" "}
+            (or <code>NEXT_PUBLIC_LICKY_ENABLED=1</code>) to show the chat widget again.
+            Inbound Voice AI stays off until <code>VOICE_AI_ENABLED=1</code>. Add company
+            background, tone, and policies here.
           </p>
         </div>
 

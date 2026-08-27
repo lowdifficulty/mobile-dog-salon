@@ -1,9 +1,9 @@
-/** Licky is on by default. Set LICKY_ENABLED=0 (or NEXT_PUBLIC_LICKY_ENABLED=0) to hide the widget. */
+/** Licky is off by default while testing. Set LICKY_ENABLED=1 (or NEXT_PUBLIC_LICKY_ENABLED=1) to show the widget. */
 export function isLickyEnabled(): boolean {
   const raw = (
     process.env.LICKY_ENABLED ??
     process.env.NEXT_PUBLIC_LICKY_ENABLED ??
-    "1"
+    "0"
   )
     .trim()
     .toLowerCase();

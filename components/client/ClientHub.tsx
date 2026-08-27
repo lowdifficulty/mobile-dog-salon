@@ -103,15 +103,20 @@ export default function ClientHub() {
   const [payBusy, setPayBusy] = useState(false);
 
   const loadSession = useCallback(async () => {
-    const res = await fetch("/api/client/session");
-    const data = await res.json();
+    const [sessionRes, chatConfigRes] = await Promise.all([
+      fetch("/api/client/session"),
+      fetch("/api/client/chat/config"),
+    ]);
+    const data = await sessionRes.json();
+    const chatConfig = chatConfigRes.ok ? await chatConfigRes.json() : { enabled: false };
     if (!data.client) {
       router.replace("/client/login");
       return;
     }
     setClient(data.client);
     setShowLickyWelcome(
-      welcomeParam || Boolean(data.client.pendingLickyWelcome)
+      Boolean(chatConfig.enabled) &&
+        (welcomeParam || Boolean(data.client.pendingLickyWelcome))
     );
     setLoading(false);
   }, [router, welcomeParam]);
@@ -422,7 +427,7 @@ export default function ClientHub() {
     <>
       <ClientPortalShell
         title={`${client.firstName}'s client portal`}
-        subtitle="Manage appointments, share photos, pay online, and chat with Licky."
+        subtitle="Manage appointments, share photos, and pay online."
         onLogout={logout}
       >
         {client.lockedInDiscount && (
@@ -635,7 +640,7 @@ export default function ClientHub() {
               <div className="pt-2 border-t border-gray-100 space-y-3">
                 <h3 className="font-semibold text-gray-900 text-sm">Service address</h3>
                 <p className="text-xs text-gray-500">
-                  Where we come for grooming. Licky can also save this when you chat with him.
+                  Where we come for grooming.
                 </p>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">

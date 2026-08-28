@@ -1,11 +1,6 @@
 import "server-only";
 import { companyLegal } from "@/lib/company-legal";
 import { sendSms } from "@/lib/notifications/twilio";
-import {
-  OWNER_BOOKING_NOTIFY_PHONE,
-  GROOMER_BOOKING_SMS_PHONES,
-  GROOMER_EXTRA_BOOKING_SMS_PHONES,
-} from "@/lib/notifications/staff-sms-recipients";
 import { phonesMatch } from "@/lib/leads/normalize";
 import {
   appendInteraction,
@@ -15,7 +10,7 @@ import {
 } from "./store";
 import { crmPhoneDigits, crmPhoneE164, displayNameFromContact } from "./phone";
 import type { CrmContact, CrmInteraction } from "./types";
-import { TEAM_SMS_CONTACT_ID } from "./team-sms-constants";
+import { TEAM_SMS_CONTACT_ID, TEAM_SMS_ROSTER } from "./team-sms-constants";
 
 export type TeamSmsParticipant = {
   id: string;
@@ -30,25 +25,25 @@ export const DEFAULT_TEAM_SMS_PARTICIPANTS: TeamSmsParticipant[] = [
   {
     id: "melanie",
     name: "Melanie",
-    phone: GROOMER_BOOKING_SMS_PHONES.melanie ?? "7142517732",
+    phone: TEAM_SMS_ROSTER.melanie,
     role: "groomer",
   },
   {
     id: "jessica",
     name: "Jessica",
-    phone: GROOMER_BOOKING_SMS_PHONES.jessica ?? "6823665544",
+    phone: TEAM_SMS_ROSTER.jessica,
     role: "groomer",
   },
   {
     id: "chris",
     name: "Chris",
-    phone: GROOMER_EXTRA_BOOKING_SMS_PHONES.jessica?.[0] ?? "6616747893",
+    phone: TEAM_SMS_ROSTER.chris,
     role: "groomer",
   },
   {
     id: "matthew",
     name: "Matthew",
-    phone: OWNER_BOOKING_NOTIFY_PHONE,
+    phone: TEAM_SMS_ROSTER.matthew,
     role: "owner",
   },
 ];

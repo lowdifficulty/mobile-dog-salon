@@ -15,7 +15,7 @@ import CrmContactEditor, {
   contactToFormValues,
   type CrmContactFormValues,
 } from "@/components/crm/CrmContactEditor";
-import { isTeamSmsContactId } from "@/lib/crm/team-sms-constants";
+import { isTeamSmsContactId, TEAM_SMS_SENDER_LABEL } from "@/lib/crm/team-sms-constants";
 
 type Platform = {
   configured: boolean;
@@ -791,7 +791,7 @@ export default function CrmPanel() {
                     </div>
                     <div className="text-xs text-gray-500 truncate">
                       {teamRow
-                        ? "Internal team · Mary line"
+                        ? `Internal team · ${TEAM_SMS_SENDER_LABEL}`
                         : formatPhoneDisplay(c.phone)}
                       {!teamRow && c.pets[0]?.petName ? ` · ${c.pets[0].petName}` : ""}
                       {!teamRow && groomerId === "melanie" && " · Melanie"}

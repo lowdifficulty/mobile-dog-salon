@@ -11,6 +11,10 @@ import { ensureCrmSeeded } from "@/lib/crm/seed";
 import { recordInboundSms } from "@/lib/crm/messaging";
 import { handleInboundSmsWithBot } from "@/lib/crm/sms-bot";
 import { findContactByPhone } from "@/lib/crm/store";
+import {
+  isTeamParticipantPhone,
+  recordTeamInboundSms,
+} from "@/lib/crm/team-sms";
 import { hasActiveSmsBotSession } from "@/lib/crm/sms-bot-session";
 import { smsStatusCallbackUrl } from "@/lib/notifications/twilio";
 
@@ -58,6 +62,16 @@ export async function POST(request: Request) {
 
   const existingContact = await findContactByPhone(from);
   const inBotFlow = hasActiveSmsBotSession(existingContact?.smsBotSession);
+  const teamInbound = isTeamParticipantPhone(from);
+
+  if (teamInbound) {
+    try {
+      await recordTeamInboundSms({ from, body: rawBody, twilioSid: messageSid });
+    } catch (err) {
+      console.error("Team inbound SMS failed:", err);
+    }
+    return twiml();
+  }
 
   if (isSmsOptOut(rawBody)) {
     await recordSmsOptOut(from);

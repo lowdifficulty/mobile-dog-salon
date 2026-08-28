@@ -6,6 +6,8 @@ import {
   buildAppointmentFollowUpSms,
   buildLeadFollowUpSms,
 } from "@/lib/crm/sms-bot";
+import { sendTeamSms } from "@/lib/crm/team-sms";
+import { isTeamSmsContactId } from "@/lib/crm/team-sms-constants";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -13,15 +15,49 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const user = await requireStaff();
     const { id } = await params;
-    const contact = await findContactById(id);
-    if (!contact) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
 
     const body = (await request.json()) as {
       body?: string;
       template?: "lead_follow_up" | "appointment_follow_up";
+      recipients?: string[];
     };
+
+    if (isTeamSmsContactId(id)) {
+      const text = body.body?.trim() || "";
+      if (!text) {
+        return NextResponse.json({ error: "Message body is required" }, { status: 400 });
+      }
+
+      const result = await sendTeamSms({
+        body: text,
+        recipientPhones: body.recipients,
+        staffUserId: user.email || user.name,
+        staffName: user.name,
+      });
+
+      if (!result.ok) {
+        return NextResponse.json(
+          {
+            error: result.error || "Failed to send team SMS",
+            interaction: result.interaction,
+            sentCount: result.sentCount,
+          },
+          { status: 502 }
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        interaction: result.interaction,
+        sentCount: result.sentCount,
+        warning: result.error,
+      });
+    }
+
+    const contact = await findContactById(id);
+    if (!contact) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
     let text = body.body?.trim() || "";
     if (!text && body.template === "lead_follow_up") {

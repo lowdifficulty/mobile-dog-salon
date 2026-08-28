@@ -37,6 +37,13 @@ import type {
   CrmConversationView,
   CrmInteraction,
 } from "./types";
+import {
+  ensureTeamSmsContact,
+  isTeamSmsContact,
+  listTeamParticipants,
+  type TeamSmsParticipant,
+} from "./team-sms";
+import { TEAM_SMS_CONTACT_ID } from "./team-sms-constants";
 
 const FOLLOW_UP_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -370,6 +377,33 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   }
   contacts = sortContacts(contacts, sortField, sortOrder);
 
+  const teamContact = await ensureTeamSmsContact();
+  const teamEnriched = enrichContactWithSortMeta(teamContact, appointments);
+  const showTeamThread =
+    (!filter.view || filter.view === "all") &&
+    !filter.tag &&
+    (!filter.status || filter.status === "all" || filter.status === "inactive") &&
+    (!filter.unread || (teamEnriched.unreadCount ?? 0) > 0) &&
+    (!q ||
+      [
+        teamEnriched.fullName,
+        "team",
+        "internal",
+        "mary",
+        ...listTeamParticipants(teamContact).flatMap((p) => [p.name, p.phone]),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q));
+
+  if (showTeamThread) {
+    contacts = contacts.filter((c) => c.id !== TEAM_SMS_CONTACT_ID);
+    contacts = [teamEnriched, ...contacts];
+  } else {
+    contacts = contacts.filter((c) => c.id !== TEAM_SMS_CONTACT_ID);
+  }
+
   const all = data.contacts;
   const [platform, botEnabled, botConfig, metaStatusInfo, metaBotConfig] = await Promise.all([
     twilioStatus(),
@@ -399,12 +433,21 @@ export async function listCrmContacts(filter: CrmListFilter = {}): Promise<{
   };
 }
 
+export type CrmContactDetailResponse = CrmContactDetail & {
+  teamParticipants?: TeamSmsParticipant[];
+  isTeamSms?: boolean;
+  businessLineDisplay?: string;
+};
+
 export async function getCrmContactDetail(
   contactId: string
-): Promise<CrmContactDetail | null> {
+): Promise<CrmContactDetailResponse | null> {
   await ensureCrmSeeded();
   invalidateCrmReadCache();
-  const contact = await findContactById(contactId);
+  let contact = await findContactById(contactId);
+  if (!contact && contactId === TEAM_SMS_CONTACT_ID) {
+    contact = await ensureTeamSmsContact();
+  }
   if (!contact) return null;
 
   const { appointments } = await readSchedulingData();
@@ -436,7 +479,7 @@ export async function getCrmContactDetail(
   const interactions = await listInteractionsForContact(contactId);
   const enriched = enrichContactWithSortMeta(refreshed, appointments);
 
-  return {
+  const base: CrmContactDetailResponse = {
     ...enriched,
     fullName: displayNameFromContact(refreshed),
     interactions,
@@ -458,6 +501,19 @@ export async function getCrmContactDetail(
       .filter((a) => a.status === "cancelled")
       .sort((a, b) => b.startAt.localeCompare(a.startAt)),
   };
+
+  if (isTeamSmsContact(refreshed)) {
+    const { companyLegal } = await import("@/lib/company-legal");
+    return {
+      ...base,
+      fullName: "Team SMS",
+      isTeamSms: true,
+      teamParticipants: listTeamParticipants(refreshed),
+      businessLineDisplay: companyLegal.businessPhoneDisplay,
+    };
+  }
+
+  return base;
 }
 
 export async function listCrmInbox(limit = 80): Promise<{

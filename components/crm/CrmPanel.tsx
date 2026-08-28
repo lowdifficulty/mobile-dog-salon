@@ -15,6 +15,7 @@ import CrmContactEditor, {
   contactToFormValues,
   type CrmContactFormValues,
 } from "@/components/crm/CrmContactEditor";
+import { isTeamSmsContactId } from "@/lib/crm/team-sms-constants";
 
 type Platform = {
   configured: boolean;
@@ -81,8 +82,18 @@ type CrmInteraction = {
   metadata?: Record<string, string | number | boolean | null>;
 };
 
+type TeamSmsParticipant = {
+  id: string;
+  name: string;
+  phone: string;
+  role?: string;
+};
+
 type ContactDetail = CrmContact & {
   interactions: CrmInteraction[];
+  isTeamSms?: boolean;
+  teamParticipants?: TeamSmsParticipant[];
+  businessLineDisplay?: string;
   upcomingAppointments: {
     id: string;
     startAt: string;
@@ -299,7 +310,11 @@ export default function CrmPanel() {
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [teamRecipients, setTeamRecipients] = useState<string[]>([]);
+  const [customTeamPhone, setCustomTeamPhone] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+
+  const isTeamThread = isTeamSmsContactId(selectedId);
 
   useEffect(() => {
     if (deepLinkContactId.current && selectedId === deepLinkContactId.current && !isLargeScreen) {
@@ -354,6 +369,9 @@ export default function CrmPanel() {
       if (!res.ok) throw new Error("Could not load contact");
       const data = await res.json();
       setDetail(data.contact as ContactDetail);
+      if (data.contact?.isTeamSms && data.contact.teamParticipants?.length) {
+        setTeamRecipients(data.contact.teamParticipants.map((p: TeamSmsParticipant) => p.phone));
+      }
       setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
     } catch (e) {
       if (!silent) setError(e instanceof Error ? e.message : "Detail load failed");
@@ -498,15 +516,24 @@ export default function CrmPanel() {
     setError(null);
     setBanner(null);
     try {
+      const payload = isTeamThread
+        ? { body: message, recipients: teamRecipients }
+        : template
+          ? { template }
+          : { body: message };
       const res = await fetch(`/api/admin/crm/contacts/${selectedId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(template ? { template } : { body: message }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "SMS failed");
       setMessage("");
-      setBanner("SMS sent");
+      setBanner(
+        isTeamThread
+          ? data.warning || `Team SMS sent to ${data.sentCount ?? teamRecipients.length} recipient(s)`
+          : "SMS sent"
+      );
       await loadDetail(selectedId);
       await loadContacts();
     } catch (e) {
@@ -514,6 +541,39 @@ export default function CrmPanel() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function addTeamParticipant() {
+    const phone = customTeamPhone.trim();
+    if (!phone) return;
+    setBusy("team-participant");
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/crm/team-sms/participants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not add participant");
+      setCustomTeamPhone("");
+      setTeamRecipients((prev) => {
+        const digits = phone.replace(/\D/g, "").slice(-10);
+        return prev.includes(digits) ? prev : [...prev, digits];
+      });
+      setBanner("Participant added");
+      if (selectedId) await loadDetail(selectedId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not add participant");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function toggleTeamRecipient(phone: string) {
+    setTeamRecipients((prev) =>
+      prev.includes(phone) ? prev.filter((p) => p !== phone) : [...prev, phone]
+    );
   }
 
   function openCallDialer() {
@@ -695,27 +755,33 @@ export default function CrmPanel() {
               const active = c.id === selectedId;
               const groomerId = c.primaryGroomerId ?? null;
               const showFollowUpMeta = view === "followUps" || c.isFollowUp;
+              const teamRow = isTeamSmsContactId(c.id);
               return (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => openConversation(c.id)}
-                  className={`w-full text-left px-3 py-2.5 sm:py-3 border-b border-gray-50 flex gap-3 ${groomerConversationRowClass(
-                    groomerId,
-                    active
-                  )}`}
+                  className={`w-full text-left px-3 py-2.5 sm:py-3 border-b border-gray-50 flex gap-3 ${
+                    teamRow
+                      ? active
+                        ? "bg-violet-50 ring-1 ring-inset ring-violet-200"
+                        : "bg-violet-50/40 hover:bg-violet-50"
+                      : groomerConversationRowClass(groomerId, active)
+                  }`}
                 >
                   <div
-                    className={`h-10 w-10 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${groomerConversationAvatarClass(
-                      groomerId
-                    )}`}
+                    className={`h-10 w-10 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+                      teamRow
+                        ? "bg-violet-600 text-white"
+                        : groomerConversationAvatarClass(groomerId)
+                    }`}
                   >
-                    {initials(c.fullName, c.phone)}
+                    {teamRow ? "TM" : initials(c.fullName, c.phone)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-semibold text-sm text-gray-900 truncate">
-                        {c.fullName || formatPhoneDisplay(c.phone)}
+                        {teamRow ? "Team SMS" : c.fullName || formatPhoneDisplay(c.phone)}
                       </div>
                       <div className="text-[10px] text-gray-400 shrink-0">
                         {showFollowUpMeta
@@ -724,10 +790,12 @@ export default function CrmPanel() {
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 truncate">
-                      {formatPhoneDisplay(c.phone)}
-                      {c.pets[0]?.petName ? ` · ${c.pets[0].petName}` : ""}
-                      {groomerId === "melanie" && " · Melanie"}
-                      {groomerId === "jessica" && " · Jessica"}
+                      {teamRow
+                        ? "Internal team · Mary line"
+                        : formatPhoneDisplay(c.phone)}
+                      {!teamRow && c.pets[0]?.petName ? ` · ${c.pets[0].petName}` : ""}
+                      {!teamRow && groomerId === "melanie" && " · Melanie"}
+                      {!teamRow && groomerId === "jessica" && " · Jessica"}
                     </div>
                     {c.nextAppointmentAt && (
                       <div className="text-[11px] font-semibold text-emerald-700 mt-0.5">
@@ -789,7 +857,9 @@ export default function CrmPanel() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="font-bold text-brand truncate">
-                        {detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
+                        {isTeamThread
+                          ? "Team SMS"
+                          : detail?.fullName || selected.fullName || formatPhoneDisplay(selected.phone)}
                       </div>
                       {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
                         <CancelledStatusNote
@@ -800,10 +870,24 @@ export default function CrmPanel() {
                       )}
                     </div>
                     <div className="text-xs text-gray-500 truncate">
-                      {formatPhoneDisplay(selected.phone)}
-                      {selected.email ? ` · ${selected.email}` : ""}
+                      {isTeamThread
+                        ? `From ${detail?.businessLineDisplay || "business line"} · internal team`
+                        : formatPhoneDisplay(selected.phone)}
+                      {!isTeamThread && selected.email ? ` · ${selected.email}` : ""}
                     </div>
-                    {(detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
+                    {isTeamThread && detail?.teamParticipants && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {detail.teamParticipants.map((p) => (
+                          <span
+                            key={p.id}
+                            className="text-[10px] font-semibold bg-violet-100 text-violet-800 rounded-full px-2 py-0.5"
+                          >
+                            {p.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {!isTeamThread && (detail?.hasCancelledAppointment || selected.hasCancelledAppointment) && (
                       <div className="text-[11px] font-semibold text-gray-600 mt-0.5">
                         Cancelled
                         {(detail?.cancelledMethodLabel || selected.cancelledMethodLabel)
@@ -821,6 +905,7 @@ export default function CrmPanel() {
                   </div>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  {!isTeamThread && (
                   <button
                     type="button"
                     onClick={() => setEditOpen(true)}
@@ -828,6 +913,7 @@ export default function CrmPanel() {
                   >
                     Edit
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setMobileDetailsOpen(true)}
@@ -835,6 +921,7 @@ export default function CrmPanel() {
                   >
                     Info
                   </button>
+                  {!isTeamThread && (
                   <button
                     type="button"
                     onClick={openCallDialer}
@@ -842,6 +929,7 @@ export default function CrmPanel() {
                   >
                     Call
                   </button>
+                  )}
                 </div>
               </div>
 
@@ -856,6 +944,15 @@ export default function CrmPanel() {
                     ix.summary ||
                     (ix.callStatus ? `Call ${ix.callStatus}` : "Call");
                   const callTranscript = ix.transcript || (isCall ? ix.body : undefined);
+                  const teamMeta = ix.metadata?.teamSms === true;
+                  const teamSender =
+                    typeof ix.metadata?.senderName === "string"
+                      ? ix.metadata.senderName
+                      : undefined;
+                  const teamRecipientsLabel =
+                    typeof ix.metadata?.recipientNames === "string"
+                      ? ix.metadata.recipientNames
+                      : undefined;
                   return (
                     <div
                       key={ix.id}
@@ -897,9 +994,15 @@ export default function CrmPanel() {
                                   : "Bot"
                                 : ix.actor === "system" && ix.channel === "sms"
                                   ? "Confirmation"
-                                  : mine
-                                    ? "You"
-                                    : "Customer"}
+                                  : teamMeta && mine
+                                    ? teamRecipientsLabel
+                                      ? `Mary → ${teamRecipientsLabel}`
+                                      : ix.staffName || "Mary"
+                                    : teamMeta && teamSender
+                                      ? teamSender
+                                      : mine
+                                        ? "You"
+                                        : "Customer"}
                           {" · "}
                           {formatWhen(ix.createdAt)}
                           {isCall && ix.durationSeconds
@@ -961,11 +1064,51 @@ export default function CrmPanel() {
               </div>
 
               <div className="bg-white border-t border-gray-200 p-3 space-y-2 shrink-0">
+                {isTeamThread && detail?.teamParticipants && (
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-semibold text-gray-600">Recipients</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detail.teamParticipants.map((p) => {
+                        const selectedRecipient = teamRecipients.includes(p.phone);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => toggleTeamRecipient(p.phone)}
+                            className={`text-xs font-semibold rounded-full px-2.5 py-1 border ${
+                              selectedRecipient
+                                ? "bg-violet-600 text-white border-violet-600"
+                                : "bg-white text-gray-600 border-gray-200"
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={customTeamPhone}
+                        onChange={(e) => setCustomTeamPhone(e.target.value)}
+                        placeholder="Add phone (any number)"
+                        className="min-w-0 flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void addTeamParticipant()}
+                        disabled={busy === "team-participant" || !customTeamPhone.trim()}
+                        className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-300 text-violet-800 disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={2}
-                  placeholder="Write an SMS…"
+                  placeholder={isTeamThread ? "Team message from Mary’s line…" : "Write an SMS…"}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none"
                 />
                 <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
@@ -973,34 +1116,44 @@ export default function CrmPanel() {
                     <button
                       type="button"
                       onClick={() => void sendSms()}
-                      disabled={busy === "sms" || !message.trim()}
+                      disabled={
+                        busy === "sms" ||
+                        !message.trim() ||
+                        (isTeamThread && teamRecipients.length === 0)
+                      }
                       className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand text-white disabled:opacity-50"
                     >
-                      Send
+                      {isTeamThread ? "Send to team" : "Send"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void sendSms("lead_follow_up")}
-                      disabled={busy === "sms"}
-                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
-                    >
-                      Lead follow-up
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void sendSms("appointment_follow_up")}
-                      disabled={busy === "sms"}
-                      className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
-                    >
-                      Rebook
-                    </button>
+                    {!isTeamThread && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void sendSms("lead_follow_up")}
+                          disabled={busy === "sms"}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                        >
+                          Lead follow-up
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void sendSms("appointment_follow_up")}
+                          disabled={busy === "sms"}
+                          className="px-3 py-2 rounded-lg text-xs font-semibold border border-gray-200"
+                        >
+                          Rebook
+                        </button>
+                      </>
+                    )}
                   </div>
+                  {!isTeamThread && (
                   <input
                     value={staffPhone}
                     onChange={(e) => setStaffPhone(e.target.value)}
                     placeholder="Your phone for click-to-call"
                     className="w-full sm:w-44 sm:ml-auto border border-gray-200 rounded-lg px-2 py-1.5 text-xs"
                   />
+                  )}
                 </div>
               </div>
             </>

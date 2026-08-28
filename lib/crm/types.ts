@@ -84,6 +84,8 @@ export interface CrmContact {
   metaPsid?: string;
   metaPlatform?: MetaPlatform;
   metaUsername?: string;
+  /** Team SMS thread — extra participant phones beyond defaults. */
+  teamParticipantPhones?: string[];
 }
 
 export type SmsBotSessionFlow =

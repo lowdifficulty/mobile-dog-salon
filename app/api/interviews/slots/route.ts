@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   applySlotAvailability,
   formatInterviewDateLong,
-  INTERVIEW_PAY,
   INTERVIEW_ROLE_TITLE,
   isInterviewDate,
   listInterviewDateOptions,
@@ -26,7 +25,6 @@ export async function GET(request: Request) {
       date,
       dateLabel: formatInterviewDateLong(date),
       roleTitle: INTERVIEW_ROLE_TITLE,
-      payDescription: INTERVIEW_PAY,
       slots,
     });
   }
@@ -39,7 +37,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     roleTitle: INTERVIEW_ROLE_TITLE,
-    payDescription: INTERVIEW_PAY,
     dates,
     activeDate: active?.date ?? null,
     dateLabel: active?.dateLabel ?? "",

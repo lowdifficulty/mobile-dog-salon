@@ -2,15 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  bookingToCalendarDetails,
-  type InterviewCalendarDetails,
-} from "@/lib/interviews/calendar-links";
-import {
   formatInterviewDateLong,
   formatInterviewDatePickerLabel,
-  INTERVIEW_DATES,
+  interviewAvailabilityHoursLabel,
 } from "@/lib/interviews/slots";
-import InterviewAddToCalendarButtons from "./InterviewAddToCalendarButtons";
 
 interface InterviewSlot {
   slotKey: string;
@@ -29,27 +24,32 @@ interface InterviewDateOption {
 
 interface InterviewIntro {
   roleTitle: string;
-  payDescription: string;
 }
 
+type Step = "schedule" | "contact";
+
 export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro }) {
+  const [step, setStep] = useState<Step>("schedule");
   const [dates, setDates] = useState<InterviewDateOption[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [dateLabel, setDateLabel] = useState("");
   const [slots, setSlots] = useState<InterviewSlot[]>([]);
   const [roleTitle, setRoleTitle] = useState(intro?.roleTitle ?? "");
-  const [payDescription, setPayDescription] = useState(intro?.payDescription ?? "");
   const [loading, setLoading] = useState(true);
   const [slotKey, setSlotKey] = useState("");
+  const [selectedTimeLabel, setSelectedTimeLabel] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [calendarDetails, setCalendarDetails] = useState<InterviewCalendarDetails | null>(
-    null
-  );
-  const [emailNote, setEmailNote] = useState("");
+  const [booked, setBooked] = useState<{
+    fullName: string;
+    date: string;
+    time: string;
+    roleTitle: string;
+  } | null>(null);
 
   const loadSlotsForDate = useCallback(async (date: string) => {
     setLoading(true);
@@ -64,14 +64,13 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
       setDateLabel(data.dateLabel ?? formatInterviewDateLong(date));
       setSlots(data.slots ?? []);
       if (!intro?.roleTitle) setRoleTitle(data.roleTitle ?? "");
-      if (!intro?.payDescription) setPayDescription(data.payDescription ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load interview times.");
       setSlots([]);
     } finally {
       setLoading(false);
     }
-  }, [intro?.payDescription, intro?.roleTitle]);
+  }, [intro?.roleTitle]);
 
   const refreshDates = useCallback(async () => {
     const res = await fetch("/api/interviews/slots", { cache: "no-store" });
@@ -83,7 +82,6 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
       dateLabel: string;
       dates: InterviewDateOption[];
       roleTitle: string;
-      payDescription: string;
       slots: InterviewSlot[];
     };
   }, []);
@@ -94,8 +92,13 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
     try {
       const data = await refreshDates();
       if (!intro?.roleTitle) setRoleTitle(data.roleTitle ?? "");
-      if (!intro?.payDescription) setPayDescription(data.payDescription ?? "");
-      const initialDate = data.activeDate ?? INTERVIEW_DATES[0];
+      const initialDate = data.activeDate ?? data.dates?.[0]?.date ?? "";
+      if (!initialDate) {
+        setSelectedDate("");
+        setDateLabel("");
+        setSlots([]);
+        return;
+      }
       setSelectedDate(initialDate);
       setDateLabel(data.dateLabel || formatInterviewDateLong(initialDate));
       setSlots(data.slots ?? []);
@@ -108,22 +111,37 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
     } finally {
       setLoading(false);
     }
-  }, [intro?.payDescription, intro?.roleTitle, refreshDates]);
+  }, [intro?.roleTitle, refreshDates]);
 
   useEffect(() => {
     void loadInitial();
   }, [loadInitial]);
 
-  const dateIndex = INTERVIEW_DATES.indexOf(selectedDate as (typeof INTERVIEW_DATES)[number]);
+  const dateIndex = dates.findIndex((d) => d.date === selectedDate);
   const canGoPrev = dateIndex > 0;
-  const canGoNext = dateIndex >= 0 && dateIndex < INTERVIEW_DATES.length - 1;
+  const canGoNext = dateIndex >= 0 && dateIndex < dates.length - 1;
 
   function goToRelativeDate(offset: -1 | 1) {
     if (dateIndex < 0) return;
     const nextIndex = dateIndex + offset;
-    if (nextIndex < 0 || nextIndex >= INTERVIEW_DATES.length) return;
+    if (nextIndex < 0 || nextIndex >= dates.length) return;
     setSlotKey("");
-    void loadSlotsForDate(INTERVIEW_DATES[nextIndex]);
+    setSelectedTimeLabel("");
+    void loadSlotsForDate(dates[nextIndex].date);
+  }
+
+  function handleSelectSlot(slot: InterviewSlot) {
+    setSlotKey(slot.slotKey);
+    setSelectedTimeLabel(slot.timeLabel);
+  }
+
+  function handleContinueToContact() {
+    if (!slotKey) {
+      setError("Please choose an interview time.");
+      return;
+    }
+    setError("");
+    setStep("contact");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -139,27 +157,26 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
       const res = await fetch("/api/interviews/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotKey, fullName, email, phone }),
+        body: JSON.stringify({ slotKey, fullName, email, phone, yearsExperience: Number(yearsExperience) }),
       });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 409 && selectedDate) {
           setSlotKey("");
+          setSelectedTimeLabel("");
+          setStep("schedule");
           await refreshDates();
           await loadSlotsForDate(selectedDate);
         }
         throw new Error(data.error ?? "Could not book interview");
       }
 
-      setCalendarDetails(bookingToCalendarDetails(data.booking));
-      const sent = data.emailsSent;
-      if (sent?.candidate) {
-        setEmailNote("A confirmation email with a calendar invite has been sent to your inbox.");
-      } else {
-        setEmailNote(
-          "Save your interview time using the calendar buttons below. (Email delivery is not configured on this server.)"
-        );
-      }
+      setBooked({
+        fullName: data.booking.fullName,
+        date: data.booking.date,
+        time: data.booking.time,
+        roleTitle: data.booking.roleTitle,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not book interview");
     } finally {
@@ -167,9 +184,9 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
     }
   }
 
-  if (calendarDetails) {
-    const firstName = calendarDetails.fullName.split(" ")[0] || calendarDetails.fullName;
-    const bookedDateLabel = formatInterviewDateLong(calendarDetails.date);
+  if (booked) {
+    const firstName = booked.fullName.split(" ")[0] || booked.fullName;
+    const bookedDateLabel = formatInterviewDateLong(booked.date);
     return (
       <div className="interview-booking-card">
         <div className="text-center mb-4">
@@ -178,14 +195,14 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="interview-booking-title">You&apos;re scheduled!</h2>
+          <h2 className="interview-booking-title">Request received!</h2>
           <p className="interview-booking-meta mt-2">
-            Thanks, {firstName}! {calendarDetails.roleTitle} · {bookedDateLabel} ·{" "}
-            {calendarDetails.time} Pacific · {calendarDetails.payDescription}
+            Thanks, {firstName}! {booked.roleTitle} · {bookedDateLabel} · {booked.time} Pacific
           </p>
-          <p className="text-[11px] text-gray-500 mt-1">{emailNote}</p>
+          <p className="text-[11px] text-gray-500 mt-1">
+            We&apos;ll confirm your interview time by email or phone.
+          </p>
         </div>
-        <InterviewAddToCalendarButtons details={calendarDetails} />
       </div>
     );
   }
@@ -196,13 +213,114 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
     (d) => d.date !== selectedDate && d.availableCount > 0
   );
 
+  if (step === "contact") {
+    return (
+      <form onSubmit={handleSubmit} className="interview-booking-card space-y-3 sm:space-y-3.5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent mb-1">Step 2 of 2</p>
+          <h1 className="interview-booking-title">Your contact details</h1>
+          <p className="interview-booking-meta">
+            <strong>{roleTitle || "Mobile Dog Groomer"}</strong> · {formatInterviewDateLong(selectedDate)} ·{" "}
+            {selectedTimeLabel} Pacific
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+          <div className="sm:col-span-2">
+            <label htmlFor="interview-name" className="interview-booking-label">
+              Full name <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="interview-name"
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="interview-booking-input"
+              autoComplete="name"
+            />
+          </div>
+          <div>
+            <label htmlFor="interview-phone" className="interview-booking-label">
+              Phone <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="interview-phone"
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="interview-booking-input"
+              autoComplete="tel"
+            />
+          </div>
+          <div>
+            <label htmlFor="interview-email" className="interview-booking-label">
+              Email <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="interview-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="interview-booking-input"
+              autoComplete="email"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="interview-experience" className="interview-booking-label">
+              Years of grooming experience <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="interview-experience"
+              type="number"
+              required
+              min={0}
+              max={60}
+              step={1}
+              inputMode="numeric"
+              value={yearsExperience}
+              onChange={(e) => setYearsExperience(e.target.value)}
+              className="interview-booking-input"
+              placeholder="e.g. 3"
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setError("");
+              setStep("schedule");
+            }}
+            className="booking-form-ghost-btn flex-1 flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all"
+          >
+            Back
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="booking-form-ghost-btn flex-1 flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? "Booking…" : "Schedule interview"}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="interview-booking-card space-y-3 sm:space-y-3.5">
+    <div className="interview-booking-card space-y-3 sm:space-y-3.5">
       <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-accent mb-1">Step 1 of 2</p>
         <h1 className="interview-booking-title">Schedule Your Interview</h1>
         <p className="interview-booking-meta">
-          <strong>{roleTitle || "Mobile Dog Groomer"}</strong> ·{" "}
-          {payDescription || "$20/hour plus tips"} · 20 min · Pacific
+          <strong>{roleTitle || "Mobile Dog Groomer"}</strong> · 30 min · Mon–Thu ·{" "}
+          {interviewAvailabilityHoursLabel()} Pacific
         </p>
       </div>
 
@@ -226,7 +344,7 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
             </p>
             {selectedDateMeta && !loading && (
               <p className="text-[11px] text-gray-500 mt-0.5">
-                {formatInterviewDatePickerLabel(selectedDate)} · 9 AM–12 PM
+                {formatInterviewDatePickerLabel(selectedDate)} · {interviewAvailabilityHoursLabel()}
                 {selectedDateMeta.availableCount === 0 ? " · Fully booked" : ""}
               </p>
             )}
@@ -268,7 +386,7 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
                 key={slot.slotKey}
                 type="button"
                 disabled={!slot.available}
-                onClick={() => setSlotKey(slot.slotKey)}
+                onClick={() => handleSelectSlot(slot)}
                 className={`interview-slot-btn ${
                   !slot.available
                     ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed line-through"
@@ -284,65 +402,21 @@ export default function InterviewBookingForm({ intro }: { intro?: InterviewIntro
         )}
         {!loading && selectedDate && availableCount > 0 && (
           <p className="text-[11px] text-gray-500 mt-1">
-            {availableCount} open · Pacific Time
+            {availableCount} open · Pacific Time · Book at least 24 hours ahead
           </p>
         )}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-        <div className="sm:col-span-2">
-          <label htmlFor="interview-name" className="interview-booking-label">
-            Full name <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="interview-name"
-            type="text"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="interview-booking-input"
-            autoComplete="name"
-          />
-        </div>
-        <div>
-          <label htmlFor="interview-phone" className="interview-booking-label">
-            Phone <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="interview-phone"
-            type="tel"
-            required
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="interview-booking-input"
-            autoComplete="tel"
-          />
-        </div>
-        <div>
-          <label htmlFor="interview-email" className="interview-booking-label">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="interview-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="interview-booking-input"
-            autoComplete="email"
-          />
-        </div>
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
       <button
-        type="submit"
-        disabled={submitting || loading || !selectedDate || availableCount === 0}
+        type="button"
+        onClick={handleContinueToContact}
+        disabled={loading || !selectedDate || availableCount === 0 || !slotKey}
         className="booking-form-ghost-btn w-full flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {submitting ? "Booking…" : "Schedule interview"}
+        Continue
       </button>
-    </form>
+    </div>
   );
 }

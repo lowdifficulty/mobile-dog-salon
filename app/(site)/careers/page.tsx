@@ -4,13 +4,12 @@ import JobListings from "@/components/pages/JobListings";
 import FAQSection from "@/components/pages/FAQSection";
 import ContentSection from "@/components/pages/ContentSection";
 import CareersCTA, { LocationsCTA } from "@/components/pages/PageCTAs";
-import { ROUTES } from "@/lib/routes";
 import { IMAGE_SLOTS } from "@/lib/images";
 import { JOB_OPENINGS, CAREER_PERKS, CAREER_FAQS } from "@/lib/page-content";
 
 export const metadata: Metadata = {
   title: "Careers | Mobile Dog Salon",
-  description: "Join Mobile Dog Salon — hiring fleet service rep and part-time dog groomers at $30/hr commission in Orange County.",
+  description: "Join Mobile Dog Salon — hiring fleet service rep and part-time dog groomers in Orange County.",
 };
 
 export default function CareersPage() {
@@ -26,8 +25,7 @@ export default function CareersPage() {
         <div className="site-container max-w-3xl mx-auto text-center mb-4">
           <p className="text-gray-600 text-lg leading-relaxed">
             Currently hiring: <strong className="text-brand">1 Fleet Service Representative</strong> and{" "}
-            <strong className="text-brand">2 Part-Time Dog Groomers</strong> at{" "}
-            <strong className="text-accent">$30/hour commission</strong>.
+            <strong className="text-brand">2 Part-Time Dog Groomers</strong>.
           </p>
         </div>
         <div className="site-container">
@@ -44,12 +42,9 @@ export default function CareersPage() {
         <div className="site-container max-w-3xl mx-auto text-center">
           <h2 className="site-heading-section mb-6">Ready to Apply?</h2>
           <p className="text-gray-600 leading-relaxed mb-6">
-            Click <strong>Apply for This Role</strong> on any open position above to submit your
-            information and resume online. Groomer candidates can also{" "}
-            <a href={ROUTES.interviewBooking} className="site-link font-semibold">
-              schedule a 20-minute interview
-            </a>{" "}
-            on Tuesday, July 14 or Thursday, July 16 ($20/hour plus tips). You can also email{" "}
+            Click <strong>Apply for This Role</strong> on any open position above. Groomer candidates
+            schedule a 30-minute interview (Mon–Thu, 11 AM–2 PM Pacific) and upload sample groom
+            photos. You can also email{" "}
             <a href="mailto:careers@mobiledog-salon.com" className="site-link font-semibold">
               careers@mobiledog-salon.com
             </a>{" "}

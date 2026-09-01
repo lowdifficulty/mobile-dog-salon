@@ -1,4 +1,8 @@
-import { isValidInterviewSlotKey } from "./slots";
+import {
+  isInterviewSlotBookable,
+  isValidInterviewSlotKey,
+  parseInterviewSlotKey,
+} from "./slots";
 import type { InterviewBookingInput } from "./types";
 
 function isValidEmail(email: string): boolean {
@@ -19,9 +23,20 @@ export function validateInterviewBookingInput(body: unknown): InterviewBookingIn
   const fullName = String(raw.fullName ?? "").trim();
   const email = String(raw.email ?? "").trim();
   const phone = String(raw.phone ?? "").trim();
+  const yearsExperienceRaw = raw.yearsExperience;
+  const yearsExperience =
+    typeof yearsExperienceRaw === "number"
+      ? yearsExperienceRaw
+      : Number(String(yearsExperienceRaw ?? "").trim());
 
   if (!isValidInterviewSlotKey(slotKey)) {
     throw new Error("Please select a valid interview time.");
+  }
+  const parsed = parseInterviewSlotKey(slotKey);
+  if (!parsed || !isInterviewSlotBookable(parsed.date, parsed.time24)) {
+    throw new Error(
+      "Interview times must be booked at least 24 hours in advance. Please choose a later slot."
+    );
   }
   if (fullName.length < 2) {
     throw new Error("Please enter your full name.");
@@ -32,6 +47,9 @@ export function validateInterviewBookingInput(body: unknown): InterviewBookingIn
   if (!isValidPhone(phone)) {
     throw new Error("Please enter a valid phone number.");
   }
+  if (!Number.isFinite(yearsExperience) || yearsExperience < 0 || yearsExperience > 60) {
+    throw new Error("Please enter your years of grooming experience (0–60).");
+  }
 
-  return { slotKey, fullName, email, phone };
+  return { slotKey, fullName, email, phone, yearsExperience: Math.floor(yearsExperience) };
 }

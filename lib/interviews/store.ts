@@ -5,13 +5,15 @@ import path from "path";
 import { getRedisClient } from "@/lib/scheduling/redis-client";
 import { assertWritablePersistence } from "@/lib/scheduling/persistence";
 import {
-  INTERVIEW_PAY,
   INTERVIEW_ROLE_TITLE,
+  isInterviewSlotBookable,
   isValidInterviewSlotKey,
   parseInterviewSlotKey,
   formatInterviewTimeLabel,
 } from "./slots";
+import { groomPhotosFromValidated, validateGroomPhotoBatch } from "./photos";
 import type {
+  GroomPhoto,
   InterviewBooking,
   InterviewBookingInput,
   InterviewBookingsData,
@@ -94,12 +96,18 @@ export async function createInterviewBooking(
     throw new Error("Invalid interview time slot.");
   }
 
+  const parsed = parseInterviewSlotKey(input.slotKey)!;
+  if (!isInterviewSlotBookable(parsed.date, parsed.time24)) {
+    throw new Error(
+      "Interview times must be booked at least 24 hours in advance. Please choose a later slot."
+    );
+  }
+
   const data = await readInterviewBookingsData();
   if (data.bookings.some((b) => b.slotKey === input.slotKey)) {
     throw new Error("That interview time was just booked. Please choose another slot.");
   }
 
-  const parsed = parseInterviewSlotKey(input.slotKey)!;
   const now = new Date().toISOString();
   const booking: InterviewBooking = {
     id: randomUUID(),
@@ -110,8 +118,10 @@ export async function createInterviewBooking(
     email: input.email.trim().toLowerCase(),
     phone: input.phone.trim(),
     roleTitle: INTERVIEW_ROLE_TITLE,
-    payDescription: INTERVIEW_PAY,
+    yearsExperience: input.yearsExperience,
     bookedAt: now,
+    applicationStatus: "booked",
+    groomPhotos: [],
   };
 
   data.bookings.push(booking);
@@ -126,6 +136,47 @@ export async function deleteInterviewBooking(id: string): Promise<boolean> {
   data.bookings.splice(index, 1);
   await writeInterviewBookingsData(data);
   return true;
+}
+
+export async function getInterviewBookingById(id: string): Promise<InterviewBooking | null> {
+  const data = await readInterviewBookingsData();
+  return data.bookings.find((b) => b.id === id) ?? null;
+}
+
+export async function addGroomPhotosToBooking(
+  id: string,
+  photos: unknown
+): Promise<InterviewBooking> {
+  const data = await readInterviewBookingsData();
+  const booking = data.bookings.find((b) => b.id === id);
+  if (!booking) {
+    throw new Error("Application not found.");
+  }
+
+  const existingCount = booking.groomPhotos?.length ?? 0;
+  const validated = validateGroomPhotoBatch(photos, existingCount);
+  const newPhotos = groomPhotosFromValidated(validated);
+  booking.groomPhotos = [...(booking.groomPhotos ?? []), ...newPhotos];
+
+  await writeInterviewBookingsData(data);
+  return booking;
+}
+
+export async function completeInterviewApplication(id: string): Promise<InterviewBooking> {
+  const data = await readInterviewBookingsData();
+  const booking = data.bookings.find((b) => b.id === id);
+  if (!booking) {
+    throw new Error("Application not found.");
+  }
+
+  if (!booking.groomPhotos?.length) {
+    throw new Error("Please upload at least one groom photo before finishing.");
+  }
+
+  booking.applicationStatus = "complete";
+  booking.completedAt = new Date().toISOString();
+  await writeInterviewBookingsData(data);
+  return booking;
 }
 
 export async function updateInterviewBookingOutcome(

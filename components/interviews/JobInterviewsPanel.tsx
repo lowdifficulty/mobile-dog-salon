@@ -13,9 +13,13 @@ interface InterviewBookingRow {
   email: string;
   phone: string;
   roleTitle: string;
-  payDescription: string;
+  payDescription?: string;
+  yearsExperience?: number;
   bookedAt: string;
   outcome?: InterviewOutcome;
+  applicationStatus?: "booked" | "complete";
+  photoCount?: number;
+  completedAt?: string;
 }
 
 function formatWhen(iso: string) {
@@ -147,7 +151,7 @@ export default function JobInterviewsPanel() {
             {bookings.length} interview booking{bookings.length === 1 ? "" : "s"} · sorted by time
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
-            Groomer interviews · Tue Jul 14 & Thu Jul 16, 2026 · 9:00 AM–12:00 PM Pacific
+            Groomer interviews · Mon–Thu · 11:00 AM–2:00 PM Pacific
           </p>
         </div>
         <button
@@ -201,9 +205,17 @@ export default function JobInterviewsPanel() {
                     </p>
                     <p className="text-sm text-gray-600 mt-0.5">
                       {booking.email} · {formatPhoneDisplay(booking.phone)}
+                      {typeof booking.yearsExperience === "number"
+                        ? ` · ${booking.yearsExperience} yr${booking.yearsExperience === 1 ? "" : "s"} exp`
+                        : ""}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Booked {formatWhen(booking.bookedAt)}
+                      {booking.applicationStatus === "complete"
+                        ? ` · Application complete (${booking.photoCount ?? 0} photos)`
+                        : booking.applicationStatus === "booked"
+                          ? " · Awaiting groom photos"
+                          : ""}
                     </p>
                   </button>
 
@@ -256,7 +268,7 @@ export default function JobInterviewsPanel() {
                     <span
                       className={`text-xs font-semibold px-2 py-1 rounded-full border shrink-0 ${bookingPayBadgeClass(booking.outcome)}`}
                     >
-                      {booking.payDescription}
+                      {booking.roleTitle}
                     </span>
                   </div>
                 </div>

@@ -178,7 +178,7 @@ export const JOB_OPENINGS = [
     title: "Part-Time Dog Groomer",
     type: "Part-Time",
     count: 2,
-    pay: "$30/hour commission",
+    pay: "Discussed during interview",
     summary: "We're hiring two part-time groomers to join our Orange County mobile spa team. If you're skilled, patient, and love making dogs look and feel amazing — we want to meet you.",
     responsibilities: [
       "Provide one-on-one mobile grooming in our fully equipped vans",
@@ -204,14 +204,14 @@ export const CAREER_PERKS = [
   "One-on-one grooming — no chaotic salon floor",
   "Growing client base across Orange County",
   "Supportive, pet-loving team culture",
-  "Commission structure with transparent earnings ($30/hr for groomers)",
+  "Competitive compensation with transparent earnings",
   "Work with a brand people actually love — Good Dogs Take Baths!",
 ];
 
 export const CAREER_FAQS = [
   {
     question: "What positions are you hiring for right now?",
-    answer: "We're hiring one Fleet Service Representative and two Part-Time Dog Groomers at $30/hour commission.",
+    answer: "We're hiring one Fleet Service Representative and two Part-Time Dog Groomers.",
   },
   {
     question: "Do groomers need their own vehicle?",

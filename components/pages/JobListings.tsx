@@ -1,11 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { JobOpening } from "@/lib/page-content";
 import JobApplicationModal from "@/components/careers/JobApplicationModal";
+import GroomerApplicationModal from "@/components/careers/GroomerApplicationModal";
+
+const GROOMER_JOB_ID = "groomer-part-time";
 
 export default function JobListings({ jobs }: { jobs: JobOpening[] }) {
   const [applyJob, setApplyJob] = useState<JobOpening | null>(null);
+  const [showGroomerModal, setShowGroomerModal] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash.toLowerCase() === "#oc") {
+      setShowGroomerModal(true);
+    }
+  }, []);
+
+  function handleApply(job: JobOpening) {
+    if (job.id === GROOMER_JOB_ID) {
+      setShowGroomerModal(true);
+      return;
+    }
+    setApplyJob(job);
+  }
 
   return (
     <>
@@ -19,9 +38,11 @@ export default function JobListings({ jobs }: { jobs: JobOpening[] }) {
               <span className="px-3 py-1 bg-brand-light text-brand text-xs font-bold rounded-full">
                 {job.count} opening{job.count > 1 ? "s" : ""}
               </span>
-              <span className="px-3 py-1 bg-section-gray text-brand text-xs font-bold rounded-full">
-                {job.pay}
-              </span>
+              {job.id !== GROOMER_JOB_ID && (
+                <span className="px-3 py-1 bg-section-gray text-brand text-xs font-bold rounded-full">
+                  {job.pay}
+                </span>
+              )}
             </div>
             <h3 className="font-bold text-brand text-2xl mb-3">{job.title}</h3>
             <p className="text-gray-600 leading-relaxed mb-6">{job.summary}</p>
@@ -55,7 +76,7 @@ export default function JobListings({ jobs }: { jobs: JobOpening[] }) {
             </div>
             <button
               type="button"
-              onClick={() => setApplyJob(job)}
+              onClick={() => handleApply(job)}
               className="site-btn inline-flex text-sm"
             >
               Apply for This Role
@@ -66,6 +87,10 @@ export default function JobListings({ jobs }: { jobs: JobOpening[] }) {
 
       {applyJob && (
         <JobApplicationModal job={applyJob} onClose={() => setApplyJob(null)} />
+      )}
+
+      {showGroomerModal && (
+        <GroomerApplicationModal onClose={() => setShowGroomerModal(false)} />
       )}
     </>
   );

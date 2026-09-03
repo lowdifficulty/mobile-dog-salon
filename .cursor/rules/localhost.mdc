@@ -6,11 +6,22 @@ alwaysApply: true
 
 # Localhost after commands
 
-After running `npm run build`, `npm run verify`, `npm run qa`, or any command that changes the site bundle, confirm **http://localhost:3000** is serving the latest build.
+Read **docs/LOCALHOST.md** for full setup (especially Cloud Agent vs laptop).
 
-1. `postbuild` auto-runs `ensure-local` (restarts port 3000 after every local `npm run build`; skipped in CI).
-2. If localhost is down or stale after other work, run: `npm run ensure-local`
-3. Full clean rebuild + browser open: `npm run 67`
-4. Verify with: `curl.exe -s -o NUL -w "%{http_code}" http://localhost:3000/` (expect `200`)
+## Default port
 
-Do not leave the session with localhost down after site-changing commands.
+Port order: `LOCAL_PORT` → `PORT` → **3000**. Active port is written to `.local-server.port` when started via `ensure-local` / `local-server.mjs`.
+
+After running `npm run build`, `npm run verify`, `npm run qa`, or any command that changes the site bundle, confirm the local site is serving the latest build.
+
+1. `postbuild` auto-runs `ensure-local` (restarts the local port after every local `npm run build`; skipped in CI).
+2. If localhost is down or stale: `npm run ensure-local` or `LOCAL_PORT=3002 npm run ensure-local`
+3. Full clean rebuild + browser: `npm run 67`
+4. Print URL: `node scripts/print-local-url.mjs`
+5. Verify: `curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/` (expect `200`). On Windows: `curl.exe` instead of `curl`.
+
+If page is unstyled or chunks return 400: `rm -rf .next && npm run build`.
+
+## Cloud Agent (critical)
+
+HTTP 200 inside the VM does **not** mean the user can open `localhost` on their phone/laptop. Tell users to use **Cursor Desktop port forwarding** (Agents Window → plug icon), **remote desktop** on the agent, or **https://mobiledog-salon.com**. Do not leave the session with the VM server down after site-changing commands.

@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { killPort, localProcessEnv, startNextServerDetached } from "./local-server.mjs";
 
-const PORT = "3000";
+const PORT = String(Number.parseInt(process.env.LOCAL_PORT || process.env.PORT || "3000", 10) || 3000);
 const isWin = process.platform === "win32";
 const localUrl = `http://localhost:${PORT}`;
 

@@ -175,3 +175,114 @@ export function summarizeEmailAnalytics(sends: EmailSendRecord[]) {
 
   return { byTemplate, recent, totalSent: sends.length };
 }
+
+function applyLastEventToRecord(
+  record: EmailSendRecord,
+  lastEvent: string,
+  at: string
+): EmailSendRecord {
+  const next = { ...record, lastEventAt: at };
+  switch (lastEvent) {
+    case "delivered":
+    case "opened":
+    case "clicked":
+      next.deliveredAt = next.deliveredAt ?? at;
+      if (lastEvent === "opened" || lastEvent === "clicked") {
+        next.openedAt = next.openedAt ?? at;
+        if (!next.openCount) next.openCount = 1;
+      }
+      if (lastEvent === "clicked") {
+        next.clickedAt = next.clickedAt ?? at;
+        if (!next.clickCount) next.clickCount = 1;
+      }
+      break;
+    case "bounced":
+    case "failed":
+    case "suppressed":
+      next.bouncedAt = next.bouncedAt ?? at;
+      break;
+    case "complained":
+      next.deliveredAt = next.deliveredAt ?? at;
+      break;
+    default:
+      break;
+  }
+  return next;
+}
+
+/** Backfill delivery/open/click/bounce timestamps from Resend's email API. */
+export async function syncEmailDeliveryFromResend(options?: {
+  limit?: number;
+}): Promise<{
+  checked: number;
+  updated: number;
+  errors: number;
+  errorSample?: string;
+}> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not set");
+  }
+
+  const { Resend } = await import("resend");
+  const resend = new Resend(apiKey);
+  const data = await readEmailAnalytics();
+  const limit = Math.max(1, Math.min(options?.limit ?? 150, 500));
+
+  const candidates = [...data.sends]
+    .filter((s) => s.resendId)
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .slice(0, limit);
+
+  let updated = 0;
+  let errors = 0;
+  let errorSample: string | undefined;
+  const byId = new Map(data.sends.map((s, index) => [s.id, index]));
+
+  for (const candidate of candidates) {
+    const index = byId.get(candidate.id);
+    if (index === undefined || !candidate.resendId) continue;
+
+    try {
+      const got = await resend.emails.get(candidate.resendId);
+      if (got.error || !got.data?.last_event) {
+        errors += 1;
+        if (!errorSample && got.error) {
+          errorSample =
+            typeof got.error.message === "string"
+              ? got.error.message
+              : "Resend email lookup failed";
+        }
+        continue;
+      }
+      const at = got.data.created_at ?? new Date().toISOString();
+      const next = applyLastEventToRecord(candidate, got.data.last_event, at);
+      const changed =
+        next.deliveredAt !== candidate.deliveredAt ||
+        next.openedAt !== candidate.openedAt ||
+        next.clickedAt !== candidate.clickedAt ||
+        next.bouncedAt !== candidate.bouncedAt ||
+        next.openCount !== candidate.openCount ||
+        next.clickCount !== candidate.clickCount;
+      if (changed) {
+        data.sends[index] = next;
+        updated += 1;
+      }
+    } catch (err) {
+      errors += 1;
+      if (!errorSample) {
+        errorSample = err instanceof Error ? err.message : "Resend email lookup failed";
+      }
+    }
+  }
+
+  if (updated > 0) {
+    await writeEmailAnalytics(data);
+  }
+
+  if (errorSample && /restricted to only send emails/i.test(errorSample)) {
+    errorSample = `${errorSample}. Delivery sync needs a Resend API key with read access (not send-only).`;
+  }
+
+  return { checked: candidates.length, updated, errors, errorSample };
+}

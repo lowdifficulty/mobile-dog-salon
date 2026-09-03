@@ -13,7 +13,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { killPort, startNextServerDetached } from "./local-server.mjs";
 
-const PORT = 3000;
+const PORT = Number.parseInt(process.env.LOCAL_PORT || process.env.PORT || "3000", 10) || 3000;
 const BASE = `http://localhost:${PORT}`;
 const CHECK_ROUTES = ["/", "/franchise", "/book"];
 

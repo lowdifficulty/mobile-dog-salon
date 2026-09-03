@@ -19,6 +19,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+**Run on your PC (not Cloud Agent):** see **[docs/LOCAL-MACHINE.md](docs/LOCAL-MACHINE.md)** — `npm run 67` starts localhost on your machine.
+
+**Production-like local server:** `npm run 67`. Troubleshooting: [docs/LOCALHOST.md](docs/LOCALHOST.md).
+
 ## Booking
 
 - Click **Book an Appointment** anywhere on the site to open the multi-step form modal

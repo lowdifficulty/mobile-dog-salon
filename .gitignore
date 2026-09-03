@@ -43,3 +43,5 @@ _blog-import/
 _blog-image-links/
 *.log
 data/scheduling-history.json
+data/resend-webhook-config.json
+data/twilio-config.json

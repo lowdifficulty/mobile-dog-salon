@@ -1,23 +1,39 @@
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
 import { applyResendWebhookEvent } from "@/lib/notifications/email-analytics-store";
+import { resolveResendWebhookSecret } from "@/lib/notifications/resend-webhook-config";
 
 /** Resend webhook — delivery, open, click, bounce events. */
 export async function POST(request: Request) {
-  const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
-  if (secret) {
-    const provided = request.headers.get("resend-signature") ?? request.headers.get("svix-signature");
-    if (!provided) {
-      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
-    }
-    // Production: configure Svix verification when RESEND_WEBHOOK_SECRET is set.
-    // Accept signed payloads from Resend dashboard webhook URL.
-  }
+  const rawBody = await request.text();
+  const secret = await resolveResendWebhookSecret();
 
   let payload: { type?: string; created_at?: string; data?: { email_id?: string } };
-  try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+
+  if (secret) {
+    const id = request.headers.get("svix-id");
+    const timestamp = request.headers.get("svix-timestamp");
+    const signature = request.headers.get("svix-signature");
+    if (!id || !timestamp || !signature) {
+      return NextResponse.json({ error: "Missing signature headers" }, { status: 401 });
+    }
+    try {
+      const resend = new Resend(process.env.RESEND_API_KEY || "re_unused");
+      const verified = resend.webhooks.verify({
+        payload: rawBody,
+        headers: { id, timestamp, signature },
+        webhookSecret: secret,
+      }) as { type?: string; created_at?: string; data?: { email_id?: string } };
+      payload = verified;
+    } catch {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+  } else {
+    try {
+      payload = JSON.parse(rawBody) as typeof payload;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
   }
 
   if (!payload.type) {
